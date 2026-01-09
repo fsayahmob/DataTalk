@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Hook PreToolUse (pre-edit) pour Claude Code
+# Notifie le plugin VSCode avant une modification de fichier
+
+# Lire l'input JSON du hook depuis stdin
+input=$(cat)
+
+# Extraire les paramètres
+tool_name=$(echo "$input" | jq -r '.tool_name // empty')
+file_path=$(echo "$input" | jq -r '.tool_input.file_path // empty')
+
+# Ne s'applique qu'aux outils Edit et Write
+if [[ "$tool_name" != "Edit" && "$tool_name" != "Write" ]]; then
+  exit 0
+fi
+
+# Ignorer les fichiers non-code
+if [[ "$file_path" != *".ts" && "$file_path" != *".tsx" && "$file_path" != *".py" && "$file_path" != *".js" && "$file_path" != *".jsx" ]]; then
+  exit 0
+fi
+
+# Déterminer le type de fichier
+file_type="other"
+[[ "$file_path" == *".py" ]] && file_type="backend"
+[[ "$file_path" == *".ts" || "$file_path" == *".tsx" || "$file_path" == *".js" || "$file_path" == *".jsx" ]] && file_type="frontend"
+
+# Créer le fichier JSON pour le plugin VSCode
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_DIR="$(dirname "$SCRIPT_DIR")"
+
+cat > "$CLAUDE_DIR/pre-edit-data.json" <<EOF
+{
+  "hookType": "pre-edit",
+  "toolName": "$tool_name",
+  "filePath": "$file_path",
+  "fileType": "$file_type",
+  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+
+exit 0
