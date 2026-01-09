@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { SemanticStats, SavedReport } from "@/types";
+import { ChartIcon, ChevronRightIcon, SaveIcon } from "@/components/icons";
 
 interface AnalyticsZoneProps {
   collapsed: boolean;
@@ -36,10 +37,7 @@ export function AnalyticsZone({
             className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
             title="Ouvrir Analyse IA"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 3v18h18" />
-              <path d="M18 9l-5 5-4-4-3 3" />
-            </svg>
+            <ChartIcon size={16} />
           </button>
         </div>
       ) : (
@@ -47,10 +45,7 @@ export function AnalyticsZone({
           {/* Header Zone 3 */}
           <div className="h-12 px-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between">
             <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 3v18h18" />
-                <path d="M18 9l-5 5-4-4-3 3" />
-              </svg>
+              <ChartIcon size={14} />
               Analyse IA
             </h3>
             <Button
@@ -60,9 +55,7 @@ export function AnalyticsZone({
               onClick={() => onCollapse(true)}
               title="Réduire le panneau"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M13 19l7-7-7-7M6 19l7-7-7-7" />
-              </svg>
+              <ChevronRightIcon size={14} />
             </Button>
           </div>
 
@@ -218,9 +211,7 @@ export function AnalyticsZone({
             {/* Rapports sauvegardés */}
             <div className="p-3">
               <h4 className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                </svg>
+                <SaveIcon size={10} />
                 Rapports
               </h4>
               <div className="space-y-1.5">

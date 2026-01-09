@@ -3,6 +3,17 @@
 import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Message, PredefinedQuestion, Conversation } from "@/types";
+import {
+  ChatIcon,
+  ClockIcon,
+  PlusIcon,
+  ChevronLeftIcon,
+  SearchIcon,
+  ReplayIcon,
+  TokensIcon,
+  SendIcon,
+  StopIcon,
+} from "@/components/icons";
 
 // Animation 3 points
 function LoadingDots() {
@@ -103,9 +114,7 @@ export function ChatZone({
             className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
             title="Ouvrir le chat"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
+            <ChatIcon size={16} />
           </button>
         </div>
       ) : (
@@ -113,9 +122,7 @@ export function ChatZone({
           {/* Header Zone 1 */}
           <div className="h-12 px-3 border-b border-primary/20 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between">
             <h3 className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
+              <ChatIcon size={14} />
               Chat
             </h3>
             <div className="flex items-center gap-2">
@@ -126,10 +133,7 @@ export function ChatZone({
                 onClick={() => onShowHistoryChange(!showHistory)}
                 title="Historique des conversations"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
-                </svg>
+                <ClockIcon size={14} />
               </Button>
               <Button
                 variant="ghost"
@@ -141,9 +145,7 @@ export function ChatZone({
                 }}
                 title="Nouvelle conversation"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <PlusIcon size={14} />
               </Button>
               <Button
                 variant="ghost"
@@ -152,9 +154,7 @@ export function ChatZone({
                 onClick={() => onCollapse(true)}
                 title="Réduire le panneau"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-                </svg>
+                <ChevronLeftIcon size={14} />
               </Button>
             </div>
           </div>
@@ -176,9 +176,7 @@ export function ChatZone({
                         currentConversationId === conv.id ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 opacity-50">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
+                      <ChatIcon size={12} className="flex-shrink-0 opacity-50" />
                       <span className="truncate">{conv.title || "Conversation sans titre"}</span>
                     </button>
                   ))
@@ -193,10 +191,7 @@ export function ChatZone({
               <div className="space-y-4">
                 <div className="text-center py-6">
                   <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
+                    <SearchIcon size={24} className="text-primary" />
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Posez une question en langage naturel
@@ -249,19 +244,12 @@ export function ChatZone({
                 {msg.role === "assistant" && msg.response_time_ms && (
                   <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
+                      <ClockIcon size={10} />
                       {(msg.response_time_ms / 1000).toFixed(1)}s
                     </span>
                     {msg.tokens_input && msg.tokens_output && (
                       <span className="flex items-center gap-1">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                          <path d="M2 17l10 5 10-5" />
-                          <path d="M2 12l10 5 10-5" />
-                        </svg>
+                        <TokensIcon size={10} />
                         {msg.tokens_input + msg.tokens_output}
                       </span>
                     )}
@@ -276,10 +264,7 @@ export function ChatZone({
                     }}
                     className="mt-2 text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 4v6h6" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
+                    <ReplayIcon size={12} />
                     Relancer
                   </button>
                 )}
@@ -329,15 +314,7 @@ export function ChatZone({
                       : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
               >
-                {loading ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                )}
+                {loading ? <StopIcon size={14} /> : <SendIcon size={16} />}
               </button>
             </form>
             <p className="text-xs text-muted-foreground mt-2 text-center">
