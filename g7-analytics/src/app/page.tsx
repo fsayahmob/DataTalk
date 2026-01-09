@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
 import { AnalyticsZone } from "@/components/AnalyticsZone";
 import * as api from "@/lib/api";
+import { useLayout } from "@/hooks/useLayout";
 import {
   Message,
   PredefinedQuestion,
@@ -16,7 +17,20 @@ import {
 } from "@/types";
 
 export default function Home() {
-  // État
+  // Layout (zones rétractables, redimensionnement)
+  const {
+    zone1Collapsed,
+    zone3Collapsed,
+    zone1Width,
+    zone3Width,
+    isResizing,
+    containerRef,
+    setZone1Collapsed,
+    setZone3Collapsed,
+    setIsResizing,
+  } = useLayout();
+
+  // État conversation
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -25,22 +39,14 @@ export default function Home() {
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // UI
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [apiStatus, setApiStatus] = useState<"ok" | "error" | "unknown">("unknown");
   const [semanticStats, setSemanticStats] = useState<SemanticStats | null>(null);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
-
-  // Zones rétractables
-  const [zone1Collapsed, setZone1Collapsed] = useState(false);
-  const [zone3Collapsed, setZone3Collapsed] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-
-  // Largeurs des zones (en pourcentage)
-  const [zone1Width, setZone1Width] = useState(25);
-  const [zone3Width, setZone3Width] = useState(20);
-  const [isResizing, setIsResizing] = useState<"zone1" | "zone3" | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Filtres (objet pour VisualizationZone)
   const [filters, setFilters] = useState({
@@ -49,7 +55,6 @@ export default function Home() {
     noteMin: "",
     noteMax: "",
   });
-
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -60,44 +65,6 @@ export default function Home() {
     api.fetchSemanticStats().then(setSemanticStats);
     api.fetchGlobalStats().then(setGlobalStats);
   }, []);
-
-  // Gestion du redimensionnement des zones
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isResizing || !containerRef.current) return;
-
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const containerWidth = containerRect.width;
-
-      if (isResizing === "zone1") {
-        const newWidth = ((e.clientX - containerRect.left) / containerWidth) * 100;
-        // Limiter entre 15% et 50%
-        setZone1Width(Math.min(50, Math.max(15, newWidth)));
-      } else if (isResizing === "zone3") {
-        const newWidth = ((containerRect.right - e.clientX) / containerWidth) * 100;
-        // Limiter entre 10% et 35%
-        setZone3Width(Math.min(35, Math.max(10, newWidth)));
-      }
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(null);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-
-    if (isResizing) {
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isResizing]);
 
   // Fonctions de chargement utilisant api.ts
   const loadReports = () => api.fetchSavedReports().then(setSavedReports);

@@ -470,13 +470,13 @@ src/
 | Tâche | Fichier | Effort | Status |
 |-------|---------|--------|--------|
 | Migrer SVG vers icons.tsx | DataTable.tsx | 5 min | [x] |
-| Migrer SVG vers icons.tsx | VisualizationZone.tsx | 5 min | [ ] |
+| Migrer SVG vers icons.tsx | VisualizationZone.tsx | 5 min | [x] |
 
 ### Priorité 2 : Complexité (Risque faible)
 
 | Tâche | Fichier | Effort | Status |
 |-------|---------|--------|--------|
-| Créer hook `useLayout` (states layout) | page.tsx | 15 min | [ ] |
+| Créer hook `useLayout` (states layout) | page.tsx | 15 min | [x] |
 | Créer hook `useConversation` | page.tsx | 20 min | [ ] |
 | Extraire logique filtres | page.tsx | 10 min | [ ] |
 
