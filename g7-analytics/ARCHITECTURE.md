@@ -477,7 +477,7 @@ src/
 | Tâche | Fichier | Effort | Status |
 |-------|---------|--------|--------|
 | Créer hook `useLayout` (states layout) | page.tsx | 15 min | [x] |
-| Créer hook `useConversation` | page.tsx | 20 min | [ ] |
+| Créer hook `useConversation` | page.tsx | 20 min | [x] |
 | Extraire logique filtres | page.tsx | 10 min | [ ] |
 
 **États candidats pour useLayout :**
