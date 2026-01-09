@@ -1198,14 +1198,6 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Résumé texte */}
-                    <div className="bg-gradient-to-br from-amber-500/5 to-transparent border border-amber-500/10 rounded-lg p-2.5">
-                      <p className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-1">Résumé IA</p>
-                      <p className="text-[10px] text-muted-foreground leading-relaxed">
-                        {semanticStats.global.commentaires_enrichis.toLocaleString('fr-FR')} commentaires analysés sur {semanticStats.global.total_commentaires.toLocaleString('fr-FR')}.
-                        Tendance {semanticStats.global.sentiment_moyen >= 0.3 ? 'très positive' : semanticStats.global.sentiment_moyen >= 0 ? 'positive' : 'négative'}.
-                      </p>
-                    </div>
                   </div>
                 )}
 

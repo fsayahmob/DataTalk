@@ -74,11 +74,14 @@ export function Chart({ config, data }: ChartProps) {
     margin: { top: 20, right: 30, left: 20, bottom: 60 },
   };
 
+  // Multi-séries: utiliser le tableau Y si fourni, sinon une seule série
+  const yKeys = Array.isArray(config.y) ? config.y : [config.y];
+
   // Détecte si l'axe Y représente une note (valeurs entre 0 et 5)
-  const yValues = data.map(d => Number(d[config.y]) || 0);
-  const maxY = Math.max(...yValues);
-  const minY = Math.min(...yValues);
-  const isRatingScale = config.y?.includes("note") || (minY >= 0 && maxY <= 5.5);
+  const allYValues = yKeys.flatMap(yKey => data.map(d => Number(d[yKey]) || 0));
+  const maxY = Math.max(...allYValues);
+  const minY = Math.min(...allYValues);
+  const isRatingScale = yKeys.some(y => y?.includes("note")) || (minY >= 0 && maxY <= 5.5);
   const yDomain = isRatingScale ? [0, 5] : undefined;
 
   // Styles communs pour dark mode - couleurs explicites car Recharts n'interprète pas les variables CSS
@@ -93,10 +96,12 @@ export function Chart({ config, data }: ChartProps) {
         <ResponsiveContainer width="100%" height={400}>
           <BarChart {...commonProps}>
             <defs>
-              <linearGradient id={`${GRADIENT_ID}-bar`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a78bfa" stopOpacity={1} />
-                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.6} />
-              </linearGradient>
+              {yKeys.map((_, idx) => (
+                <linearGradient key={idx} id={`${GRADIENT_ID}-bar-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={1} />
+                  <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.6} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
@@ -116,12 +121,15 @@ export function Chart({ config, data }: ChartProps) {
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "#3f3f46", fillOpacity: 0.5 }} />
             <Legend wrapperStyle={legendStyle} />
-            <Bar
-              dataKey={config.y}
-              fill={`url(#${GRADIENT_ID}-bar)`}
-              radius={[6, 6, 0, 0]}
-              maxBarSize={60}
-            />
+            {yKeys.map((yKey, idx) => (
+              <Bar
+                key={yKey}
+                dataKey={yKey}
+                fill={`url(#${GRADIENT_ID}-bar-${idx})`}
+                radius={[6, 6, 0, 0]}
+                maxBarSize={60}
+              />
+            ))}
           </BarChart>
         </ResponsiveContainer>
       );
@@ -130,12 +138,6 @@ export function Chart({ config, data }: ChartProps) {
       return (
         <ResponsiveContainer width="100%" height={400}>
           <LineChart {...commonProps}>
-            <defs>
-              <linearGradient id={`${GRADIENT_ID}-line`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
-              </linearGradient>
-            </defs>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
               dataKey={config.x}
@@ -154,19 +156,24 @@ export function Chart({ config, data }: ChartProps) {
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={legendStyle} />
-            <Line
-              type="monotone"
-              dataKey={config.y}
-              stroke="#a78bfa"
-              strokeWidth={3}
-              dot={{ r: 4, fill: "#a78bfa", strokeWidth: 0 }}
-              activeDot={{ r: 6, fill: "#a78bfa", stroke: "#1c1c22", strokeWidth: 2 }}
-            />
+            {yKeys.map((yKey, idx) => (
+              <Line
+                key={yKey}
+                type="monotone"
+                dataKey={yKey}
+                stroke={COLORS[idx % COLORS.length]}
+                strokeWidth={3}
+                dot={{ r: 4, fill: COLORS[idx % COLORS.length], strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: COLORS[idx % COLORS.length], stroke: "#1c1c22", strokeWidth: 2 }}
+              />
+            ))}
           </LineChart>
         </ResponsiveContainer>
       );
 
     case "pie":
+      // Pie chart ne supporte qu'une série, on prend la première
+      const pieYKey = yKeys[0];
       return (
         <ResponsiveContainer width="100%" height={400}>
           <PieChart>
@@ -180,7 +187,7 @@ export function Chart({ config, data }: ChartProps) {
             </defs>
             <Pie
               data={data}
-              dataKey={config.y}
+              dataKey={pieYKey}
               nameKey={config.x}
               cx="50%"
               cy="50%"
@@ -210,10 +217,12 @@ export function Chart({ config, data }: ChartProps) {
         <ResponsiveContainer width="100%" height={400}>
           <AreaChart {...commonProps}>
             <defs>
-              <linearGradient id={`${GRADIENT_ID}-area`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.4} />
-                <stop offset="100%" stopColor="#a78bfa" stopOpacity={0.05} />
-              </linearGradient>
+              {yKeys.map((_, idx) => (
+                <linearGradient key={idx} id={`${GRADIENT_ID}-area-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.05} />
+                </linearGradient>
+              ))}
             </defs>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
@@ -233,13 +242,16 @@ export function Chart({ config, data }: ChartProps) {
             />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={legendStyle} />
-            <Area
-              type="monotone"
-              dataKey={config.y}
-              stroke="#a78bfa"
-              strokeWidth={2}
-              fill={`url(#${GRADIENT_ID}-area)`}
-            />
+            {yKeys.map((yKey, idx) => (
+              <Area
+                key={yKey}
+                type="monotone"
+                dataKey={yKey}
+                stroke={COLORS[idx % COLORS.length]}
+                strokeWidth={2}
+                fill={`url(#${GRADIENT_ID}-area-${idx})`}
+              />
+            ))}
           </AreaChart>
         </ResponsiveContainer>
       );

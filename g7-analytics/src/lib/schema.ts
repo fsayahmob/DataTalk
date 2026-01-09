@@ -37,7 +37,7 @@ export type ChartType = typeof CHART_TYPES[number];
 export interface ChartConfig {
   type: ChartType;
   x: string;
-  y: string;
+  y: string | string[];  // Une ou plusieurs séries Y
   color?: string;
   title: string;
 }

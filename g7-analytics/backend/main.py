@@ -91,10 +91,25 @@ Réponds UNIQUEMENT en JSON valide avec cette structure exacte:
   "chart": {{
     "type": "bar|line|pie|area|scatter|none",
     "x": "nom_colonne_axe_x",
-    "y": "nom_colonne_axe_y",
+    "y": "nom_colonne_axe_y OU [\"col1\", \"col2\"] pour plusieurs séries",
     "title": "Titre du graphique"
   }}
-}}"""
+}}
+
+IMPORTANT pour les graphiques multi-séries:
+- Si l'utilisateur demande de comparer plusieurs métriques (ex: "note véhicule ET note chauffeur"), utilise un tableau pour y: ["note_vehicule", "note_chauffeur"]
+- Chaque série aura une couleur différente automatiquement
+
+GRAPHIQUES PAR DIMENSION (ex: "évolution par catégorie", "par type de chauffeur"):
+- Quand l'utilisateur veut voir une évolution temporelle ventilée par une dimension (catégorie, type, etc.), utilise PIVOT pour créer une colonne par valeur de dimension
+- Exemple pour "sentiment par jour et par catégorie":
+  SQL: SELECT dat_course,
+       AVG(CASE WHEN categorie='CHAUFFEUR_COMPORTEMENT' THEN sentiment_categorie END) as chauffeur_comportement,
+       AVG(CASE WHEN categorie='PRIX_FACTURATION' THEN sentiment_categorie END) as prix_facturation,
+       AVG(CASE WHEN categorie='PONCTUALITE' THEN sentiment_categorie END) as ponctualite
+       FROM evaluation_categories GROUP BY dat_course ORDER BY dat_course
+  chart.y: ["chauffeur_comportement", "prix_facturation", "ponctualite"]
+- Limite à 5-6 séries max pour la lisibilité (prends les plus fréquentes)"""
 
 
 # Modèles Pydantic
@@ -105,7 +120,7 @@ class QuestionRequest(BaseModel):
 class ChartConfig(BaseModel):
     type: str
     x: str | None = None
-    y: str | None = None
+    y: str | list[str] | None = None  # Une ou plusieurs séries Y
     title: str = ""
     color: str | None = None
 
