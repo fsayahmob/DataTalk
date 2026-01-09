@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
 import { AnalyticsZone } from "@/components/AnalyticsZone";
 import {
@@ -12,28 +13,6 @@ import {
   Conversation,
   SemanticStats,
 } from "@/types";
-
-// Animation 3 points
-function LoadingDots() {
-  return (
-    <span className="inline-flex items-center gap-1">
-      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-      <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-    </span>
-  );
-}
-
-// Icônes par catégorie
-function CategoryIcon({ icon }: { icon: string }) {
-  const icons: Record<string, string> = {
-    star: "★",
-    trophy: "🏆",
-    "trending-up": "📈",
-    search: "🔍",
-  };
-  return <span className="mr-2">{icons[icon] || "•"}</span>;
-}
 
 export default function Home() {
   // État
@@ -69,7 +48,6 @@ export default function Home() {
     noteMax: "",
   });
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Charger les données au démarrage
   useEffect(() => {
@@ -79,11 +57,6 @@ export default function Home() {
     checkApiStatus();
     fetchSemanticStats();
   }, []);
-
-  // Scroll vers le bas quand les messages changent
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
 
   // Gestion du redimensionnement des zones
   useEffect(() => {
@@ -344,15 +317,25 @@ export default function Home() {
     }
   };
 
-  // Grouper les questions par catégorie
-  const questionsByCategory = predefinedQuestions.reduce(
-    (acc, q) => {
-      if (!acc[q.category]) acc[q.category] = [];
-      acc[q.category].push(q);
-      return acc;
-    },
-    {} as Record<string, PredefinedQuestion[]>
-  );
+  // Handlers pour ChatZone
+  const handleLoadConversation = async (conv: Conversation) => {
+    setCurrentConversationId(conv.id);
+    try {
+      const res = await fetch(`http://localhost:8000/conversations/${conv.id}/messages`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+      setSelectedMessage(null);
+      setShowHistory(false);
+    } catch (e) {
+      console.error("Erreur chargement messages:", e);
+    }
+  };
+
+  const handleNewConversation = () => {
+    setCurrentConversationId(null);
+    setMessages([]);
+    setSelectedMessage(null);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -411,296 +394,29 @@ export default function Home() {
 
       {/* Main Content - 3 Panneaux */}
       <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
-        {/* Zone 1: Chat - Fond plus sombre */}
-        <div
-          className={`flex flex-col bg-[hsl(260_10%_10%)] ${zone1Collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
-          style={zone1Collapsed ? undefined : { width: `${zone1Width}%` }}
-        >
-          {zone1Collapsed ? (
-            <div className="flex-1 flex flex-col items-center pt-3 gap-2">
-              <button
-                onClick={() => setZone1Collapsed(false)}
-                className="w-10 h-10 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center hover:shadow-lg hover:shadow-primary/25 transition-all"
-                title="Ouvrir le chat"
-              >
-                <span className="text-primary-foreground font-bold text-xs">G7</span>
-              </button>
-              <button
-                onClick={() => {
-                  setZone1Collapsed(false);
-                  setCurrentConversationId(null);
-                  setMessages([]);
-                  setSelectedMessage(null);
-                }}
-                className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-                title="Nouvelle conversation"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-              </button>
-              <button
-                onClick={() => setZone1Collapsed(false)}
-                className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-                title="Messages"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Header Zone 1 */}
-              <div className="h-12 px-3 border-b border-primary/20 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between">
-                <h3 className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                  Chat
-                </h3>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`h-7 w-7 p-0 hover:bg-primary/20 ${showHistory ? 'bg-primary/20' : ''}`}
-                    onClick={() => setShowHistory(!showHistory)}
-                    title="Historique des conversations"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-primary/20"
-                    onClick={() => {
-                      setCurrentConversationId(null);
-                      setMessages([]);
-                      setSelectedMessage(null);
-                      setShowHistory(false);
-                    }}
-                    title="Nouvelle conversation"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 5v14M5 12h14" />
-                    </svg>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 w-7 p-0 hover:bg-primary/20"
-                    onClick={() => setZone1Collapsed(true)}
-                    title="Réduire le panneau"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
-                    </svg>
-                  </Button>
-                </div>
-              </div>
-
-              {/* Historique déroulant */}
-              {showHistory && (
-                <div className="border-b border-primary/20 bg-secondary/30 max-h-48 overflow-y-auto">
-                  <div className="p-2 space-y-1">
-                    {conversations.length === 0 ? (
-                      <p className="text-[10px] text-muted-foreground text-center py-2">
-                        Aucune conversation
-                      </p>
-                    ) : (
-                      conversations.slice(0, 15).map((conv) => (
-                        <button
-                          key={conv.id}
-                          onClick={async () => {
-                            setCurrentConversationId(conv.id);
-                            try {
-                              const res = await fetch(`http://localhost:8000/conversations/${conv.id}/messages`);
-                              const data = await res.json();
-                              setMessages(data.messages || []);
-                              setSelectedMessage(null);
-                              setShowHistory(false);
-                            } catch (e) {
-                              console.error("Erreur chargement messages:", e);
-                            }
-                          }}
-                          className={`w-full text-left text-[11px] p-2 rounded-lg hover:bg-secondary/70 transition-colors truncate flex items-center gap-2 ${
-                            currentConversationId === conv.id ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 opacity-50">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          </svg>
-                          <span className="truncate">{conv.title || "Conversation sans titre"}</span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-3">
-            {messages.length === 0 && (
-              <div className="space-y-4">
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-primary">
-                      <circle cx="11" cy="11" r="8" />
-                      <path d="m21 21-4.35-4.35" />
-                    </svg>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Posez une question en langage naturel
-                  </p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
-                    ou sélectionnez une suggestion ci-dessous
-                  </p>
-                </div>
-
-                {/* Questions prédéfinies */}
-                {Object.entries(questionsByCategory).map(([category, questions]) => (
-                  <div key={category}>
-                    <h4 className="text-xs font-medium text-primary/80 mb-2 flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-primary" />
-                      {category}
-                    </h4>
-                    <div className="space-y-1">
-                      {questions.map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => handleQuestionClick(q.question)}
-                          className="w-full text-left text-sm p-2.5 rounded-lg hover:bg-secondary/50 hover:border-primary/20 border border-transparent transition-all group"
-                        >
-                          <span className="opacity-70 group-hover:opacity-100 transition-opacity">
-                            <CategoryIcon icon={q.icon} />
-                          </span>
-                          <span className="text-foreground/80 group-hover:text-foreground transition-colors">
-                            {q.question}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`p-3 rounded-xl cursor-pointer transition-all ${
-                  msg.role === "user"
-                    ? "bg-primary/20 border border-primary/30 text-foreground ml-6"
-                    : "bg-secondary/30 border border-border/30 mr-4 hover:bg-secondary/50"
-                } ${selectedMessage?.id === msg.id ? "ring-1 ring-primary/50" : ""}`}
-                onClick={() => msg.role === "assistant" && setSelectedMessage(msg)}
-              >
-                <p className="text-sm leading-relaxed">{msg.content}</p>
-
-                {msg.role === "assistant" && msg.response_time_ms && (
-                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      {(msg.response_time_ms / 1000).toFixed(1)}s
-                    </span>
-                    {msg.tokens_input && msg.tokens_output && (
-                      <span className="flex items-center gap-1">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                          <path d="M2 17l10 5 10-5" />
-                          <path d="M2 12l10 5 10-5" />
-                        </svg>
-                        {msg.tokens_input + msg.tokens_output}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {msg.role === "user" && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleReplayMessage(msg);
-                    }}
-                    className="mt-2 text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M1 4v6h6" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </svg>
-                    Relancer
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {loading && (
-              <div className="bg-secondary/50 border border-border/50 p-3 rounded-xl mr-4 flex items-center gap-2">
-                <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
-                  <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
-                </div>
-                <span className="text-sm text-muted-foreground">Analyse en cours</span>
-                <LoadingDots />
-              </div>
-            )}
-
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Input - Style ChatGPT */}
-          <div className="p-4 border-t border-border/50 bg-card/30">
-            <form onSubmit={handleSubmit} className="relative">
-              <textarea
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    if (question.trim() && !loading) {
-                      handleSubmit(e);
-                    }
-                  }
-                }}
-                placeholder="Posez votre question..."
-                disabled={loading}
-                rows={3}
-                className="w-full resize-none rounded-xl border border-border/50 bg-secondary/30 pl-4 pr-12 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-              <button
-                type="submit"
-                disabled={loading || !question.trim()}
-                className={`absolute right-3 bottom-3 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  loading
-                    ? "bg-destructive text-destructive-foreground"
-                    : question.trim()
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25"
-                      : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {loading ? (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="4" y="4" width="16" height="16" rx="2" />
-                  </svg>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 19V5M5 12l7-7 7 7" />
-                  </svg>
-                )}
-              </button>
-            </form>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Entrée pour envoyer, Shift+Entrée pour nouvelle ligne
-            </p>
-          </div>
-            </>
-          )}
-        </div>
+        {/* Zone 1: Chat */}
+        <ChatZone
+          collapsed={zone1Collapsed}
+          onCollapse={setZone1Collapsed}
+          width={zone1Width}
+          isResizing={isResizing !== null}
+          messages={messages}
+          loading={loading}
+          question={question}
+          onQuestionChange={setQuestion}
+          onSubmit={handleSubmit}
+          selectedMessage={selectedMessage}
+          onSelectMessage={setSelectedMessage}
+          conversations={conversations}
+          currentConversationId={currentConversationId}
+          showHistory={showHistory}
+          onShowHistoryChange={setShowHistory}
+          onLoadConversation={handleLoadConversation}
+          onNewConversation={handleNewConversation}
+          predefinedQuestions={predefinedQuestions}
+          onQuestionClick={handleQuestionClick}
+          onReplayMessage={handleReplayMessage}
+        />
 
         {/* Resize Handle Zone 1 */}
         {!zone1Collapsed && (
