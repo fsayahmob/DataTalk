@@ -3,6 +3,16 @@
 import { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  FilterIcon,
+  SortIcon,
+  SortAscIcon,
+  SortDescIcon,
+  FirstPageIcon,
+  PrevPageIcon,
+  NextPageIcon,
+  LastPageIcon,
+} from "@/components/icons";
 
 interface DataTableProps {
   data: Record<string, unknown>[];
@@ -101,24 +111,12 @@ export function DataTable({ data }: DataTableProps) {
 
   const getSortIcon = (column: string) => {
     if (sortColumn !== column) {
-      return (
-        <svg className="w-4 h-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M7 15l5 5 5-5M7 9l5-5 5 5" />
-        </svg>
-      );
+      return <SortIcon size={16} className="opacity-30" />;
     }
     if (sortDirection === "asc") {
-      return (
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M7 9l5-5 5 5" />
-        </svg>
-      );
+      return <SortAscIcon size={16} />;
     }
-    return (
-      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M7 15l5 5 5-5" />
-      </svg>
-    );
+    return <SortDescIcon size={16} />;
   };
 
   const hasActiveFilters = Object.values(columnFilters).some(Boolean);
@@ -134,9 +132,7 @@ export function DataTable({ data }: DataTableProps) {
             onClick={() => setShowFilters(!showFilters)}
             className="h-8"
           >
-            <svg className="w-4 h-4 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-            </svg>
+            <FilterIcon size={16} className="mr-1" />
             Filtres
             {hasActiveFilters && (
               <span className="ml-1 bg-primary text-primary-foreground text-xs px-1.5 rounded-full">
@@ -241,9 +237,7 @@ export function DataTable({ data }: DataTableProps) {
               disabled={currentPage === 1}
               className="h-8 w-8 p-0"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M11 17l-5-5 5-5M18 17l-5-5 5-5" />
-              </svg>
+              <FirstPageIcon size={16} />
             </Button>
             <Button
               variant="outline"
@@ -252,9 +246,7 @@ export function DataTable({ data }: DataTableProps) {
               disabled={currentPage === 1}
               className="h-8 w-8 p-0"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
+              <PrevPageIcon size={16} />
             </Button>
 
             {/* Page numbers */}
@@ -291,9 +283,7 @@ export function DataTable({ data }: DataTableProps) {
               disabled={currentPage === totalPages}
               className="h-8 w-8 p-0"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 18l6-6-6-6" />
-              </svg>
+              <NextPageIcon size={16} />
             </Button>
             <Button
               variant="outline"
@@ -302,9 +292,7 @@ export function DataTable({ data }: DataTableProps) {
               disabled={currentPage === totalPages}
               className="h-8 w-8 p-0"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M13 17l5-5-5-5M6 17l5-5-5-5" />
-              </svg>
+              <LastPageIcon size={16} />
             </Button>
           </div>
         </div>

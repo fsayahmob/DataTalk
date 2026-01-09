@@ -459,6 +459,54 @@ src/
 
 ---
 
+---
+
+## Checklist Dette Technique
+
+> Lancez `npm run analyze` pour un rapport automatique.
+
+### Priorité 1 : Duplications (Sans risque)
+
+| Tâche | Fichier | Effort | Status |
+|-------|---------|--------|--------|
+| Migrer SVG vers icons.tsx | DataTable.tsx | 5 min | [x] |
+| Migrer SVG vers icons.tsx | VisualizationZone.tsx | 5 min | [ ] |
+
+### Priorité 2 : Complexité (Risque faible)
+
+| Tâche | Fichier | Effort | Status |
+|-------|---------|--------|--------|
+| Créer hook `useLayout` (states layout) | page.tsx | 15 min | [ ] |
+| Créer hook `useConversation` | page.tsx | 20 min | [ ] |
+| Extraire logique filtres | page.tsx | 10 min | [ ] |
+
+**États candidats pour useLayout :**
+- `zone1Collapsed`, `zone3Collapsed`
+- `zone1Width`, `zone3Width`
+- `isResizing`
+
+**États candidats pour useConversation :**
+- `messages`, `selectedMessage`
+- `currentConversationId`
+- `conversations`, `showHistory`
+- `loading`, `question`
+
+### Priorité 3 : Tests (Indépendant)
+
+| Tâche | Fichier | Effort | Status |
+|-------|---------|--------|--------|
+| Tests unitaires api.ts | src/lib/api.test.ts | 30 min | [ ] |
+| Tests composants (snapshot) | components/*.test.tsx | 1h | [ ] |
+
+### Priorité 4 : Backend (Optionnel)
+
+| Tâche | Fichier | Effort | Status |
+|-------|---------|--------|--------|
+| Découper get_semantic_stats | main.py | 20 min | [ ] |
+| Ajouter pylint/black | backend/ | 10 min | [ ] |
+
+---
+
 ## Évolutions possibles
 
 - [ ] Dockerisation pour déploiement Cloud Run
