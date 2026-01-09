@@ -269,8 +269,8 @@ export function Chart({ config, data }: ChartProps) {
               tickLine={axisLineStyle}
             />
             <YAxis
-              dataKey={config.y}
-              name={config.y}
+              dataKey={Array.isArray(config.y) ? config.y[0] : config.y}
+              name={Array.isArray(config.y) ? config.y[0] : config.y}
               tick={axisStyle}
               axisLine={axisLineStyle}
               tickLine={axisLineStyle}
