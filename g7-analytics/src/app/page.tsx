@@ -103,13 +103,14 @@ export default function Home() {
 
   const createNewConversation = async () => {
     try {
-      const res = await fetch("http://localhost:8000/conversations", { method: "POST" });
-      const data = await res.json();
-      setCurrentConversationId(data.id);
-      setMessages([]);
-      setSelectedMessage(null);
-      loadConversations();
-      return data.id;
+      const id = await api.createConversation();
+      if (id) {
+        setCurrentConversationId(id);
+        setMessages([]);
+        setSelectedMessage(null);
+        loadConversations();
+      }
+      return id;
     } catch (e) {
       console.error("Erreur création conversation:", e);
       return null;
@@ -155,17 +156,7 @@ export default function Home() {
     setQuestion("");
 
     try {
-      const res = await fetch(`http://localhost:8000/conversations/${convId}/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: questionWithFilters }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Erreur serveur");
-      }
+      const data = await api.analyzeInConversation(convId, questionWithFilters);
 
       const assistantMessage: Message = {
         id: data.message_id,

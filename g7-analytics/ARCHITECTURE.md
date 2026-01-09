@@ -286,10 +286,10 @@ const loadReports = () => api.fetchSavedReports().then(setSavedReports);
 | `loadConversations()` |
 | `return data.id` (utilisé par handleSubmit) |
 
-- [ ] Utiliser `api.createConversation()` pour le fetch
-- [ ] Garder TOUS les side effects
-- [ ] S'assurer que le `return data.id` fonctionne
-- [ ] Commit: `refactor: createNewConversation utilise api.ts`
+- [x] Utiliser `api.createConversation()` pour le fetch
+- [x] Garder TOUS les side effects
+- [x] S'assurer que le `return data.id` fonctionne
+- [x] Commit: `refactor: createNewConversation utilise api.ts`
 
 ---
 
@@ -302,10 +302,10 @@ const loadReports = () => api.fetchSavedReports().then(setSavedReports);
 | Gestion erreur | Crée un `errorMessage` local |
 | Post-action | `setMessages`, `setSelectedMessage`, `loadConversations` |
 
-- [ ] Utiliser `api.analyzeInConversation()`
-- [ ] Adapter le catch pour créer `errorMessage`
-- [ ] Garder tous les side effects
-- [ ] Commit: `refactor: handleSubmit utilise api.ts`
+- [x] Utiliser `api.analyzeInConversation()`
+- [x] Adapter le catch pour créer `errorMessage`
+- [x] Garder tous les side effects
+- [x] Commit: `refactor: handleSubmit utilise api.ts`
 
 ---
 
