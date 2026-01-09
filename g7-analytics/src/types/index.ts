@@ -57,3 +57,10 @@ export interface SemanticStats {
   strengths: CategoryStat[];
   categories_by_sentiment: CategoryStat[];
 }
+
+export interface GlobalStats {
+  total_evaluations: number;
+  note_moyenne: number;
+  total_commentaires: number;
+  total_chauffeurs: number;
+}

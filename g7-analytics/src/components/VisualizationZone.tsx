@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Chart } from "@/components/Chart";
 import { DataTable } from "@/components/DataTable";
-import { Message } from "@/types";
+import { Message, GlobalStats } from "@/types";
 
 interface VisualizationZoneProps {
   selectedMessage: Message | null;
@@ -23,6 +23,8 @@ interface VisualizationZoneProps {
     noteMin: string;
     noteMax: string;
   }) => void;
+  // KPIs globaux
+  globalStats: GlobalStats | null;
 }
 
 export function VisualizationZone({
@@ -30,6 +32,7 @@ export function VisualizationZone({
   onSaveReport,
   filters,
   onFiltersChange,
+  globalStats,
 }: VisualizationZoneProps) {
   const [showFilters, setShowFilters] = useState(false);
 
@@ -85,19 +88,27 @@ export function VisualizationZone({
         <div className="p-3 grid grid-cols-4 gap-3">
           <div className="bg-gradient-to-br from-card to-card/50 border border-border/50 rounded-xl p-3 text-center hover:border-primary/30 transition-colors">
             <p className="text-xs text-muted-foreground mb-1">Évaluations</p>
-            <p className="text-xl font-bold text-foreground">64 385</p>
+            <p className="text-xl font-bold text-foreground">
+              {globalStats?.total_evaluations?.toLocaleString("fr-FR") ?? "—"}
+            </p>
           </div>
           <div className="bg-gradient-to-br from-card to-card/50 border border-border/50 rounded-xl p-3 text-center hover:border-primary/30 transition-colors">
             <p className="text-xs text-muted-foreground mb-1">Note moyenne</p>
-            <p className="text-xl font-bold text-primary">4.84</p>
+            <p className="text-xl font-bold text-primary">
+              {globalStats?.note_moyenne?.toFixed(2) ?? "—"}
+            </p>
           </div>
           <div className="bg-gradient-to-br from-card to-card/50 border border-border/50 rounded-xl p-3 text-center hover:border-primary/30 transition-colors">
             <p className="text-xs text-muted-foreground mb-1">Commentaires</p>
-            <p className="text-xl font-bold text-foreground">7 256</p>
+            <p className="text-xl font-bold text-foreground">
+              {globalStats?.total_commentaires?.toLocaleString("fr-FR") ?? "—"}
+            </p>
           </div>
           <div className="bg-gradient-to-br from-card to-card/50 border border-border/50 rounded-xl p-3 text-center hover:border-primary/30 transition-colors">
             <p className="text-xs text-muted-foreground mb-1">Chauffeurs</p>
-            <p className="text-xl font-bold text-foreground">9 492</p>
+            <p className="text-xl font-bold text-foreground">
+              {globalStats?.total_chauffeurs?.toLocaleString("fr-FR") ?? "—"}
+            </p>
           </div>
         </div>
 

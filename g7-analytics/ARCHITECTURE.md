@@ -321,11 +321,11 @@ Actuellement les KPIs dans VisualizationZone sont hardcodés :
 <p>9 492</p>   // Chauffeurs - HARDCODÉ
 ```
 
-- [ ] Créer endpoint `GET /stats/global` dans backend
-- [ ] Ajouter type `GlobalStats` dans types/index.ts
-- [ ] Ajouter `fetchGlobalStats()` dans api.ts
-- [ ] Passer les KPIs en props à VisualizationZone
-- [ ] Commit: `feat: KPIs dynamiques depuis API`
+- [x] Créer endpoint `GET /stats/global` dans backend
+- [x] Ajouter type `GlobalStats` dans types/index.ts
+- [x] Ajouter `fetchGlobalStats()` dans api.ts
+- [x] Passer les KPIs en props à VisualizationZone
+- [x] Commit: `feat: KPIs dynamiques depuis API`
 
 ---
 

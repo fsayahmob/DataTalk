@@ -12,6 +12,7 @@ export type {
   Conversation,
   CategoryStat,
   SemanticStats,
+  GlobalStats,
 } from "@/types";
 
 // Types spécifiques API
@@ -179,6 +180,20 @@ export async function fetchSemanticStats(): Promise<
     return data;
   } catch (e) {
     console.error("Erreur chargement stats sémantiques:", e);
+    return null;
+  }
+}
+
+// Stats globales (KPIs)
+export async function fetchGlobalStats(): Promise<
+  import("@/types").GlobalStats | null
+> {
+  try {
+    const res = await fetch(`${API_BASE}/stats/global`);
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error("Erreur chargement stats globales:", e);
     return null;
   }
 }

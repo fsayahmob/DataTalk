@@ -654,6 +654,36 @@ async def get_semantic_stats():
     }
 
 
+# ========================================
+# ENDPOINT STATISTIQUES GLOBALES (KPIs)
+# ========================================
+
+@app.get("/stats/global")
+async def get_global_stats():
+    """
+    Retourne les statistiques globales pour les KPIs du dashboard.
+    Utilisé par VisualizationZone pour afficher les 4 KPIs principaux.
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    stats = db_connection.execute("""
+        SELECT
+            COUNT(*) as total_evaluations,
+            ROUND(AVG(note_eval), 2) as note_moyenne,
+            COUNT(CASE WHEN commentaire IS NOT NULL AND commentaire != '' THEN 1 END) as total_commentaires,
+            COUNT(DISTINCT cod_taxi) as total_chauffeurs
+        FROM evaluations
+    """).fetchone()
+
+    return {
+        "total_evaluations": stats[0],
+        "note_moyenne": stats[1],
+        "total_commentaires": stats[2],
+        "total_chauffeurs": stats[3]
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -13,6 +13,7 @@ import {
   SavedReport,
   Conversation,
   SemanticStats,
+  GlobalStats,
 } from "@/types";
 
 export default function Home() {
@@ -29,6 +30,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [apiStatus, setApiStatus] = useState<"ok" | "error" | "unknown">("unknown");
   const [semanticStats, setSemanticStats] = useState<SemanticStats | null>(null);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
 
   // Zones rétractables
   const [zone1Collapsed, setZone1Collapsed] = useState(false);
@@ -57,6 +59,7 @@ export default function Home() {
     loadConversations();
     api.checkApiStatus().then(setApiStatus);
     api.fetchSemanticStats().then(setSemanticStats);
+    api.fetchGlobalStats().then(setGlobalStats);
   }, []);
 
   // Gestion du redimensionnement des zones
@@ -373,6 +376,7 @@ export default function Home() {
           onSaveReport={handleSaveReport}
           filters={filters}
           onFiltersChange={setFilters}
+          globalStats={globalStats}
         />
 
         {/* Resize Handle Zone 3 */}
