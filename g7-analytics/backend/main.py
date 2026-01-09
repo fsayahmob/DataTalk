@@ -73,10 +73,15 @@ TYPES DE GRAPHIQUES DISPONIBLES:
 RÈGLES:
 1. Génère du SQL DuckDB valide
 2. Utilise des alias clairs en français pour les colonnes (ex: AS note_moyenne)
-3. Limite les résultats à 20 lignes max sauf demande explicite
+3. LIMITE des résultats:
+   - Si l'utilisateur demande "tous", "toutes", "liste", "liste complète", "exhaustif" → LIMIT 5000 (ou pas de limit)
+   - Si l'utilisateur demande un "top N" ou "les N premiers" → LIMIT N
+   - Pour les agrégations (GROUP BY, COUNT, AVG, etc.) → pas de limite stricte
+   - Sinon par défaut → LIMIT 500 (le frontend gère la pagination)
 4. Pour les graphiques pie, limite à 10 catégories max
 5. Choisis le type de graphique le plus adapté à la question
 6. Réponds toujours en français
+7. Pour les listes de texte (commentaires, etc.), utilise chart.type = "none"
 
 Réponds UNIQUEMENT en JSON valide avec cette structure exacte:
 {{
@@ -183,19 +188,33 @@ app.add_middleware(
 
 def execute_query(sql: str) -> list[dict[str, Any]]:
     """Exécute une requête SQL sur DuckDB"""
+    import pandas as pd
+    import numpy as np
+
     if not db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     result = db_connection.execute(sql).fetchdf()
     data = result.to_dict(orient="records")
 
-    # Convertir les types non sérialisables
+    # Convertir les types non sérialisables en JSON
     for row in data:
         for key, value in row.items():
-            if hasattr(value, 'item'):  # numpy types
+            # Pandas Timestamp
+            if isinstance(value, pd.Timestamp):
+                row[key] = value.isoformat() if not pd.isna(value) else None
+            # Numpy datetime64
+            elif isinstance(value, np.datetime64):
+                row[key] = str(value) if not pd.isna(value) else None
+            # Numpy types (int64, float64, etc.)
+            elif hasattr(value, 'item'):
                 row[key] = value.item()
+            # Python date/datetime/time
             elif str(type(value).__name__) in ('date', 'datetime', 'time'):
                 row[key] = str(value)
+            # NaN/NaT values
+            elif pd.isna(value):
+                row[key] = None
 
     return data
 
