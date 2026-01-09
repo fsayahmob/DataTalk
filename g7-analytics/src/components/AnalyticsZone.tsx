@@ -30,25 +30,15 @@ export function AnalyticsZone({
       style={collapsed ? undefined : { width: `${width}%` }}
     >
       {collapsed ? (
-        <div className="flex-1 flex flex-col items-center pt-3 gap-2">
+        <div className="flex-1 flex flex-col items-center pt-3">
           <button
             onClick={() => onCollapse(false)}
             className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Analyse sémantique"
+            title="Ouvrir Analyse IA"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => onCollapse(false)}
-            className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Rapports"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
+              <path d="M3 3v18h18" />
+              <path d="M18 9l-5 5-4-4-3 3" />
             </svg>
           </button>
         </div>
@@ -58,7 +48,8 @@ export function AnalyticsZone({
           <div className="h-12 px-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between">
             <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <path d="M3 3v18h18" />
+                <path d="M18 9l-5 5-4-4-3 3" />
               </svg>
               Analyse IA
             </h3>

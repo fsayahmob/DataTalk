@@ -97,30 +97,11 @@ export function ChatZone({
       style={collapsed ? undefined : { width: `${width}%` }}
     >
       {collapsed ? (
-        <div className="flex-1 flex flex-col items-center pt-3 gap-2">
+        <div className="flex-1 flex flex-col items-center pt-3">
           <button
             onClick={() => onCollapse(false)}
-            className="w-10 h-10 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center hover:shadow-lg hover:shadow-primary/25 transition-all"
+            className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
             title="Ouvrir le chat"
-          >
-            <span className="text-primary-foreground font-bold text-xs">G7</span>
-          </button>
-          <button
-            onClick={() => {
-              onCollapse(false);
-              onNewConversation();
-            }}
-            className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Nouvelle conversation"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
-          <button
-            onClick={() => onCollapse(false)}
-            className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Messages"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

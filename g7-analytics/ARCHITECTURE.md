@@ -153,6 +153,52 @@ g7-analytics/
 4. **Vue dénormalisée** : `evaluation_categories` pour requêtes thématiques simplifiées
 5. **Historique conversationnel** : Contexte maintenu pour des échanges naturels
 
+## Schéma des zones UI
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                                    ÉCRAN                                         │
+├────────┬─────────────────────────────────────────────────────────────────────────┤
+│        │                              HEADER                                     │
+│        │  ┌────────────────────────────────────────────────────────────────────┐ │
+│ SIDEBAR│  │ [G7]  G7 Analytics               [●] gemini-2.0-flash    [⚙]     │ │
+│ (global)  │       Text-to-SQL Dashboard                                        │ │
+│        │  └────────────────────────────────────────────────────────────────────┘ │
+│ ┌────┐ │                                                                         │
+│ │ ☰  │ ├──────────────┬────────────────────────────────┬────────────────────────┤
+│ ├────┤ │   ZONE 1     │         ZONE 2                 │      ZONE 3            │
+│ │ 📊 │ │   ChatZone   │    VisualizationZone           │   AnalyticsZone        │
+│ │    │ │              │                                │                        │
+│ │    │ │  - Chat IA   │  - KPIs globaux                │  - KPIs sémantiques    │
+│ │    │ │  - Questions │  - Filtres                     │  - Distribution        │
+│ │    │ │    prédéfinies│  - Graphique Recharts         │  - Alertes             │
+│ │    │ │  - Historique│  - DataTable                   │  - Points forts        │
+│ │    │ │  - Input     │  - Sauvegarder rapport         │  - Rapports sauvés     │
+│ └────┘ │              │                                │                        │
+│        │  Collapsed:  │  (non collapsable)             │  Collapsed:            │
+│        │  [💬] chat   │                                │  [📈] graphique        │
+│        └──────────────┴────────────────────────────────┴────────────────────────┘
+└──────────────────────────────────────────────────────────────────────────────────┘
+
+Légende:
+- SIDEBAR (Sidebar.tsx)     : Navigation globale du site, icône hamburger ☰
+- HEADER (Header.tsx)       : Logo G7 + titre + status API + settings
+- ZONE 1 (ChatZone.tsx)     : Chat conversationnel, collapsable → icône 💬
+- ZONE 2 (VisualizationZone.tsx) : Graphiques et données
+- ZONE 3 (AnalyticsZone.tsx): Stats sémantiques, collapsable → icône 📈
+```
+
+**Icônes par zone (collapsed):**
+| Zone | Fichier | Icône collapsed | Description |
+|------|---------|-----------------|-------------|
+| Sidebar | Sidebar.tsx | ☰ (hamburger) | Menu navigation |
+| Zone 1 | ChatZone.tsx | 💬 (bulle chat) | Ouvrir le chat |
+| Zone 3 | AnalyticsZone.tsx | 📈 (graphique) | Ouvrir analyse IA |
+
+**Logo G7:** Uniquement dans le Header (composant Header.tsx)
+
+---
+
 ## Structure frontend après refactoring (Janvier 2025)
 
 ```
@@ -326,6 +372,90 @@ Actuellement les KPIs dans VisualizationZone sont hardcodés :
 - [x] Ajouter `fetchGlobalStats()` dans api.ts
 - [x] Passer les KPIs en props à VisualizationZone
 - [x] Commit: `feat: KPIs dynamiques depuis API`
+
+---
+
+### Phase 4 : Sidebar globale + Multi-pages (REFACTORING STRUCTURE)
+**Risque : Moyen | Valeur : Haute**
+
+**Objectif** : Créer une sidebar de navigation partagée entre toutes les pages.
+
+**Ce qu'il ne faut PAS casser** :
+
+| Élément | Fichier actuel | État/Props | Action |
+|---------|----------------|------------|--------|
+| Header (logo, status API, settings) | page.tsx L283-313 | `apiStatus`, `showSettings` | Extraire → Header.tsx |
+| Settings Panel | page.tsx L316-333 | `apiKey`, `showSettings` | Garder dans Header.tsx |
+| ChatZone + toute sa logique | page.tsx L338-359 | 15+ états | NE PAS TOUCHER |
+| VisualizationZone | page.tsx L374-380 | props | NE PAS TOUCHER |
+| AnalyticsZone | page.tsx L395-404 | props | NE PAS TOUCHER |
+| Resize handles | page.tsx L362-392 | `isResizing`, widths | NE PAS TOUCHER |
+| useEffect initial | page.tsx L56-63 | 6 appels API | Reste dans analytics/page.tsx |
+
+**Structure cible** :
+```
+src/
+├── app/
+│   ├── layout.tsx          # MODIFIÉ: Sidebar + Header
+│   ├── page.tsx            # MODIFIÉ: redirect → /analytics
+│   └── analytics/
+│       └── page.tsx        # NOUVEAU: contenu actuel de page.tsx
+├── components/
+│   ├── Sidebar.tsx         # NOUVEAU
+│   ├── Header.tsx          # NOUVEAU (extrait de page.tsx)
+│   └── ... (inchangés)
+```
+
+#### Phase 4A : Créer Sidebar.tsx (SANS RISQUE)
+**Risque : Très faible | Composant isolé**
+
+- [ ] Créer `components/Sidebar.tsx`
+- [ ] Menu rétractable (collapsed/expanded)
+- [ ] Items: Analytics (actif), [Nouvelle page] (placeholder)
+- [ ] Style cohérent avec ChatZone collapsed
+- [ ] Commit: `feat: composant Sidebar navigation`
+
+#### Phase 4B : Créer Header.tsx (FAIBLE RISQUE)
+**Risque : Faible | Extraction simple**
+
+| Props à passer |
+|----------------|
+| `apiStatus` |
+| `showSettings` / `onShowSettingsChange` |
+| `apiKey` / `onApiKeyChange` |
+| `onSaveApiKey` |
+
+- [ ] Créer `components/Header.tsx`
+- [ ] Copier le JSX du header depuis page.tsx
+- [ ] Ajouter les props nécessaires
+- [ ] NE PAS supprimer de page.tsx encore
+- [ ] Commit: `feat: composant Header extrait`
+
+#### Phase 4C : Modifier layout.tsx (RISQUE MOYEN)
+**Risque : Moyen | Point critique**
+
+- [ ] Importer Sidebar dans layout.tsx
+- [ ] Structure: `<Sidebar /> + <main>{children}</main>`
+- [ ] Gérer état `sidebarCollapsed` dans layout
+- [ ] Tester que page.tsx fonctionne toujours
+- [ ] Commit: `feat: layout avec Sidebar globale`
+
+#### Phase 4D : Créer analytics/page.tsx (RISQUE MOYEN)
+**Risque : Moyen | Déplacement de code**
+
+- [ ] Créer dossier `app/analytics/`
+- [ ] Copier page.tsx → analytics/page.tsx
+- [ ] Supprimer le Header (déjà dans layout)
+- [ ] Adapter les imports si nécessaire
+- [ ] Modifier page.tsx racine → redirect vers /analytics
+- [ ] Commit: `refactor: page analytics séparée`
+
+#### Phase 4E : Test final
+- [ ] `npm run build` passe
+- [ ] Navigation / → /analytics fonctionne
+- [ ] Sidebar rétractable fonctionne
+- [ ] Toutes les fonctionnalités Analytics préservées
+- [ ] Commit: `test: validation multi-pages`
 
 ---
 
