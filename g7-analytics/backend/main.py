@@ -486,6 +486,46 @@ async def pin_report(report_id: int):
     return {"message": "État épinglé modifié"}
 
 
+@app.post("/reports/{report_id}/execute")
+async def execute_report(report_id: int):
+    """
+    Exécute la requête SQL d'un rapport sauvegardé.
+    Retourne les données fraîches + la config du graphique.
+    """
+    # Récupérer le rapport
+    reports = get_saved_reports()
+    report = next((r for r in reports if r["id"] == report_id), None)
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Rapport non trouvé")
+
+    sql_query = report.get("sql_query")
+    if not sql_query:
+        raise HTTPException(status_code=400, detail="Ce rapport n'a pas de requête SQL")
+
+    try:
+        # Exécuter la requête SQL
+        data = execute_query(sql_query)
+
+        # Parser la config du graphique
+        chart_config = {"type": "none", "x": "", "y": "", "title": ""}
+        if report.get("chart_config"):
+            try:
+                chart_config = json.loads(report["chart_config"])
+            except json.JSONDecodeError:
+                pass
+
+        return {
+            "report_id": report_id,
+            "title": report.get("title", ""),
+            "sql": sql_query,
+            "chart": chart_config,
+            "data": data
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erreur exécution SQL: {str(e)}")
+
+
 # ========================================
 # ENDPOINTS QUESTIONS PRÉDÉFINIES
 # ========================================

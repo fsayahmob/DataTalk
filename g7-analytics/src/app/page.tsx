@@ -242,8 +242,28 @@ export default function Home() {
     }
   };
 
-  const handleReportClick = (report: SavedReport) => {
-    setQuestion(report.question);
+  const handleReportClick = async (report: SavedReport) => {
+    setLoading(true);
+    try {
+      const result = await api.executeReport(report.id);
+
+      // Créer un message "virtuel" pour afficher le résultat
+      const reportMessage: Message = {
+        id: Date.now(),
+        role: "assistant",
+        content: `📊 Rapport: ${result.title}`,
+        sql: result.sql,
+        chart: result.chart,
+        data: result.data,
+      };
+
+      setSelectedMessage(reportMessage);
+    } catch (e) {
+      console.error("Erreur exécution rapport:", e);
+      alert(`Erreur: ${e instanceof Error ? e.message : "Erreur inconnue"}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSaveApiKey = async () => {

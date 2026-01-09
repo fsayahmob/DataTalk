@@ -112,6 +112,31 @@ export async function deleteReport(id: number): Promise<boolean> {
   }
 }
 
+// Type pour la réponse d'exécution d'un rapport
+export interface ExecuteReportResponse {
+  report_id: number;
+  title: string;
+  sql: string;
+  chart: ChartConfig;
+  data: Record<string, unknown>[];
+}
+
+export async function executeReport(
+  reportId: number
+): Promise<ExecuteReportResponse> {
+  const res = await fetch(`${API_BASE}/reports/${reportId}/execute`, {
+    method: "POST",
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Erreur exécution rapport");
+  }
+
+  return data;
+}
+
 // Conversations
 export async function fetchConversations(): Promise<
   import("@/types").Conversation[]

@@ -27,6 +27,7 @@ export interface SavedReport {
   title: string;
   question: string;
   sql_query: string;
+  chart_config?: string; // JSON de la config du graphique
   is_pinned: boolean;
   created_at: string;
 }
