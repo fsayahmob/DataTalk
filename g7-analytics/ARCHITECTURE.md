@@ -153,6 +153,182 @@ g7-analytics/
 4. **Vue dénormalisée** : `evaluation_categories` pour requêtes thématiques simplifiées
 5. **Historique conversationnel** : Contexte maintenu pour des échanges naturels
 
+## Structure frontend après refactoring (Janvier 2025)
+
+```
+g7-analytics/src/
+├── app/
+│   └── page.tsx              # 467 lignes (orchestration)
+├── components/
+│   ├── ChatZone.tsx          # 371 lignes (Zone 1: Chat)
+│   ├── VisualizationZone.tsx # 272 lignes (Zone 2: Graphiques)
+│   ├── AnalyticsZone.tsx     # 271 lignes (Zone 3: Stats)
+│   ├── Chart.tsx             # Graphiques Recharts
+│   └── DataTable.tsx         # Tableau de données
+├── lib/
+│   ├── api.ts                # Service API centralisé
+│   └── schema.ts             # Types ChartConfig
+└── types/
+    └── index.ts              # Types partagés
+```
+
+---
+
+## Plan de refactoring - Dette technique
+
+### Objectif
+Éliminer la duplication de code entre `page.tsx` et `api.ts` tout en préservant l'UI/UX existante.
+
+### Règles de sécurité
+1. **Commit après chaque phase** (rollback possible)
+2. **Test `npm run build`** après chaque modification
+3. **Iso-fonctionnalité** : aucun changement visible pour l'utilisateur
+4. **Préserver les side effects** : ne pas oublier les setState/callbacks
+
+---
+
+### Phase 1A : Fetchers simples (SANS RISQUE)
+**Risque : Très faible | Valeur : Haute | ~45 lignes supprimées**
+
+| Fonction locale (page.tsx) | Remplacement (api.ts) | Side effects |
+|---------------------------|----------------------|--------------|
+| `checkApiStatus` L99-107 | `api.checkApiStatus()` | `setApiStatus` |
+| `fetchPredefinedQuestions` L109-117 | `api.fetchPredefinedQuestions()` | `setPredefinedQuestions` |
+| `fetchSavedReports` L119-127 | `api.fetchSavedReports()` | `setSavedReports` |
+| `fetchConversations` L129-137 | `api.fetchConversations()` | `setConversations` |
+| `fetchSemanticStats` L139-147 | `api.fetchSemanticStats()` | `setSemanticStats` |
+
+**Action :**
+```tsx
+// Avant
+const fetchSavedReports = async () => {
+  try {
+    const res = await fetch("http://localhost:8000/reports");
+    const data = await res.json();
+    setSavedReports(data.reports || []);
+  } catch (e) { console.error(...) }
+};
+
+// Après
+import * as api from "@/lib/api";
+const loadReports = () => api.fetchSavedReports().then(setSavedReports);
+```
+
+- [x] Importer api.ts
+- [x] Supprimer les 5 fonctions locales
+- [x] Créer `loadReports` et `loadConversations` (utilisés ailleurs)
+- [x] Adapter le useEffect initial
+- [x] Commit: `refactor: utilise api.ts pour les fetchers simples`
+
+---
+
+### Phase 1B : handleSaveReport (FAIBLE RISQUE)
+**Risque : Faible | Valeur : Moyenne | ~5 lignes**
+
+| Aspect | Avant | Après |
+|--------|-------|-------|
+| Fetch | Inline L272-283 | `api.saveReport()` |
+| Post-action | `fetchSavedReports()` | `loadReports()` |
+
+- [ ] Remplacer le fetch par `api.saveReport()`
+- [ ] Garder `loadReports()` après
+- [ ] Commit: `refactor: handleSaveReport utilise api.ts`
+
+---
+
+### Phase 1C : handleDeleteReport (FAIBLE RISQUE)
+**Risque : Faible | Valeur : Moyenne | ~3 lignes**
+
+- [ ] Remplacer le fetch par `api.deleteReport()`
+- [ ] Garder `loadReports()` après
+- [ ] Commit: `refactor: handleDeleteReport utilise api.ts`
+
+---
+
+### Phase 1D : handleLoadConversation (FAIBLE RISQUE)
+**Risque : Faible | Valeur : Moyenne | ~4 lignes**
+
+| Side effects à préserver |
+|-------------------------|
+| `setCurrentConversationId(conv.id)` |
+| `setSelectedMessage(null)` |
+| `setShowHistory(false)` |
+
+- [ ] Remplacer le fetch par `api.fetchConversationMessages()`
+- [ ] Garder les 3 side effects
+- [ ] Commit: `refactor: handleLoadConversation utilise api.ts`
+
+---
+
+### Phase 1E : handleSaveApiKey (FAIBLE RISQUE)
+**Risque : Faible | Valeur : Faible | ~4 lignes**
+
+| Side effects à préserver |
+|-------------------------|
+| `setApiKey("")` |
+| `setShowSettings(false)` |
+| `checkApiStatus()` → `api.checkApiStatus().then(setApiStatus)` |
+
+- [ ] Remplacer le fetch par `api.saveApiKey()`
+- [ ] Garder les 3 side effects
+- [ ] Commit: `refactor: handleSaveApiKey utilise api.ts`
+
+---
+
+### Phase 2A : createNewConversation (RISQUE MOYEN)
+**Risque : Moyen | Valeur : Moyenne | ~5 lignes**
+
+| Side effects critiques |
+|-----------------------|
+| `setCurrentConversationId(data.id)` |
+| `setMessages([])` |
+| `setSelectedMessage(null)` |
+| `loadConversations()` |
+| `return data.id` (utilisé par handleSubmit) |
+
+- [ ] Utiliser `api.createConversation()` pour le fetch
+- [ ] Garder TOUS les side effects
+- [ ] S'assurer que le `return data.id` fonctionne
+- [ ] Commit: `refactor: createNewConversation utilise api.ts`
+
+---
+
+### Phase 2B : handleSubmit (RISQUE MOYEN)
+**Risque : Moyen | Valeur : Haute | ~10 lignes**
+
+| Aspect | Comportement actuel |
+|--------|-------------------|
+| Appel API | `fetch(/conversations/${convId}/analyze)` |
+| Gestion erreur | Crée un `errorMessage` local |
+| Post-action | `setMessages`, `setSelectedMessage`, `loadConversations` |
+
+- [ ] Utiliser `api.analyzeInConversation()`
+- [ ] Adapter le catch pour créer `errorMessage`
+- [ ] Garder tous les side effects
+- [ ] Commit: `refactor: handleSubmit utilise api.ts`
+
+---
+
+### Phase 3 : KPIs dynamiques (NOUVELLE FEATURE)
+**Risque : Moyen | Valeur : Haute**
+
+Actuellement les KPIs dans VisualizationZone sont hardcodés :
+```tsx
+// VisualizationZone.tsx L87-101
+<p>64 385</p>  // Évaluations - HARDCODÉ
+<p>4.84</p>    // Note moyenne - HARDCODÉ
+<p>7 256</p>   // Commentaires - HARDCODÉ
+<p>9 492</p>   // Chauffeurs - HARDCODÉ
+```
+
+- [ ] Créer endpoint `GET /stats/global` dans backend
+- [ ] Ajouter type `GlobalStats` dans types/index.ts
+- [ ] Ajouter `fetchGlobalStats()` dans api.ts
+- [ ] Passer les KPIs en props à VisualizationZone
+- [ ] Commit: `feat: KPIs dynamiques depuis API`
+
+---
+
 ## Évolutions possibles
 
 - [ ] Dockerisation pour déploiement Cloud Run

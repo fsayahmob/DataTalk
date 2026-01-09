@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
 import { AnalyticsZone } from "@/components/AnalyticsZone";
+import * as api from "@/lib/api";
 import {
   Message,
   PredefinedQuestion,
@@ -51,11 +52,11 @@ export default function Home() {
 
   // Charger les données au démarrage
   useEffect(() => {
-    fetchPredefinedQuestions();
-    fetchSavedReports();
-    fetchConversations();
-    checkApiStatus();
-    fetchSemanticStats();
+    api.fetchPredefinedQuestions().then(setPredefinedQuestions);
+    loadReports();
+    loadConversations();
+    api.checkApiStatus().then(setApiStatus);
+    api.fetchSemanticStats().then(setSemanticStats);
   }, []);
 
   // Gestion du redimensionnement des zones
@@ -96,55 +97,9 @@ export default function Home() {
     };
   }, [isResizing]);
 
-  const checkApiStatus = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/health");
-      const data = await res.json();
-      setApiStatus(data.gemini === "configured" ? "ok" : "error");
-    } catch {
-      setApiStatus("error");
-    }
-  };
-
-  const fetchPredefinedQuestions = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/questions/predefined");
-      const data = await res.json();
-      setPredefinedQuestions(data.questions || []);
-    } catch (e) {
-      console.error("Erreur chargement questions:", e);
-    }
-  };
-
-  const fetchSavedReports = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/reports");
-      const data = await res.json();
-      setSavedReports(data.reports || []);
-    } catch (e) {
-      console.error("Erreur chargement rapports:", e);
-    }
-  };
-
-  const fetchConversations = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/conversations");
-      const data = await res.json();
-      setConversations(data.conversations || []);
-    } catch (e) {
-      console.error("Erreur chargement conversations:", e);
-    }
-  };
-
-  const fetchSemanticStats = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/semantic-stats");
-      const data = await res.json();
-      setSemanticStats(data);
-    } catch (e) {
-      console.error("Erreur chargement stats sémantiques:", e);
-    }
-  };
+  // Fonctions de chargement utilisant api.ts
+  const loadReports = () => api.fetchSavedReports().then(setSavedReports);
+  const loadConversations = () => api.fetchConversations().then(setConversations);
 
   const createNewConversation = async () => {
     try {
@@ -153,7 +108,7 @@ export default function Home() {
       setCurrentConversationId(data.id);
       setMessages([]);
       setSelectedMessage(null);
-      fetchConversations();
+      loadConversations();
       return data.id;
     } catch (e) {
       console.error("Erreur création conversation:", e);
@@ -227,7 +182,7 @@ export default function Home() {
 
       setMessages((prev) => [...prev, assistantMessage]);
       setSelectedMessage(assistantMessage);
-      fetchConversations();
+      loadConversations();
     } catch (e) {
       const errorMessage: Message = {
         id: Date.now(),
@@ -281,7 +236,7 @@ export default function Home() {
           message_id: selectedMessage.id,
         }),
       });
-      fetchSavedReports();
+      loadReports();
     } catch (e) {
       console.error("Erreur sauvegarde:", e);
     }
@@ -292,7 +247,7 @@ export default function Home() {
 
     try {
       await fetch(`http://localhost:8000/reports/${id}`, { method: "DELETE" });
-      fetchSavedReports();
+      loadReports();
     } catch (e) {
       console.error("Erreur suppression:", e);
     }
@@ -311,7 +266,7 @@ export default function Home() {
       });
       setApiKey("");
       setShowSettings(false);
-      checkApiStatus();
+      api.checkApiStatus().then(setApiStatus);
     } catch (e) {
       console.error("Erreur sauvegarde clé:", e);
     }
