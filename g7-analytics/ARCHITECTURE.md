@@ -230,18 +230,18 @@ const loadReports = () => api.fetchSavedReports().then(setSavedReports);
 | Fetch | Inline L272-283 | `api.saveReport()` |
 | Post-action | `fetchSavedReports()` | `loadReports()` |
 
-- [ ] Remplacer le fetch par `api.saveReport()`
-- [ ] Garder `loadReports()` après
-- [ ] Commit: `refactor: handleSaveReport utilise api.ts`
+- [x] Remplacer le fetch par `api.saveReport()`
+- [x] Garder `loadReports()` après
+- [x] Commit: `refactor: handleSaveReport utilise api.ts`
 
 ---
 
 ### Phase 1C : handleDeleteReport (FAIBLE RISQUE)
 **Risque : Faible | Valeur : Moyenne | ~3 lignes**
 
-- [ ] Remplacer le fetch par `api.deleteReport()`
-- [ ] Garder `loadReports()` après
-- [ ] Commit: `refactor: handleDeleteReport utilise api.ts`
+- [x] Remplacer le fetch par `api.deleteReport()`
+- [x] Garder `loadReports()` après
+- [x] Commit: `refactor: handleDeleteReport utilise api.ts`
 
 ---
 
@@ -254,9 +254,9 @@ const loadReports = () => api.fetchSavedReports().then(setSavedReports);
 | `setSelectedMessage(null)` |
 | `setShowHistory(false)` |
 
-- [ ] Remplacer le fetch par `api.fetchConversationMessages()`
-- [ ] Garder les 3 side effects
-- [ ] Commit: `refactor: handleLoadConversation utilise api.ts`
+- [x] Remplacer le fetch par `api.fetchConversationMessages()`
+- [x] Garder les 3 side effects
+- [x] Commit: `refactor: handleLoadConversation utilise api.ts`
 
 ---
 
@@ -269,9 +269,9 @@ const loadReports = () => api.fetchSavedReports().then(setSavedReports);
 | `setShowSettings(false)` |
 | `checkApiStatus()` → `api.checkApiStatus().then(setApiStatus)` |
 
-- [ ] Remplacer le fetch par `api.saveApiKey()`
-- [ ] Garder les 3 side effects
-- [ ] Commit: `refactor: handleSaveApiKey utilise api.ts`
+- [x] Remplacer le fetch par `api.saveApiKey()`
+- [x] Garder les 3 side effects
+- [x] Commit: `refactor: handleSaveApiKey utilise api.ts`
 
 ---
 

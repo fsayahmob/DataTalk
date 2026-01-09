@@ -225,17 +225,13 @@ export default function Home() {
     }
 
     try {
-      await fetch("http://localhost:8000/reports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          question: userQuestion,
-          sql_query: selectedMessage.sql,
-          chart_config: JSON.stringify(selectedMessage.chart),
-          message_id: selectedMessage.id,
-        }),
-      });
+      await api.saveReport(
+        title,
+        userQuestion,
+        selectedMessage.sql,
+        JSON.stringify(selectedMessage.chart),
+        selectedMessage.id
+      );
       loadReports();
     } catch (e) {
       console.error("Erreur sauvegarde:", e);
@@ -246,7 +242,7 @@ export default function Home() {
     if (!confirm("Supprimer ce rapport ?")) return;
 
     try {
-      await fetch(`http://localhost:8000/reports/${id}`, { method: "DELETE" });
+      await api.deleteReport(id);
       loadReports();
     } catch (e) {
       console.error("Erreur suppression:", e);
@@ -259,11 +255,7 @@ export default function Home() {
 
   const handleSaveApiKey = async () => {
     try {
-      await fetch("http://localhost:8000/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gemini_api_key: apiKey }),
-      });
+      await api.saveApiKey(apiKey);
       setApiKey("");
       setShowSettings(false);
       api.checkApiStatus().then(setApiStatus);
@@ -276,9 +268,8 @@ export default function Home() {
   const handleLoadConversation = async (conv: Conversation) => {
     setCurrentConversationId(conv.id);
     try {
-      const res = await fetch(`http://localhost:8000/conversations/${conv.id}/messages`);
-      const data = await res.json();
-      setMessages(data.messages || []);
+      const msgs = await api.fetchConversationMessages(conv.id);
+      setMessages(msgs);
       setSelectedMessage(null);
       setShowHistory(false);
     } catch (e) {
