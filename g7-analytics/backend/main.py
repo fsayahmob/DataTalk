@@ -74,14 +74,15 @@ RÈGLES:
 1. Génère du SQL DuckDB valide
 2. Utilise des alias clairs en français pour les colonnes (ex: AS note_moyenne)
 3. LIMITE des résultats:
-   - Si l'utilisateur demande "tous", "toutes", "liste", "liste complète", "exhaustif" → LIMIT 5000 (ou pas de limit)
+   - Si l'utilisateur demande "tous", "toutes", "liste complète" → pas de limit
    - Si l'utilisateur demande un "top N" ou "les N premiers" → LIMIT N
    - Pour les agrégations (GROUP BY, COUNT, AVG, etc.) → pas de limite stricte
-   - Sinon par défaut → LIMIT 500 (le frontend gère la pagination)
+   - Sinon par défaut → LIMIT 500
 4. Pour les graphiques pie, limite à 10 catégories max
 5. Choisis le type de graphique le plus adapté à la question
 6. Réponds toujours en français
 7. Pour les listes de texte (commentaires, etc.), utilise chart.type = "none"
+8. Pour analyser les thèmes/catégories sémantiques avec leur sentiment, utilise la vue evaluation_categories
 
 Réponds UNIQUEMENT en JSON valide avec cette structure exacte:
 {{
@@ -524,6 +525,118 @@ async def get_single_setting(key: str):
     if "api_key" in key.lower() and len(value) > 8:
         return {"key": key, "value": value[:4] + "..." + value[-4:]}
     return {"key": key, "value": value}
+
+
+# ========================================
+# ENDPOINTS STATISTIQUES SÉMANTIQUES
+# ========================================
+
+@app.get("/semantic-stats")
+async def get_semantic_stats():
+    """
+    Retourne les statistiques sémantiques des commentaires enrichis.
+    Utilisé pour les KPIs et graphiques de la zone 3.
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    # Statistiques globales
+    global_stats = db_connection.execute("""
+        SELECT
+            COUNT(*) as total_evaluations,
+            COUNT(CASE WHEN commentaire IS NOT NULL AND commentaire != '' THEN 1 END) as total_commentaires,
+            COUNT(CASE WHEN categories IS NOT NULL AND categories != '[]' THEN 1 END) as commentaires_enrichis,
+            ROUND(AVG(CASE WHEN sentiment_global IS NOT NULL THEN sentiment_global END), 2) as sentiment_moyen
+        FROM evaluations
+    """).fetchone()
+
+    # Distribution des sentiments
+    sentiment_distribution = db_connection.execute("""
+        SELECT
+            CASE
+                WHEN sentiment_global >= 0.5 THEN 'Très positif'
+                WHEN sentiment_global >= 0.1 THEN 'Positif'
+                WHEN sentiment_global >= -0.1 THEN 'Neutre'
+                WHEN sentiment_global >= -0.5 THEN 'Négatif'
+                ELSE 'Très négatif'
+            END as sentiment_label,
+            COUNT(*) as count
+        FROM evaluations
+        WHERE sentiment_global IS NOT NULL
+        GROUP BY sentiment_label
+        ORDER BY
+            CASE sentiment_label
+                WHEN 'Très positif' THEN 1
+                WHEN 'Positif' THEN 2
+                WHEN 'Neutre' THEN 3
+                WHEN 'Négatif' THEN 4
+                WHEN 'Très négatif' THEN 5
+            END
+    """).fetchall()
+
+    # Distribution des catégories avec sentiment moyen
+    # On parse le JSON des catégories et sentiment_par_categorie
+    categories_raw = db_connection.execute("""
+        SELECT categories, sentiment_par_categorie, sentiment_global
+        FROM evaluations
+        WHERE categories IS NOT NULL AND categories != '[]'
+    """).fetchall()
+
+    # Calculer le sentiment moyen par catégorie
+    from collections import defaultdict
+    category_sentiments = defaultdict(list)
+
+    for row in categories_raw:
+        try:
+            cats = json.loads(row[0])
+            sent_par_cat = json.loads(row[1]) if row[1] else {}
+            sent_global = row[2]
+
+            for cat in cats:
+                # Utiliser le sentiment par catégorie si disponible, sinon le global
+                if cat in sent_par_cat:
+                    category_sentiments[cat].append(sent_par_cat[cat])
+                elif sent_global is not None:
+                    category_sentiments[cat].append(sent_global)
+        except:
+            pass
+
+    # Calculer les moyennes et trier
+    category_stats = []
+    for cat, sentiments in category_sentiments.items():
+        if sentiments:
+            avg_sentiment = sum(sentiments) / len(sentiments)
+            category_stats.append({
+                "category": cat,
+                "count": len(sentiments),
+                "sentiment": round(avg_sentiment, 2)
+            })
+
+    # Trier par sentiment pour identifier alertes et points forts
+    category_stats_sorted = sorted(category_stats, key=lambda x: x["sentiment"])
+
+    # Top 5 alertes (sentiment le plus négatif)
+    alerts = [c for c in category_stats_sorted if c["sentiment"] < 0][:5]
+
+    # Top 5 points forts (sentiment le plus positif)
+    strengths = [c for c in reversed(category_stats_sorted) if c["sentiment"] > 0][:5]
+
+    return {
+        "global": {
+            "total_evaluations": global_stats[0],
+            "total_commentaires": global_stats[1],
+            "commentaires_enrichis": global_stats[2],
+            "sentiment_moyen": global_stats[3] or 0,
+            "taux_enrichissement": round((global_stats[2] / global_stats[1] * 100) if global_stats[1] > 0 else 0, 1)
+        },
+        "sentiment_distribution": [
+            {"label": row[0], "count": row[1]}
+            for row in sentiment_distribution
+        ],
+        "alerts": alerts,
+        "strengths": strengths,
+        "categories_by_sentiment": category_stats_sorted
+    }
 
 
 if __name__ == "__main__":

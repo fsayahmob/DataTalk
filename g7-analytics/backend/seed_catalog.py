@@ -130,9 +130,9 @@ def seed_g7_catalog():
         {
             "name": "lib_categorie",
             "data_type": "VARCHAR",
-            "description": "Catégorie métier du client (8 valeurs)",
+            "description": "Offre commerciale du client (8 valeurs)",
             "sample_values": "Club affaires, Service plus, Service",
-            "synonyms": ["catégorie", "métier"]
+            "synonyms": ["offre", "formule"]
         },
         {
             "name": "cod_client",
@@ -151,6 +151,20 @@ def seed_g7_catalog():
             "data_type": "VARCHAR",
             "description": "Indicateur si l'évaluation est masquée",
             "sample_values": "OUI, NON"
+        },
+        # === COLONNES ENRICHIES PAR IA ===
+        {
+            "name": "sentiment_global",
+            "data_type": "FLOAT",
+            "description": "Sentiment du commentaire (-1 à +1)",
+            "value_range": "-1 à +1",
+            "synonyms": ["sentiment", "polarité"]
+        },
+        {
+            "name": "verbatim_cle",
+            "data_type": "VARCHAR",
+            "description": "Extrait clé du commentaire",
+            "synonyms": ["extrait", "résumé"]
         }
     ]
 
@@ -166,6 +180,58 @@ def seed_g7_catalog():
         )
 
         # Ajouter les synonymes
+        for synonym in col.get("synonyms", []):
+            add_synonym(col_id, synonym)
+
+    # ========================================
+    # VUE DÉNORMALISÉE: evaluation_categories
+    # ========================================
+    # Cette vue "aplatit" les catégories pour faciliter les requêtes
+    view_id = add_table(
+        datasource_id=ds_id,
+        name="evaluation_categories",
+        description="Vue dénormalisée: 1 ligne par catégorie par commentaire (pour analyses par thème)",
+        row_count=7763
+    )
+
+    view_columns = [
+        {"name": "num_course", "data_type": "BIGINT", "description": "ID de la course"},
+        {"name": "dat_course", "data_type": "DATE", "description": "Date de la course"},
+        {"name": "cod_taxi", "data_type": "INTEGER", "description": "ID chauffeur"},
+        {"name": "cod_client", "data_type": "INTEGER", "description": "ID client"},
+        {"name": "typ_client", "data_type": "VARCHAR", "description": "Segment client"},
+        {"name": "typ_chauffeur", "data_type": "VARCHAR", "description": "Type chauffeur (VIP/Standard/Green)"},
+        {"name": "offre_commerciale", "data_type": "VARCHAR", "description": "Offre du client"},
+        {"name": "note_eval", "data_type": "DECIMAL", "description": "Note globale (1-5)"},
+        {"name": "commentaire", "data_type": "VARCHAR", "description": "Texte du commentaire"},
+        {"name": "sentiment_global", "data_type": "FLOAT", "description": "Sentiment global (-1 à +1)"},
+        {
+            "name": "categorie",
+            "data_type": "VARCHAR",
+            "description": "Thème sémantique du commentaire",
+            "sample_values": "CHAUFFEUR_COMPORTEMENT, PRIX_FACTURATION, PONCTUALITE, TRAJET_ITINERAIRE",
+            "synonyms": ["thème", "sujet", "topic", "catégorie sémantique"]
+        },
+        {
+            "name": "sentiment_categorie",
+            "data_type": "FLOAT",
+            "description": "Sentiment spécifique à ce thème (-1 à +1)",
+            "value_range": "-1 à +1",
+            "synonyms": ["sentiment par thème", "sentiment thématique"]
+        },
+        {"name": "verbatim_cle", "data_type": "VARCHAR", "description": "Extrait clé"}
+    ]
+
+    for col in view_columns:
+        col_id = add_column(
+            table_id=view_id,
+            name=col["name"],
+            data_type=col["data_type"],
+            description=col.get("description"),
+            sample_values=col.get("sample_values"),
+            value_range=col.get("value_range"),
+            is_primary_key=False
+        )
         for synonym in col.get("synonyms", []):
             add_synonym(col_id, synonym)
 

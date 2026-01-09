@@ -45,6 +45,26 @@ interface Conversation {
   created_at: string;
 }
 
+interface CategoryStat {
+  category: string;
+  count: number;
+  sentiment: number;
+}
+
+interface SemanticStats {
+  global: {
+    total_evaluations: number;
+    total_commentaires: number;
+    commentaires_enrichis: number;
+    sentiment_moyen: number;
+    taux_enrichissement: number;
+  };
+  sentiment_distribution: Array<{ label: string; count: number }>;
+  alerts: CategoryStat[];
+  strengths: CategoryStat[];
+  categories_by_sentiment: CategoryStat[];
+}
+
 // Animation 3 points
 function LoadingDots() {
   return (
@@ -80,14 +100,16 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [apiStatus, setApiStatus] = useState<"ok" | "error" | "unknown">("unknown");
+  const [semanticStats, setSemanticStats] = useState<SemanticStats | null>(null);
 
   // Zones rétractables
   const [zone1Collapsed, setZone1Collapsed] = useState(false);
   const [zone3Collapsed, setZone3Collapsed] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   // Largeurs des zones (en pourcentage)
   const [zone1Width, setZone1Width] = useState(25);
-  const [zone3Width, setZone3Width] = useState(15);
+  const [zone3Width, setZone3Width] = useState(20);
   const [isResizing, setIsResizing] = useState<"zone1" | "zone3" | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -106,6 +128,7 @@ export default function Home() {
     fetchSavedReports();
     fetchConversations();
     checkApiStatus();
+    fetchSemanticStats();
   }, []);
 
   // Scroll vers le bas quand les messages changent
@@ -188,6 +211,16 @@ export default function Home() {
       setConversations(data.conversations || []);
     } catch (e) {
       console.error("Erreur chargement conversations:", e);
+    }
+  };
+
+  const fetchSemanticStats = async () => {
+    try {
+      const res = await fetch("http://localhost:8000/semantic-stats");
+      const data = await res.json();
+      setSemanticStats(data);
+    } catch (e) {
+      console.error("Erreur chargement stats sémantiques:", e);
     }
   };
 
@@ -481,11 +514,24 @@ export default function Home() {
                   <Button
                     variant="ghost"
                     size="sm"
+                    className={`h-7 w-7 p-0 hover:bg-primary/20 ${showHistory ? 'bg-primary/20' : ''}`}
+                    onClick={() => setShowHistory(!showHistory)}
+                    title="Historique des conversations"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     className="h-7 w-7 p-0 hover:bg-primary/20"
                     onClick={() => {
                       setCurrentConversationId(null);
                       setMessages([]);
                       setSelectedMessage(null);
+                      setShowHistory(false);
                     }}
                     title="Nouvelle conversation"
                   >
@@ -506,6 +552,45 @@ export default function Home() {
                   </Button>
                 </div>
               </div>
+
+              {/* Historique déroulant */}
+              {showHistory && (
+                <div className="border-b border-primary/20 bg-secondary/30 max-h-48 overflow-y-auto">
+                  <div className="p-2 space-y-1">
+                    {conversations.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground text-center py-2">
+                        Aucune conversation
+                      </p>
+                    ) : (
+                      conversations.slice(0, 15).map((conv) => (
+                        <button
+                          key={conv.id}
+                          onClick={async () => {
+                            setCurrentConversationId(conv.id);
+                            try {
+                              const res = await fetch(`http://localhost:8000/conversations/${conv.id}/messages`);
+                              const data = await res.json();
+                              setMessages(data.messages || []);
+                              setSelectedMessage(null);
+                              setShowHistory(false);
+                            } catch (e) {
+                              console.error("Erreur chargement messages:", e);
+                            }
+                          }}
+                          className={`w-full text-left text-[11px] p-2 rounded-lg hover:bg-secondary/70 transition-colors truncate flex items-center gap-2 ${
+                            currentConversationId === conv.id ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 opacity-50">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          </svg>
+                          <span className="truncate">{conv.title || "Conversation sans titre"}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
@@ -929,22 +1014,21 @@ export default function Home() {
               <button
                 onClick={() => setZone3Collapsed(false)}
                 className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-                title="Rapports sauvegardés"
+                title="Analyse sémantique"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                  <polyline points="17 21 17 13 7 13 7 21" />
-                  <polyline points="7 3 7 8 15 8" />
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
               </button>
               <button
                 onClick={() => setZone3Collapsed(false)}
                 className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-                title="Historique"
+                title="Rapports"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <polyline points="12 6 12 12 16 14" />
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
                 </svg>
               </button>
             </div>
@@ -954,11 +1038,9 @@ export default function Home() {
               <div className="h-12 px-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between">
                 <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                    <polyline points="17 21 17 13 7 13 7 21" />
-                    <polyline points="7 3 7 8 15 8" />
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  Rapports
+                  Analyse IA
                 </h3>
                 <Button
                   variant="ghost"
@@ -973,72 +1055,200 @@ export default function Home() {
                 </Button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                {savedReports.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-4">
-                    Aucun rapport sauvegardé
-                  </p>
-                ) : (
-                  savedReports.map((report) => (
-                    <div
-                      key={report.id}
-                      className="p-2.5 rounded-lg border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group cursor-pointer"
-                      onClick={() => handleReportClick(report)}
-                    >
-                      <p className="text-sm font-medium truncate text-foreground">
-                        {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
-                        {report.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {report.question}
-                      </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteReport(report.id);
-                        }}
-                        className="text-xs text-destructive opacity-0 group-hover:opacity-100 transition-opacity mt-1.5"
-                      >
-                        Supprimer
-                      </button>
+              {/* Contenu scrollable */}
+              <div className="flex-1 overflow-y-auto">
+                {/* KPIs Sémantiques */}
+                {semanticStats && (
+                  <div className="p-3 space-y-3">
+                    {/* KPI Cards */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 rounded-lg p-2.5 text-center relative group">
+                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center cursor-help hover:bg-emerald-500/40 transition-colors peer">
+                          <span className="text-[9px] font-medium text-emerald-400">i</span>
+                        </div>
+                        <div className="absolute top-6 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
+                          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-44 shadow-2xl">
+                            Score moyen de sentiment des commentaires analysés. Échelle de -1 (très négatif) à +1 (très positif).
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-emerald-400/70 uppercase tracking-wider">Sentiment</p>
+                        <p className={`text-lg font-bold ${semanticStats.global.sentiment_moyen >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {semanticStats.global.sentiment_moyen >= 0 ? '+' : ''}{semanticStats.global.sentiment_moyen.toFixed(2)}
+                        </p>
+                      </div>
+                      <div className="bg-gradient-to-br from-blue-500/10 to-transparent border border-blue-500/20 rounded-lg p-2.5 text-center relative group">
+                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center cursor-help hover:bg-blue-500/40 transition-colors">
+                          <span className="text-[9px] font-medium text-blue-400">i</span>
+                        </div>
+                        <div className="absolute top-6 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
+                          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-44 shadow-2xl">
+                            Pourcentage de commentaires analysés par l'IA ({semanticStats.global.commentaires_enrichis.toLocaleString('fr-FR')} / {semanticStats.global.total_commentaires.toLocaleString('fr-FR')}).
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-blue-400/70 uppercase tracking-wider">Enrichis</p>
+                        <p className="text-lg font-bold text-blue-400">
+                          {semanticStats.global.taux_enrichissement}%
+                        </p>
+                      </div>
                     </div>
-                  ))
-                )}
-              </div>
 
-              {/* Historique conversations */}
-              <div className="border-t-2 border-amber-500/20">
-                <div className="p-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-transparent">
-                  <h3 className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider flex items-center gap-2">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
+                    {/* Sentiment Distribution - Mini Bar Chart */}
+                    <div className="bg-secondary/30 rounded-lg p-2.5 relative group">
+                      <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center cursor-help transition-colors">
+                        <span className="text-[9px] font-medium text-muted-foreground">i</span>
+                      </div>
+                      <div className="absolute top-7 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
+                        <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-48 shadow-2xl">
+                          Répartition des commentaires par niveau de sentiment. Le % indique la proportion sur le total analysé.
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Distribution Sentiments</p>
+                      <div className="space-y-1.5">
+                        {semanticStats.sentiment_distribution.map((item, idx) => {
+                          const total = semanticStats.sentiment_distribution.reduce((a, b) => a + b.count, 0);
+                          const pct = (item.count / total * 100).toFixed(0);
+                          const colors: Record<string, string> = {
+                            'Très positif': 'bg-emerald-500',
+                            'Positif': 'bg-emerald-400',
+                            'Neutre': 'bg-gray-400',
+                            'Négatif': 'bg-orange-400',
+                            'Très négatif': 'bg-red-500'
+                          };
+                          return (
+                            <div key={idx} className="flex items-center gap-2">
+                              <span className="text-[10px] text-muted-foreground min-w-[4.5rem] shrink-0">{item.label}</span>
+                              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden min-w-[2rem]">
+                                <div
+                                  className={`h-full ${colors[item.label] || 'bg-primary'} transition-all`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground whitespace-nowrap">{pct}%</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ALERTES - Catégories avec sentiment négatif */}
+                    {semanticStats.alerts && semanticStats.alerts.length > 0 && (
+                      <div className="bg-gradient-to-br from-red-500/10 to-transparent border border-red-500/20 rounded-lg p-2.5 relative group">
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-red-500/20 hover:bg-red-500/40 flex items-center justify-center cursor-help transition-colors">
+                          <span className="text-[9px] font-medium text-red-400">i</span>
+                        </div>
+                        <div className="absolute top-7 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
+                          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-52 shadow-2xl">
+                            <p className="font-medium text-red-400 mb-1">Points d'attention</p>
+                            <p>Catégories avec le plus de commentaires négatifs. Ce sont les axes d'amélioration prioritaires.</p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <span>⚠</span> Alertes
+                        </p>
+                        <div className="space-y-1.5">
+                          {semanticStats.alerts.map((item, idx) => {
+                            const displayName = item.category.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+                            return (
+                              <div key={idx} className="flex items-center gap-2 p-1.5 bg-red-500/5 rounded border border-red-500/10">
+                                <span className="text-[10px] text-foreground/80 truncate min-w-0 flex-1" title={displayName}>
+                                  {displayName}
+                                </span>
+                                <span className="text-[9px] text-muted-foreground whitespace-nowrap">{item.count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[10px] font-medium text-red-400 whitespace-nowrap">
+                                  {item.sentiment.toFixed(2)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* POINTS FORTS - Catégories avec sentiment positif */}
+                    {semanticStats.strengths && semanticStats.strengths.length > 0 && (
+                      <div className="bg-gradient-to-br from-emerald-500/10 to-transparent border border-emerald-500/20 rounded-lg p-2.5 relative group">
+                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 flex items-center justify-center cursor-help transition-colors">
+                          <span className="text-[9px] font-medium text-emerald-400">i</span>
+                        </div>
+                        <div className="absolute top-7 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
+                          <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-52 shadow-2xl">
+                            <p className="font-medium text-emerald-400 mb-1">Points forts</p>
+                            <p>Catégories avec le plus de commentaires positifs. Ce sont vos atouts à capitaliser.</p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <span>✓</span> Points Forts
+                        </p>
+                        <div className="space-y-1.5">
+                          {semanticStats.strengths.map((item, idx) => {
+                            const displayName = item.category.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+                            return (
+                              <div key={idx} className="flex items-center gap-2 p-1.5 bg-emerald-500/5 rounded border border-emerald-500/10">
+                                <span className="text-[10px] text-foreground/80 truncate min-w-0 flex-1" title={displayName}>
+                                  {displayName}
+                                </span>
+                                <span className="text-[9px] text-muted-foreground whitespace-nowrap">{item.count.toLocaleString('fr-FR')}</span>
+                                <span className="text-[10px] font-medium text-emerald-400 whitespace-nowrap">
+                                  +{item.sentiment.toFixed(2)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Résumé texte */}
+                    <div className="bg-gradient-to-br from-amber-500/5 to-transparent border border-amber-500/10 rounded-lg p-2.5">
+                      <p className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-1">Résumé IA</p>
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        {semanticStats.global.commentaires_enrichis.toLocaleString('fr-FR')} commentaires analysés sur {semanticStats.global.total_commentaires.toLocaleString('fr-FR')}.
+                        Tendance {semanticStats.global.sentiment_moyen >= 0.3 ? 'très positive' : semanticStats.global.sentiment_moyen >= 0 ? 'positive' : 'négative'}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Separator */}
+                <div className="border-t border-amber-500/20 mx-3" />
+
+                {/* Rapports sauvegardés */}
+                <div className="p-3">
+                  <h4 className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
                     </svg>
-                    Historique
-                  </h3>
-                </div>
-                <div className="overflow-y-auto max-h-48 p-3 space-y-1">
-                  {conversations.slice(0, 10).map((conv) => (
-                    <button
-                      key={conv.id}
-                      onClick={async () => {
-                        setCurrentConversationId(conv.id);
-                        try {
-                          const res = await fetch(`http://localhost:8000/conversations/${conv.id}/messages`);
-                          const data = await res.json();
-                          setMessages(data.messages || []);
-                          setSelectedMessage(null);
-                        } catch (e) {
-                          console.error("Erreur chargement messages:", e);
-                        }
-                      }}
-                      className={`w-full text-left text-xs p-2 rounded-lg hover:bg-secondary/50 transition-colors truncate ${
-                        currentConversationId === conv.id ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {conv.title || "Conversation sans titre"}
-                    </button>
-                  ))}
+                    Rapports
+                  </h4>
+                  <div className="space-y-1.5">
+                    {savedReports.length === 0 ? (
+                      <p className="text-[10px] text-muted-foreground text-center py-2">
+                        Aucun rapport
+                      </p>
+                    ) : (
+                      savedReports.slice(0, 5).map((report) => (
+                        <div
+                          key={report.id}
+                          className="p-2 rounded-lg border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group cursor-pointer"
+                          onClick={() => handleReportClick(report)}
+                        >
+                          <p className="text-[11px] font-medium truncate text-foreground">
+                            {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
+                            {report.title}
+                          </p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteReport(report.id);
+                            }}
+                            className="text-[9px] text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </>

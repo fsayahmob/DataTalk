@@ -390,3 +390,6 @@ python scripts/enrich_comments.py
 3. **Layout 3 panneaux** - Structure CSS/Tailwind
 4. **Chat conversation** - Historique + animation loading
 5. **Menu config** - Panel rétractable Gemini API key
+
+
+git checkout 66a25ad
