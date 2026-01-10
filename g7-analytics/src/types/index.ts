@@ -6,6 +6,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   sql?: string;
+  sql_error?: string;
   chart?: ChartConfig;
   data?: Record<string, unknown>[];
   model_name?: string;

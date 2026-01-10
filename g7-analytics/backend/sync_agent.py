@@ -38,7 +38,8 @@ def get_duckdb_schema() -> list[dict]:
         columns = conn.execute(f"DESCRIBE {table_name}").fetchall()
 
         # Récupérer le nombre de lignes
-        row_count = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0]
+        result = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
+        row_count = result[0] if result else 0
 
         table_info = {
             "name": table_name,
@@ -164,6 +165,9 @@ def sync_catalog(use_llm: bool = True):
 
     for table in enriched_schema:
         table_name = table.get("name")
+        if not table_name:
+            continue  # Skip tables without name
+
         table_desc = table.get("description", "")
         row_count = table.get("row_count")
 
@@ -173,6 +177,9 @@ def sync_catalog(use_llm: bool = True):
                 if orig_table["name"] == table_name:
                     row_count = orig_table["row_count"]
                     break
+
+        if ds_id is None:
+            raise ValueError("Datasource ID is required")
 
         table_id = add_table(
             datasource_id=ds_id,
@@ -200,9 +207,12 @@ def sync_catalog(use_llm: bool = True):
                                 sample_values = orig_col.get("sample_values")
                             break
 
+            if table_id is None:
+                continue  # Skip if table creation failed
+
             col_id = add_column(
                 table_id=table_id,
-                name=col_name,
+                name=col_name or "",
                 data_type=col_type,
                 description=col_desc,
                 sample_values=sample_values,
@@ -210,8 +220,9 @@ def sync_catalog(use_llm: bool = True):
             )
 
             # Ajouter les synonymes
-            for synonym in synonyms:
-                add_synonym(col_id, synonym)
+            if col_id is not None:
+                for synonym in synonyms:
+                    add_synonym(col_id, synonym)
 
     print("Synchronisation terminée!")
     print("\n" + "="*60)

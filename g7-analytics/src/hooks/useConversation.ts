@@ -107,6 +107,7 @@ export function useConversation(): UseConversationReturn {
         role: "assistant",
         content: data.message,
         sql: data.sql,
+        sql_error: data.sql_error,
         chart: data.chart,
         data: data.data,
         model_name: data.model_name,
@@ -125,6 +126,7 @@ export function useConversation(): UseConversationReturn {
         content: `Erreur: ${e instanceof Error ? e.message : "Erreur inconnue"}`,
       };
       setMessages((prev) => [...prev, errorMessage]);
+      setSelectedMessage(errorMessage);
     } finally {
       setLoading(false);
     }

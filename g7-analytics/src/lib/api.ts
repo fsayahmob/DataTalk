@@ -20,6 +20,7 @@ export interface AnalysisResponse {
   message_id: number;
   message: string;
   sql: string;
+  sql_error?: string;
   data: Record<string, unknown>[];
   chart: ChartConfig;
   model_name?: string;

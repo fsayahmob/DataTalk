@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Chart } from "@/components/Chart";
 import { DataTable } from "@/components/DataTable";
+import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Message, GlobalStats } from "@/types";
 import { ChartIcon, SaveIcon, FilterIcon, TableIcon, CopyIcon } from "@/components/icons";
 
@@ -200,44 +201,51 @@ export function VisualizationZone({
 
       {selectedMessage ? (
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Zone 2.2: Graphique (flexible) */}
-          {selectedMessage.chart && selectedMessage.chart.type !== "none" && selectedMessage.data && (
-            <div className="flex-1 min-h-0 border-b border-border/50 p-4 overflow-hidden bg-gradient-to-b from-transparent to-secondary/10">
-              <div className="h-full">
-                <Chart config={selectedMessage.chart} data={selectedMessage.data} />
-              </div>
-            </div>
-          )}
+          {/* Si erreur SQL, afficher ErrorDisplay */}
+          {selectedMessage.sql_error ? (
+            <ErrorDisplay error={selectedMessage.sql_error} sql={selectedMessage.sql} />
+          ) : (
+            <>
+              {/* Zone 2.2: Graphique (flexible) */}
+              {selectedMessage.chart && selectedMessage.chart.type !== "none" && selectedMessage.data && (
+                <div className="flex-1 min-h-0 border-b border-border/50 p-4 overflow-hidden bg-gradient-to-b from-transparent to-secondary/10">
+                  <div className="h-full">
+                    <Chart config={selectedMessage.chart} data={selectedMessage.data} />
+                  </div>
+                </div>
+              )}
 
-          {/* Zone 2.3: Tableau de données (scrollable) */}
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="p-3 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-secondary/20 to-transparent">
-              <span className="text-sm font-medium flex items-center gap-2">
-                <TableIcon size={14} className="text-primary" />
-                Données ({selectedMessage.data?.length || 0} lignes)
-              </span>
-              {selectedMessage.sql && (
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(selectedMessage.sql || "");
-                  }}
-                  className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
-                >
-                  <CopyIcon size={12} />
-                  Copier SQL
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-auto p-3">
-              {selectedMessage.data && selectedMessage.data.length > 0 ? (
-                <DataTable data={selectedMessage.data} />
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Aucune donnée
-                </p>
-              )}
-            </div>
-          </div>
+              {/* Zone 2.3: Tableau de données (scrollable) */}
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="p-3 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-secondary/20 to-transparent">
+                  <span className="text-sm font-medium flex items-center gap-2">
+                    <TableIcon size={14} className="text-primary" />
+                    Données ({selectedMessage.data?.length || 0} lignes)
+                  </span>
+                  {selectedMessage.sql && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedMessage.sql || "");
+                      }}
+                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
+                    >
+                      <CopyIcon size={12} />
+                      Copier SQL
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 overflow-auto p-3">
+                  {selectedMessage.data && selectedMessage.data.length > 0 ? (
+                    <DataTable data={selectedMessage.data} />
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Aucune donnée
+                    </p>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
