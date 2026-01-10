@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Header } from "@/components/Header";
 import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
@@ -92,17 +93,15 @@ export default function Home() {
   const handleSaveReport = async () => {
     if (!selectedMessage || !selectedMessage.sql) return;
 
-    const title = prompt("Nom du rapport:", selectedMessage.content.slice(0, 50));
-    if (!title) return;
-
-    // Trouver la question user associée (le message user juste avant le message assistant sélectionné)
+    // Trouver la question user associée pour le titre
     const selectedIndex = messages.findIndex((m) => m.id === selectedMessage.id);
-    let userQuestion = "";
+    let title = selectedMessage.content.slice(0, 100);
+
+    // Utiliser la question user comme titre si disponible
     if (selectedIndex > 0) {
-      // Chercher le dernier message user avant ce message assistant
       for (let i = selectedIndex - 1; i >= 0; i--) {
         if (messages[i].role === "user") {
-          userQuestion = messages[i].content;
+          title = messages[i].content.slice(0, 100);
           break;
         }
       }
@@ -111,25 +110,27 @@ export default function Home() {
     try {
       await api.saveReport(
         title,
-        userQuestion,
+        title, // La question est utilisée comme titre
         selectedMessage.sql,
         JSON.stringify(selectedMessage.chart),
         selectedMessage.id
       );
       loadReports();
+      toast.success("Rapport sauvegardé", { description: title });
     } catch (e) {
       console.error("Erreur sauvegarde:", e);
+      toast.error("Erreur lors de la sauvegarde");
     }
   };
 
   const handleDeleteReport = async (id: number) => {
-    if (!confirm("Supprimer ce rapport ?")) return;
-
     try {
       await api.deleteReport(id);
       loadReports();
+      toast.success("Rapport supprimé");
     } catch (e) {
       console.error("Erreur suppression:", e);
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -144,7 +145,7 @@ export default function Home() {
       const reportMessage: Message = {
         id: Date.now(),
         role: "assistant",
-        content: `📊 Rapport: ${result.title}`,
+        content: result.title,
         sql: result.sql,
         chart: result.chart,
         data: result.data,
@@ -153,7 +154,9 @@ export default function Home() {
       setSelectedMessage(reportMessage);
     } catch (e) {
       console.error("Erreur exécution rapport:", e);
-      alert(`Erreur: ${e instanceof Error ? e.message : "Erreur inconnue"}`);
+      toast.error("Erreur d'exécution", {
+        description: e instanceof Error ? e.message : "Erreur inconnue"
+      });
     } finally {
       setReportLoading(false);
     }
