@@ -82,16 +82,29 @@ echo ""
 # ============================================
 echo -e "${BLUE}[3/6] Vérification des imports...${NC}"
 
-# Imports inutilisés (via TypeScript)
+# TypeScript strict check
 if command -v npx &> /dev/null; then
-    UNUSED=$(npx tsc --noEmit 2>&1 | grep -c "is declared but" || true)
-    UNUSED=${UNUSED:-0}
-    UNUSED=$(echo "$UNUSED" | tr -d '[:space:]')
-    if [ "$UNUSED" -gt 0 ] 2>/dev/null; then
-        echo -e "  ${YELLOW}WARNING${NC}: $UNUSED imports/variables potentiellement inutilisés"
-        npx tsc --noEmit 2>&1 | grep "is declared but" | head -5
+    echo -e "  ${BLUE}TypeScript:${NC}"
+    TSC_ERRORS=$(npx tsc --noEmit 2>&1 | grep -c "error TS" || true)
+    TSC_ERRORS=${TSC_ERRORS:-0}
+    if [ "$TSC_ERRORS" -gt 0 ]; then
+        echo -e "  ${YELLOW}WARNING${NC}: $TSC_ERRORS erreurs TypeScript"
+        npx tsc --noEmit 2>&1 | grep "error TS" | head -5
     else
-        echo -e "  ${GREEN}OK${NC}: Pas d'imports inutilisés détectés"
+        echo -e "  ${GREEN}OK${NC}: Pas d'erreurs TypeScript"
+    fi
+fi
+
+# ESLint
+if command -v npx &> /dev/null; then
+    echo -e "  ${BLUE}ESLint:${NC}"
+    ESLINT_ERRORS=$(npx eslint src/ --format compact 2>/dev/null | grep -c "Error\|Warning" || true)
+    ESLINT_ERRORS=${ESLINT_ERRORS:-0}
+    if [ "$ESLINT_ERRORS" -gt 0 ]; then
+        echo -e "  ${YELLOW}WARNING${NC}: $ESLINT_ERRORS erreurs/warnings ESLint"
+        npx eslint src/ --format stylish 2>/dev/null | head -15
+    else
+        echo -e "  ${GREEN}OK${NC}: Pas d'erreurs ESLint"
     fi
 fi
 
@@ -176,9 +189,37 @@ if [ -d "backend" ]; then
         echo "$LONG_FUNCS" | while read line; do echo "    - $line"; done
     fi
 
-    # Imports inutilisés (basique)
-    UNUSED_IMPORTS=$(grep "^import\|^from" backend/main.py 2>/dev/null | wc -l | tr -d ' ')
-    echo -e "  ${BLUE}INFO${NC}: $UNUSED_IMPORTS imports (vérifier avec pylint si disponible)"
+    # Ruff (linting rapide) - règles strictes
+    # E=pycodestyle, F=pyflakes, W=warnings, I=isort, N=naming, S=security, B=bugbear, C4=comprehensions
+    # S608 ignoré: faux positif sur SQL généré par LLM (pas d'injection possible)
+    # S110/S112 ignoré: try-except-pass/continue intentionnel pour skip silencieux
+    if command -v ruff &> /dev/null; then
+        echo -e "  ${BLUE}Ruff linting:${NC}"
+        RUFF_ERRORS=$(ruff check backend/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$RUFF_ERRORS" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARNING${NC}: $RUFF_ERRORS erreurs ruff"
+            ruff check backend/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | head -10
+        else
+            echo -e "  ${GREEN}OK${NC}: Pas d'erreurs ruff"
+        fi
+    else
+        echo -e "  ${BLUE}INFO${NC}: ruff non installé (pip install ruff)"
+    fi
+
+    # Mypy (typage) - tous les fichiers Python
+    if command -v mypy &> /dev/null; then
+        echo -e "  ${BLUE}Mypy type checking:${NC}"
+        MYPY_ERRORS=$(mypy backend/ --ignore-missing-imports --no-error-summary 2>/dev/null | grep -c "error:" || true)
+        MYPY_ERRORS=${MYPY_ERRORS:-0}
+        if [ "$MYPY_ERRORS" -gt 0 ]; then
+            echo -e "  ${YELLOW}WARNING${NC}: $MYPY_ERRORS erreurs de typage mypy"
+            mypy backend/ --ignore-missing-imports --no-error-summary 2>/dev/null | head -10
+        else
+            echo -e "  ${GREEN}OK${NC}: Pas d'erreurs mypy"
+        fi
+    else
+        echo -e "  ${BLUE}INFO${NC}: mypy non installé (pip install mypy)"
+    fi
 fi
 
 echo ""

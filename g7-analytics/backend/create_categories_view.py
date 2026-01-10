@@ -3,6 +3,7 @@ Script pour créer la vue dénormalisée evaluation_categories.
 Cette vue "aplatit" les catégories JSON en lignes individuelles pour faciliter les requêtes SQL.
 """
 import os
+
 import duckdb
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
@@ -53,9 +54,9 @@ def create_view():
         LIMIT 5
     """).fetchall()
 
-    print(f"Vue créée avec succès!")
+    print("Vue créée avec succès!")
     print(f"Nombre de lignes: {count}")
-    print(f"\nTop 5 catégories:")
+    print("\nTop 5 catégories:")
     for row in sample:
         print(f"  {row[0]}: {row[1]} mentions, sentiment moyen: {row[2]}")
 

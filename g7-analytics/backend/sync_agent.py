@@ -3,21 +3,21 @@ Agent de synchronisation du catalogue.
 Détecte les changements dans DuckDB et met à jour le catalogue SQLite.
 Peut être appelé manuellement ou via un cron/scheduler.
 """
-import os
 import json
+import os
+
 import duckdb
 import google.generativeai as genai
-from dotenv import load_dotenv
-
 from catalog import (
-    init_catalog,
-    add_datasource,
-    add_table,
     add_column,
+    add_datasource,
     add_synonym,
+    add_table,
     get_connection,
-    get_schema_for_llm
+    get_schema_for_llm,
+    init_catalog,
 )
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -63,7 +63,7 @@ def get_duckdb_schema() -> list[dict]:
                     if samples:
                         sample_values = ", ".join([str(s[0])[:30] for s in samples])
             except Exception:
-                pass
+                continue  # Skip columns that can't be sampled
 
             table_info["columns"].append({
                 "name": col_name,
@@ -250,8 +250,8 @@ def check_schema_changes() -> bool:
         cursor.execute("""
             SELECT name FROM columns WHERE table_id = ?
         """, (result["id"],))
-        catalog_columns = set(row["name"] for row in cursor.fetchall())
-        duckdb_columns = set(col["name"] for col in table["columns"])
+        catalog_columns = {row["name"] for row in cursor.fetchall()}
+        duckdb_columns = {col["name"] for col in table["columns"]}
 
         if catalog_columns != duckdb_columns:
             print(f"Changement de colonnes dans {table['name']}")

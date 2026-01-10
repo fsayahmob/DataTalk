@@ -2,6 +2,7 @@
 
 import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { PredefinedQuestions } from "@/components/PredefinedQuestions";
 import { Message, PredefinedQuestion, Conversation } from "@/types";
 import {
   ChatIcon,
@@ -24,17 +25,6 @@ function LoadingDots() {
       <span className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
     </span>
   );
-}
-
-// Icônes par catégorie
-function CategoryIcon({ icon }: { icon: string }) {
-  const icons: Record<string, string> = {
-    "⭐": "⭐",
-    "🏆": "🏆",
-    "📈": "📈",
-    "🔍": "🔍",
-  };
-  return <span className="mr-2">{icons[icon] || "💬"}</span>;
 }
 
 interface ChatZoneProps {
@@ -91,16 +81,6 @@ export function ChatZone({
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Grouper questions par catégorie
-  const questionsByCategory = predefinedQuestions.reduce(
-    (acc, q) => {
-      if (!acc[q.category]) acc[q.category] = [];
-      acc[q.category].push(q);
-      return acc;
-    },
-    {} as Record<string, PredefinedQuestion[]>
-  );
 
   return (
     <div
@@ -202,30 +182,10 @@ export function ChatZone({
                 </div>
 
                 {/* Questions prédéfinies */}
-                {Object.entries(questionsByCategory).map(([category, questions]) => (
-                  <div key={category}>
-                    <h4 className="text-xs font-medium text-primary/80 mb-2 flex items-center gap-2">
-                      <span className="w-1 h-1 rounded-full bg-primary" />
-                      {category}
-                    </h4>
-                    <div className="space-y-1">
-                      {questions.map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => onQuestionClick(q.question)}
-                          className="w-full text-left text-sm p-2.5 rounded-lg hover:bg-secondary/50 hover:border-primary/20 border border-transparent transition-all group"
-                        >
-                          <span className="opacity-70 group-hover:opacity-100 transition-opacity">
-                            <CategoryIcon icon={q.icon} />
-                          </span>
-                          <span className="text-foreground/80 group-hover:text-foreground transition-colors">
-                            {q.question}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                <PredefinedQuestions
+                  questions={predefinedQuestions}
+                  onQuestionClick={onQuestionClick}
+                />
               </div>
             )}
 

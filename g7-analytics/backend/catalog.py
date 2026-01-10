@@ -2,9 +2,9 @@
 Catalogue sémantique SQLite pour stocker les métadonnées des tables/colonnes.
 Permet de générer dynamiquement le contexte pour le LLM.
 """
-import sqlite3
 import os
-from typing import Any
+import sqlite3
+from typing import Any, Optional
 
 CATALOG_PATH = os.path.join(os.path.dirname(__file__), "catalog.sqlite")
 
@@ -166,7 +166,7 @@ def init_catalog():
     print(f"Catalogue initialisé: {CATALOG_PATH}")
 
 
-def add_datasource(name: str, type: str, path: str = None, description: str = None) -> int:
+def add_datasource(name: str, type: str, path: str | None = None, description: str | None = None) -> int | None:
     """Ajoute une source de données."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -180,7 +180,7 @@ def add_datasource(name: str, type: str, path: str = None, description: str = No
     return datasource_id
 
 
-def add_table(datasource_id: int, name: str, description: str = None, row_count: int = None) -> int:
+def add_table(datasource_id: int, name: str, description: str | None = None, row_count: int | None = None) -> int | None:
     """Ajoute une table au catalogue."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -198,11 +198,11 @@ def add_column(
     table_id: int,
     name: str,
     data_type: str,
-    description: str = None,
-    sample_values: str = None,
-    value_range: str = None,
+    description: str | None = None,
+    sample_values: str | None = None,
+    value_range: str | None = None,
     is_primary_key: bool = False
-) -> int:
+) -> int | None:
     """Ajoute une colonne au catalogue."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -226,7 +226,7 @@ def add_synonym(column_id: int, term: str):
     conn.close()
 
 
-def get_schema_for_llm(datasource_name: str = None) -> str:
+def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
     """
     Génère le schéma formaté pour le contexte LLM.
     C'est cette fonction qui remplace le DB_SCHEMA hardcodé.
@@ -302,7 +302,7 @@ def get_table_info(table_name: str) -> dict[str, Any] | None:
 # FONCTIONS CRUD - CONVERSATIONS
 # ========================================
 
-def create_conversation(title: str = None) -> int:
+def create_conversation(title: Optional[str] = None) -> int:
     """Crée une nouvelle conversation."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -312,6 +312,7 @@ def create_conversation(title: str = None) -> int:
     )
     conn.commit()
     conversation_id = cursor.lastrowid
+    assert conversation_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return conversation_id
 
@@ -351,13 +352,13 @@ def add_message(
     conversation_id: int,
     role: str,
     content: str,
-    sql_query: str = None,
-    chart_config: str = None,
-    data_json: str = None,
-    model_name: str = None,
-    tokens_input: int = None,
-    tokens_output: int = None,
-    response_time_ms: int = None
+    sql_query: Optional[str] = None,
+    chart_config: Optional[str] = None,
+    data_json: Optional[str] = None,
+    model_name: Optional[str] = None,
+    tokens_input: Optional[int] = None,
+    tokens_output: Optional[int] = None,
+    response_time_ms: Optional[int] = None
 ) -> int:
     """Ajoute un message à une conversation."""
     conn = get_connection()
@@ -385,6 +386,7 @@ def add_message(
 
     conn.commit()
     message_id = cursor.lastrowid
+    assert message_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return message_id
 
@@ -411,8 +413,8 @@ def save_report(
     title: str,
     question: str,
     sql_query: str,
-    chart_config: str = None,
-    message_id: int = None,
+    chart_config: Optional[str] = None,
+    message_id: Optional[int] = None,
     is_pinned: bool = False
 ) -> int:
     """Sauvegarde un rapport."""
@@ -425,6 +427,7 @@ def save_report(
     """, (title, question, sql_query, chart_config, message_id, is_pinned))
     conn.commit()
     report_id = cursor.lastrowid
+    assert report_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return report_id
 
@@ -489,7 +492,7 @@ def get_predefined_questions() -> list[dict]:
 def add_predefined_question(
     question: str,
     category: str,
-    icon: str = None,
+    icon: Optional[str] = None,
     display_order: int = 0
 ) -> int:
     """Ajoute une question prédéfinie."""
@@ -501,6 +504,7 @@ def add_predefined_question(
     """, (question, category, icon, display_order))
     conn.commit()
     question_id = cursor.lastrowid
+    assert question_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return question_id
 

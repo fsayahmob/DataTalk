@@ -3,13 +3,14 @@ Script pour peupler le catalogue avec les métadonnées G7.
 À exécuter une fois pour initialiser, ou quand le schéma change.
 """
 from catalog import (
-    init_catalog,
-    add_datasource,
-    add_table,
     add_column,
+    add_datasource,
     add_synonym,
-    get_schema_for_llm
+    add_table,
+    get_schema_for_llm,
+    init_catalog,
 )
+
 
 def seed_g7_catalog():
     """Peuple le catalogue avec les données G7."""

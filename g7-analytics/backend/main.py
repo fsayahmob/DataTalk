@@ -2,40 +2,37 @@
 FastAPI Backend pour G7 Analytics
 Gère les appels Gemini + DuckDB dans un seul processus Python persistant
 """
-import os
 import json
+import os
+import time
 from contextlib import asynccontextmanager
 from typing import Any
 
 import duckdb
 import google.generativeai as genai
+from catalog import (
+    add_message,
+    create_conversation,
+    delete_conversation,
+    delete_report,
+    get_all_settings,
+    get_conversations,
+    get_messages,
+    # Questions prédéfinies
+    get_predefined_questions,
+    get_saved_reports,
+    get_schema_for_llm,
+    # Settings
+    get_setting,
+    # Rapports
+    save_report,
+    set_setting,
+    toggle_pin_report,
+)
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-import time
-from catalog import (
-    get_schema_for_llm,
-    init_catalog,
-    # Conversations
-    create_conversation,
-    get_conversations,
-    delete_conversation,
-    get_messages,
-    add_message,
-    # Rapports
-    save_report,
-    get_saved_reports,
-    delete_report,
-    toggle_pin_report,
-    # Questions prédéfinies
-    get_predefined_questions,
-    # Settings
-    get_setting,
-    set_setting,
-    get_all_settings,
-)
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -204,8 +201,8 @@ app.add_middleware(
 
 def execute_query(sql: str) -> list[dict[str, Any]]:
     """Exécute une requête SQL sur DuckDB"""
-    import pandas as pd
     import numpy as np
+    import pandas as pd
 
     if not db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
@@ -277,7 +274,7 @@ def call_gemini(question: str) -> dict:
         }
         return result
     except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Réponse Gemini invalide: {e}")
+        raise HTTPException(status_code=500, detail=f"Réponse Gemini invalide: {e}") from e
 
 
 @app.get("/health")
@@ -344,7 +341,7 @@ async def analyze(request: QuestionRequest):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ========================================
@@ -441,7 +438,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # ========================================
@@ -523,7 +520,7 @@ async def execute_report(report_id: int):
             "data": data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur exécution SQL: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erreur exécution SQL: {str(e)}") from e
 
 
 # ========================================
@@ -653,8 +650,8 @@ async def get_semantic_stats():
                     category_sentiments[cat].append(sent_par_cat[cat])
                 elif sent_global is not None:
                     category_sentiments[cat].append(sent_global)
-        except:
-            pass
+        except Exception:
+            continue  # Skip malformed rows silently
 
     # Calculer les moyennes et trier
     category_stats = []
@@ -726,4 +723,4 @@ async def get_global_stats():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)  # noqa: S104

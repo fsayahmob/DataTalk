@@ -15,19 +15,20 @@ Catégories (définies dans CLAUDE.md):
 - ACCESSIBILITE: PMR, bagages, langue étrangère
 """
 
+import json
+import logging
 import os
 import sys
-import json
 import time
-import logging
-import duckdb
-import google.generativeai as genai
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dotenv import load_dotenv
+from typing import Optional
+
+import duckdb
+import google.generativeai as genai
 from catalog import get_setting
+from dotenv import load_dotenv
 
 # Charger le .env du dossier backend
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -376,8 +377,9 @@ def run_enrichment(
         WHERE categories IS NOT NULL AND categories != ''
     """).fetchone()
 
-    log(f"Total enrichis: {stats[0]}")
-    log(f"Sentiment moyen: {stats[1]:.2f}")
+    if stats:
+        log(f"Total enrichis: {stats[0]}")
+        log(f"Sentiment moyen: {stats[1]:.2f}" if stats[1] else "Sentiment moyen: N/A")
 
     conn.close()
     log("Enrichissement terminé!")

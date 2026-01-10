@@ -2,7 +2,7 @@
 Script pour peupler les questions prédéfinies dans le catalogue.
 À exécuter une fois pour initialiser.
 """
-from catalog import init_catalog, add_predefined_question, get_predefined_questions
+from catalog import add_predefined_question, get_predefined_questions, init_catalog
 
 PREDEFINED_QUESTIONS = [
     # Satisfaction
