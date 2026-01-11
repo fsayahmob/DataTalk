@@ -13,10 +13,6 @@ interface UseLayoutReturn {
   setZone1Collapsed: (collapsed: boolean) => void;
   setZone3Collapsed: (collapsed: boolean) => void;
   setIsResizing: (resizing: "zone1" | "zone3" | null) => void;
-
-  // Helpers
-  toggleZone1: () => void;
-  toggleZone3: () => void;
 }
 
 export function useLayout(): UseLayoutReturn {
@@ -69,10 +65,6 @@ export function useLayout(): UseLayoutReturn {
     };
   }, [isResizing]);
 
-  // Helpers
-  const toggleZone1 = () => setZone1Collapsed((prev) => !prev);
-  const toggleZone3 = () => setZone3Collapsed((prev) => !prev);
-
   return {
     zone1Collapsed,
     zone3Collapsed,
@@ -83,7 +75,5 @@ export function useLayout(): UseLayoutReturn {
     setZone1Collapsed,
     setZone3Collapsed,
     setIsResizing,
-    toggleZone1,
-    toggleZone3,
   };
 }

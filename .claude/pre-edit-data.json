@@ -1,7 +1,7 @@
 {
   "hookType": "pre-edit",
   "toolName": "Edit",
-  "filePath": "/Users/sayahfarid/datalakeG7/backend/main.py",
-  "fileType": "backend",
-  "timestamp": "2026-01-11T23:10:03Z"
+  "filePath": "/Users/sayahfarid/datalakeG7/frontend/src/hooks/useLayout.ts",
+  "fileType": "frontend",
+  "timestamp": "2026-01-11T23:17:04Z"
 }

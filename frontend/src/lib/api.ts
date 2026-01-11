@@ -85,16 +85,6 @@ export interface LLMCosts {
 }
 
 // Health & Settings
-export async function checkApiStatus(): Promise<"ok" | "error"> {
-  try {
-    const res = await fetch(`${API_BASE}/llm/status`);
-    const data: LLMStatus = await res.json();
-    return data.status === "ok" ? "ok" : "error";
-  } catch {
-    return "error";
-  }
-}
-
 export async function fetchLLMStatus(): Promise<LLMStatus> {
   try {
     const res = await fetch(`${API_BASE}/llm/status`);
@@ -447,17 +437,6 @@ export async function fetchLLMPrompts(category?: string): Promise<LLMPrompt[]> {
   }
 }
 
-export async function fetchActivePrompt(key: string): Promise<LLMPrompt | null> {
-  try {
-    const res = await fetch(`${API_BASE}/llm/prompts/${key}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.prompt;
-  } catch {
-    return null;
-  }
-}
-
 export async function setActivePromptVersion(
   key: string,
   version: string
@@ -480,68 +459,6 @@ export interface WidgetChartConfig {
   x?: string;
   y?: string | string[];
   title?: string;
-}
-
-export interface Widget {
-  id: number;
-  widget_id: string;
-  title: string;
-  description: string | null;
-  icon: string | null;
-  sql_query: string;
-  chart_type: "bar" | "line" | "pie" | "area" | "scatter" | "none";
-  chart_config: string | null; // JSON string
-  display_order: number;
-  priority: "high" | "normal";
-  is_enabled: boolean;
-  // Données calculées (ajoutées par le backend)
-  data?: Record<string, unknown>[];
-  cached_at?: string;
-  from_cache?: boolean;
-  error?: string;
-}
-
-export interface WidgetsResponse {
-  widgets: Widget[];
-}
-
-export async function fetchWidgets(useCache: boolean = true): Promise<Widget[]> {
-  try {
-    const res = await fetch(`${API_BASE}/widgets?use_cache=${useCache}`);
-    const data: WidgetsResponse = await res.json();
-    return data.widgets || [];
-  } catch (e) {
-    console.error("Erreur chargement widgets:", e);
-    return [];
-  }
-}
-
-export interface RefreshWidgetsResponse {
-  total: number;
-  success: number;
-  errors: Array<{ widget_id: string; error: string }>;
-  refreshed_at: string;
-}
-
-export async function refreshWidgets(): Promise<RefreshWidgetsResponse | null> {
-  try {
-    const res = await fetch(`${API_BASE}/widgets/refresh`, { method: "POST" });
-    return await res.json();
-  } catch (e) {
-    console.error("Erreur refresh widgets:", e);
-    return null;
-  }
-}
-
-export async function refreshSingleWidget(widgetId: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_BASE}/widgets/${widgetId}/refresh`, {
-      method: "POST",
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
 }
 
 // ============ Questions suggérées ============
