@@ -14,6 +14,7 @@ import {
   TokensIcon,
   SendIcon,
   StopIcon,
+  TrashIcon,
 } from "@/components/icons";
 
 // Formatage du timestamp relatif
@@ -70,6 +71,8 @@ interface ChatZoneProps {
   // Mode contexte
   useContext: boolean;
   onUseContextChange: (use: boolean) => void;
+  // Suppression historique
+  onDeleteAllConversations: () => void;
 }
 
 export function ChatZone({
@@ -95,6 +98,7 @@ export function ChatZone({
   onReplayMessage,
   useContext,
   onUseContextChange,
+  onDeleteAllConversations,
 }: ChatZoneProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -169,7 +173,16 @@ export function ChatZone({
                     Aucune conversation
                   </p>
                 ) : (
-                  conversations.slice(0, 15).map((conv) => (
+                  <>
+                    {/* Bouton supprimer tout */}
+                    <button
+                      onClick={onDeleteAllConversations}
+                      className="w-full text-left text-[10px] p-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors flex items-center gap-2 mb-2"
+                    >
+                      <TrashIcon size={12} className="flex-shrink-0" />
+                      <span>Supprimer tout l'historique</span>
+                    </button>
+                    {conversations.slice(0, 15).map((conv) => (
                     <button
                       key={conv.id}
                       onClick={() => onLoadConversation(conv)}
@@ -183,7 +196,8 @@ export function ChatZone({
                         <span className="text-[9px] opacity-50">{formatTimestamp(conv.created_at)}</span>
                       </div>
                     </button>
-                  ))
+                  ))}
+                  </>
                 )}
               </div>
             </div>
@@ -192,15 +206,15 @@ export function ChatZone({
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             {messages.length === 0 && (
-              <div className="space-y-4">
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 mx-auto mb-3 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
-                    <SearchIcon size={24} className="text-primary" />
+              <div className="space-y-2">
+                <div className="text-center py-3">
+                  <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
+                    <SearchIcon size={20} className="text-primary" />
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     Posez une question en langage naturel
                   </p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">
                     ou sélectionnez une suggestion ci-dessous
                   </p>
                 </div>

@@ -3,12 +3,21 @@ Service LLM centralisé pour G7 Analytics.
 Utilise LiteLLM pour une interface unifiée multi-provider.
 Gère le tracking des coûts automatiquement.
 """
+import logging
 import time
 from enum import Enum
 from typing import Optional, Type, TypeVar
 
 import instructor
 import litellm
+
+# Désactiver les logs dupliqués de LiteLLM et httpx
+# LiteLLM log via son propre système ET via le logger Python standard
+# httpx log les URLs avec les clés API en clair - dangereux!
+logging.getLogger("LiteLLM").setLevel(logging.WARNING)
+logging.getLogger("litellm").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 from litellm.exceptions import (
     APIConnectionError,
     APIError,

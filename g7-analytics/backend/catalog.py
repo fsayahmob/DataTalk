@@ -130,24 +130,78 @@ def init_catalog():
         )
     """)
 
-    # Table des questions prédéfinies (suggestions cliquables)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS predefined_questions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            question TEXT NOT NULL,
-            category TEXT NOT NULL,  -- "Satisfaction", "Performance", "Tendances", "Exploration"
-            icon TEXT,  -- Emoji ou icône: "📊", "⭐", "📈", "🔍"
-            display_order INTEGER DEFAULT 0,
-            is_active BOOLEAN DEFAULT TRUE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
     # Table de configuration (clé API, préférences)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # ========================================
+    # TABLES POUR LES WIDGETS DYNAMIQUES
+    # ========================================
+
+    # Table des widgets (générés par LLM lors de la création du catalogue)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS widgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            widget_id TEXT UNIQUE NOT NULL,  -- UUID ou slug unique
+            title TEXT NOT NULL,
+            description TEXT,
+            icon TEXT,                       -- Emoji optionnel
+            sql_query TEXT NOT NULL,         -- Requête SQL à exécuter sur DuckDB
+            chart_type TEXT NOT NULL,        -- "bar", "line", "pie", "area", "scatter", "none"
+            chart_config TEXT,               -- JSON: {"x": "col", "y": "col", "title": "..."}
+            display_order INTEGER DEFAULT 0,
+            priority TEXT DEFAULT 'normal',  -- "high" = KPI en haut, "normal" = widget standard
+            is_enabled BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Cache des résultats des widgets (évite 100 clients = 100 requêtes identiques)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS widget_cache (
+            widget_id TEXT PRIMARY KEY,
+            data TEXT NOT NULL,              -- JSON: résultat de la requête SQL
+            computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP,            -- NULL = pas d'expiration
+            FOREIGN KEY (widget_id) REFERENCES widgets(widget_id) ON DELETE CASCADE
+        )
+    """)
+
+    # Table des questions suggérées (générées par LLM)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS suggested_questions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            question TEXT NOT NULL,
+            category TEXT,                   -- "Performance", "Tendances", "Alertes", etc.
+            icon TEXT,                       -- Emoji
+            business_value TEXT,             -- Pourquoi poser cette question
+            display_order INTEGER DEFAULT 0,
+            is_enabled BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    # Table des KPIs (générés par LLM - structure KpiCompactData)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS kpis (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kpi_id TEXT UNIQUE NOT NULL,     -- Slug unique (ex: "total-evaluations")
+            title TEXT NOT NULL,             -- Titre du KPI
+            sql_value TEXT NOT NULL,         -- Requête pour la valeur actuelle
+            sql_trend TEXT,                  -- Requête pour la valeur période précédente
+            sql_sparkline TEXT,              -- Requête pour l'historique (12-15 points)
+            sparkline_type TEXT DEFAULT 'area',  -- "area" ou "bar"
+            footer TEXT,                     -- Texte explicatif
+            trend_label TEXT,                -- Ex: "vs mois dernier"
+            display_order INTEGER DEFAULT 0,
+            is_enabled BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
@@ -344,6 +398,21 @@ def delete_conversation(conversation_id: int) -> bool:
     return deleted
 
 
+def delete_all_conversations() -> int:
+    """Supprime toutes les conversations et leurs messages.
+
+    Returns:
+        Nombre de conversations supprimées.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM conversations")
+    conn.commit()
+    deleted_count = cursor.rowcount
+    conn.close()
+    return deleted_count
+
+
 # ========================================
 # FONCTIONS CRUD - MESSAGES
 # ========================================
@@ -392,7 +461,15 @@ def add_message(
 
 
 def get_messages(conversation_id: int) -> list[dict]:
-    """Récupère tous les messages d'une conversation."""
+    """Récupère tous les messages d'une conversation.
+
+    Renomme les champs pour correspondre au format attendu par le frontend:
+    - sql_query -> sql
+    - chart_config -> chart (JSON parsé)
+    - data_json -> data (JSON parsé)
+    """
+    import json
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
@@ -400,8 +477,37 @@ def get_messages(conversation_id: int) -> list[dict]:
         WHERE conversation_id = ?
         ORDER BY created_at ASC
     """, (conversation_id,))
-    results = [dict(row) for row in cursor.fetchall()]
+    rows = cursor.fetchall()
     conn.close()
+
+    results = []
+    for row in rows:
+        msg = dict(row)
+        # Renommer et parser les champs pour le frontend
+        msg["sql"] = msg.pop("sql_query", None)
+
+        # Parser chart_config JSON
+        chart_config = msg.pop("chart_config", None)
+        if chart_config:
+            try:
+                msg["chart"] = json.loads(chart_config)
+            except (json.JSONDecodeError, TypeError):
+                msg["chart"] = None
+        else:
+            msg["chart"] = None
+
+        # Parser data_json
+        data_json = msg.pop("data_json", None)
+        if data_json:
+            try:
+                msg["data"] = json.loads(data_json)
+            except (json.JSONDecodeError, TypeError):
+                msg["data"] = None
+        else:
+            msg["data"] = None
+
+        results.append(msg)
+
     return results
 
 
@@ -472,44 +578,6 @@ def toggle_pin_report(report_id: int) -> bool:
 
 
 # ========================================
-# FONCTIONS CRUD - QUESTIONS PRÉDÉFINIES
-# ========================================
-
-def get_predefined_questions() -> list[dict]:
-    """Récupère les questions prédéfinies actives."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT * FROM predefined_questions
-        WHERE is_active = TRUE
-        ORDER BY category, display_order
-    """)
-    results = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return results
-
-
-def add_predefined_question(
-    question: str,
-    category: str,
-    icon: Optional[str] = None,
-    display_order: int = 0
-) -> int:
-    """Ajoute une question prédéfinie."""
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO predefined_questions (question, category, icon, display_order)
-        VALUES (?, ?, ?, ?)
-    """, (question, category, icon, display_order))
-    conn.commit()
-    question_id = cursor.lastrowid
-    assert question_id is not None, "INSERT should always return a lastrowid"
-    conn.close()
-    return question_id
-
-
-# ========================================
 # FONCTIONS CRUD - SETTINGS
 # ========================================
 
@@ -543,6 +611,159 @@ def get_all_settings() -> dict:
     results = {row["key"]: row["value"] for row in cursor.fetchall()}
     conn.close()
     return results
+
+
+# ========================================
+# FONCTIONS CRUD - WIDGETS
+# ========================================
+
+def add_widget(
+    widget_id: str,
+    title: str,
+    sql_query: str,
+    chart_type: str,
+    description: Optional[str] = None,
+    icon: Optional[str] = None,
+    chart_config: Optional[str] = None,
+    display_order: int = 0,
+    priority: str = "normal"
+) -> int:
+    """Ajoute un widget."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT OR REPLACE INTO widgets
+        (widget_id, title, description, icon, sql_query, chart_type, chart_config, display_order, priority, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (widget_id, title, description, icon, sql_query, chart_type, chart_config, display_order, priority))
+    conn.commit()
+    row_id = cursor.lastrowid
+    assert row_id is not None
+    conn.close()
+    return row_id
+
+
+def get_widgets(enabled_only: bool = True) -> list[dict]:
+    """Récupère tous les widgets."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if enabled_only:
+        cursor.execute("""
+            SELECT * FROM widgets
+            WHERE is_enabled = TRUE
+            ORDER BY priority DESC, display_order ASC
+        """)
+    else:
+        cursor.execute("SELECT * FROM widgets ORDER BY priority DESC, display_order ASC")
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
+def delete_all_widgets():
+    """Supprime tous les widgets (avant régénération)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM widget_cache")
+    cursor.execute("DELETE FROM widgets")
+    conn.commit()
+    conn.close()
+
+
+# ========================================
+# FONCTIONS CRUD - WIDGET CACHE
+# ========================================
+
+def get_widget_cache(widget_id: str) -> dict | None:
+    """Récupère le cache d'un widget."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT * FROM widget_cache
+        WHERE widget_id = ?
+          AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
+    """, (widget_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return dict(result) if result else None
+
+
+def set_widget_cache(widget_id: str, data: str, ttl_minutes: Optional[int] = None):
+    """Met en cache le résultat d'un widget."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if ttl_minutes:
+        cursor.execute("""
+            INSERT OR REPLACE INTO widget_cache (widget_id, data, computed_at, expires_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || ' minutes'))
+        """, (widget_id, data, ttl_minutes))
+    else:
+        cursor.execute("""
+            INSERT OR REPLACE INTO widget_cache (widget_id, data, computed_at, expires_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP, NULL)
+        """, (widget_id, data))
+    conn.commit()
+    conn.close()
+
+
+def clear_widget_cache():
+    """Vide tout le cache des widgets."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM widget_cache")
+    conn.commit()
+    conn.close()
+
+
+# ========================================
+# FONCTIONS CRUD - SUGGESTED QUESTIONS
+# ========================================
+
+def add_suggested_question(
+    question: str,
+    category: Optional[str] = None,
+    icon: Optional[str] = None,
+    business_value: Optional[str] = None,
+    display_order: int = 0
+) -> int:
+    """Ajoute une question suggérée."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        INSERT INTO suggested_questions (question, category, icon, business_value, display_order)
+        VALUES (?, ?, ?, ?, ?)
+    """, (question, category, icon, business_value, display_order))
+    conn.commit()
+    question_id = cursor.lastrowid
+    assert question_id is not None
+    conn.close()
+    return question_id
+
+
+def get_suggested_questions(enabled_only: bool = True) -> list[dict]:
+    """Récupère les questions suggérées."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    if enabled_only:
+        cursor.execute("""
+            SELECT * FROM suggested_questions
+            WHERE is_enabled = TRUE
+            ORDER BY category, display_order
+        """)
+    else:
+        cursor.execute("SELECT * FROM suggested_questions ORDER BY category, display_order")
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
+def delete_all_suggested_questions():
+    """Supprime toutes les questions suggérées (avant régénération)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM suggested_questions")
+    conn.commit()
+    conn.close()
 
 
 if __name__ == "__main__":

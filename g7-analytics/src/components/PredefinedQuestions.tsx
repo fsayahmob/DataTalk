@@ -34,17 +34,17 @@ export function PredefinedQuestions({ questions, onQuestionClick }: PredefinedQu
   return (
     <>
       {Object.entries(questionsByCategory).map(([category, categoryQuestions]) => (
-        <div key={category}>
-          <h4 className="text-xs font-medium text-primary/80 mb-2 flex items-center gap-2">
+        <div key={category} className="mb-2">
+          <h4 className="text-[10px] font-medium text-primary/80 mb-1 flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full bg-primary" />
             {category}
           </h4>
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {categoryQuestions.map((q) => (
               <button
                 key={q.id}
                 onClick={() => onQuestionClick(q.question)}
-                className="w-full text-left text-sm p-2.5 rounded-lg hover:bg-secondary/50 hover:border-primary/20 border border-transparent transition-all group"
+                className="w-full text-left text-[11px] px-2 py-1.5 rounded bg-secondary/40 hover:bg-secondary/70 border border-border/30 hover:border-primary/30 transition-all group"
               >
                 <span className="opacity-70 group-hover:opacity-100 transition-opacity">
                   <CategoryIcon icon={q.icon} />

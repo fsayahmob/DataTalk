@@ -12,8 +12,6 @@ import {
   Message,
   PredefinedQuestion,
   SavedReport,
-  SemanticStats,
-  GlobalStats,
 } from "@/types";
 
 export default function Home() {
@@ -47,6 +45,7 @@ export default function Home() {
     setUseContext,
     clearError,
     loadConversations,
+    restoreSession,
     handleSubmit: submitConversation,
     handleLoadConversation,
     handleNewConversation,
@@ -56,8 +55,6 @@ export default function Home() {
   // Données globales
   const [predefinedQuestions, setPredefinedQuestions] = useState<PredefinedQuestion[]>([]);
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
-  const [semanticStats, setSemanticStats] = useState<SemanticStats | null>(null);
-  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
 
   // Filtres (objet pour VisualizationZone)
   const [filters, setFilters] = useState({
@@ -69,14 +66,34 @@ export default function Home() {
 
   const loadReports = useCallback(() => api.fetchSavedReports().then(setSavedReports), []);
 
-  // Charger les données au démarrage
+  // Charger les questions suggérées (générées par LLM lors de la création du catalogue)
+  const loadQuestions = useCallback(() => {
+    api.fetchSuggestedQuestions().then(suggested => {
+      const converted: PredefinedQuestion[] = suggested.map(q => ({
+        id: q.id,
+        question: q.question,
+        category: q.category || "Exploration",
+        icon: q.icon || "💬",
+      }));
+      setPredefinedQuestions(converted);
+    });
+  }, []);
+
+  // Charger les données au démarrage et restaurer la session
   useEffect(() => {
-    api.fetchPredefinedQuestions().then(setPredefinedQuestions);
+    loadQuestions();
     loadReports();
     loadConversations();
-    api.fetchSemanticStats().then(setSemanticStats);
-    api.fetchGlobalStats().then(setGlobalStats);
-  }, [loadReports, loadConversations]);
+    restoreSession();
+  }, [loadQuestions, loadReports, loadConversations, restoreSession]);
+
+  // Recharger les questions quand la fenêtre reprend le focus
+  // (utile après suppression/génération du catalogue sur une autre page)
+  useEffect(() => {
+    const handleFocus = () => loadQuestions();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [loadQuestions]);
 
   // Wrapper pour handleSubmit avec les filtres
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -159,6 +176,15 @@ export default function Home() {
     }
   };
 
+  const handleDeleteAllConversations = async () => {
+    const count = await api.deleteAllConversations();
+    if (count > 0) {
+      toast.success(`${count} conversation(s) supprimée(s)`);
+      handleNewConversation();
+      loadConversations();
+    }
+  };
+
   // Combiner les états de loading
   const isLoading = loading || reportLoading;
 
@@ -189,6 +215,7 @@ export default function Home() {
           onReplayMessage={handleReplayMessage}
           useContext={useContext}
           onUseContextChange={setUseContext}
+          onDeleteAllConversations={handleDeleteAllConversations}
         />
 
         {/* Resize Handle Zone 1 */}
@@ -229,8 +256,6 @@ export default function Home() {
           onCollapse={setZone3Collapsed}
           width={zone3Width}
           isResizing={isResizing !== null}
-          semanticStats={semanticStats}
-          globalStats={globalStats}
           savedReports={savedReports}
           onReportClick={handleReportClick}
           onReportDelete={handleDeleteReport}

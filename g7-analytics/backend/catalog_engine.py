@@ -381,6 +381,141 @@ def save_to_catalog(
 
 
 # =============================================================================
+# ÉTAPE 5: GÉNÉRATION DES KPIs
+# =============================================================================
+
+class KpiDefinition(BaseModel):
+    """Définition d'un KPI généré par le LLM (KpiCompactData)."""
+    id: str = Field(description="Slug unique (ex: 'total-evaluations')")
+    title: str = Field(description="Titre du KPI (max 20 caractères)")
+    sql_value: str = Field(description="Requête SQL pour la valeur actuelle (1 ligne)")
+    sql_trend: str = Field(description="Requête SQL pour la valeur de comparaison (1 ligne)")
+    sql_sparkline: str = Field(description="Requête SQL pour l'historique (12-15 lignes)")
+    sparkline_type: str = Field(default="area", description="Type de sparkline: area ou bar")
+    footer: str = Field(description="Texte explicatif avec la période")
+    trend_label: str | None = Field(default=None, description="Label de tendance (ex: 'vs 1ère quinzaine')")
+
+
+class KpisGenerationResult(BaseModel):
+    """Résultat de la génération de KPIs."""
+    kpis: list[KpiDefinition] = Field(description="Liste des 4 KPIs")
+
+
+def get_data_period(conn: Any) -> str:
+    """
+    Récupère la période des données depuis la colonne de date principale.
+    """
+    try:
+        # Essayer avec dat_course (table evaluations)
+        result = conn.execute("""
+            SELECT
+                MIN(dat_course)::DATE as min_date,
+                MAX(dat_course)::DATE as max_date,
+                COUNT(DISTINCT dat_course::DATE) as nb_jours
+            FROM evaluations
+        """).fetchone()
+
+        if result and result[0]:
+            min_date = result[0]
+            max_date = result[1]
+            nb_jours = result[2]
+            return f"Du {min_date} au {max_date} ({nb_jours} jours de données)"
+    except Exception:
+        pass
+
+    return "Période non déterminée"
+
+
+def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerationResult | None:
+    """
+    Génère les 4 KPIs via LLM.
+
+    Utilise le prompt 'widgets_generation' de la base de données.
+    """
+    from llm_config import get_active_prompt
+    from llm_service import call_llm_structured
+
+    # Récupérer le prompt depuis la DB
+    prompt_data = get_active_prompt("widgets_generation")
+    if not prompt_data or not prompt_data.get("content"):
+        print("  [WARN] Prompt 'widgets_generation' non configuré. Exécutez: python seed_prompts.py --force")
+        return None
+
+    # Construire le schéma pour le prompt
+    schema_lines = []
+    for table in catalog.tables:
+        schema_lines.append(f"Table: {table.name} ({table.row_count:,} lignes)")
+        for col in table.columns:
+            col_line = f"  - {col.name} ({col.data_type})"
+            if col.sample_values:
+                col_line += f" [Exemples: {', '.join(col.sample_values[:3])}]"
+            if col.value_range:
+                col_line += f" [Range: {col.value_range}]"
+            schema_lines.append(col_line)
+        schema_lines.append("")
+
+    # Récupérer la période des données
+    data_period = get_data_period(db_connection)
+
+    prompt = prompt_data["content"].format(
+        schema="\n".join(schema_lines),
+        data_period=data_period
+    )
+
+    try:
+        result, _metadata = call_llm_structured(
+            prompt=prompt,
+            response_model=KpisGenerationResult,
+            source="kpi_generation"
+        )
+        return result
+    except Exception as e:
+        print(f"  [ERROR] Erreur génération KPIs: {e}")
+        return None
+
+
+def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
+    """
+    Sauvegarde les KPIs générés dans SQLite.
+    """
+    from catalog import get_connection
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Vider les anciens KPIs
+    cursor.execute("DELETE FROM kpis")
+
+    stats = {"kpis": 0}
+
+    for i, kpi in enumerate(result.kpis):
+        try:
+            cursor.execute("""
+                INSERT INTO kpis (
+                    kpi_id, title, sql_value, sql_trend, sql_sparkline,
+                    sparkline_type, footer, trend_label, display_order, is_enabled
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+            """, (
+                kpi.id,
+                kpi.title,
+                kpi.sql_value,
+                kpi.sql_trend,
+                kpi.sql_sparkline,
+                kpi.sparkline_type,
+                kpi.footer,
+                kpi.trend_label,
+                i
+            ))
+            stats["kpis"] += 1
+        except Exception as e:
+            print(f"  [WARN] Erreur KPI {kpi.id}: {e}")
+
+    conn.commit()
+    conn.close()
+    return stats
+
+
+# =============================================================================
 # FONCTION PRINCIPALE: GÉNÉRATION COMPLÈTE
 # =============================================================================
 
@@ -407,10 +542,21 @@ def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
     print("3/4 - Enrichissement avec LLM Service...")
     enrichment = enrich_with_llm(catalog)
 
-    # 4. Sauvegarde
+    # 4. Sauvegarde du catalogue
     print("4/4 - Sauvegarde dans le catalogue SQLite...")
     stats = save_to_catalog(catalog, enrichment, DB_PATH)
     print(f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
+
+    # 5. Génération des KPIs
+    print("5/5 - Génération des 4 KPIs...")
+    kpis_result = generate_kpis(catalog, db_connection)
+    if kpis_result:
+        kpis_stats = save_kpis(kpis_result)
+        stats["kpis"] = kpis_stats["kpis"]
+        print(f"    → {kpis_stats['kpis']} KPIs générés")
+    else:
+        stats["kpis"] = 0
+        print("    → KPIs non générés (prompt manquant ou erreur)")
 
     return {
         "status": "ok",

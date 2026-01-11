@@ -1,6 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import * as api from "@/lib/api";
 import { Message, Conversation } from "@/types";
+
+const STORAGE_KEY = "g7_current_conversation_id";
 
 interface Filters {
   dateStart: string;
@@ -30,6 +32,7 @@ interface UseConversationReturn {
 
   // Actions
   loadConversations: () => Promise<void>;
+  restoreSession: () => Promise<void>;
   handleSubmit: (e: React.FormEvent, filters: Filters) => Promise<void>;
   handleLoadConversation: (conv: Conversation) => Promise<void>;
   handleNewConversation: () => void;
@@ -52,6 +55,41 @@ export function useConversation(): UseConversationReturn {
   const loadConversations = useCallback(async () => {
     const convs = await api.fetchConversations();
     setConversations(convs);
+  }, []);
+
+  // Persister l'ID de conversation dans localStorage
+  useEffect(() => {
+    if (currentConversationId !== null) {
+      localStorage.setItem(STORAGE_KEY, String(currentConversationId));
+    }
+  }, [currentConversationId]);
+
+  // Restaurer la session précédente au chargement
+  const restoreSession = useCallback(async () => {
+    const savedId = localStorage.getItem(STORAGE_KEY);
+    if (!savedId) return;
+
+    const convId = parseInt(savedId, 10);
+    if (isNaN(convId)) return;
+
+    try {
+      // Charger les messages de la conversation
+      const msgs = await api.fetchConversationMessages(convId);
+      if (msgs.length > 0) {
+        setCurrentConversationId(convId);
+        setMessages(msgs);
+
+        // Sélectionner le dernier message assistant avec chart pour afficher
+        const lastAssistant = [...msgs].reverse().find(m => m.role === "assistant" && m.chart);
+        if (lastAssistant) {
+          setSelectedMessage(lastAssistant);
+        }
+      }
+    } catch (e) {
+      // Si la conversation n'existe plus, supprimer du localStorage
+      console.warn("Conversation non trouvée, suppression du localStorage:", e);
+      localStorage.removeItem(STORAGE_KEY);
+    }
   }, []);
 
   const createNewConversation = useCallback(async () => {
@@ -143,7 +181,9 @@ export function useConversation(): UseConversationReturn {
     try {
       const msgs = await api.fetchConversationMessages(conv.id);
       setMessages(msgs);
-      setSelectedMessage(null);
+      // Sélectionner le dernier message assistant avec chart
+      const lastAssistant = [...msgs].reverse().find(m => m.role === "assistant" && m.chart);
+      setSelectedMessage(lastAssistant || null);
       setShowHistory(false);
     } catch (e) {
       console.error("Erreur chargement messages:", e);
@@ -154,6 +194,7 @@ export function useConversation(): UseConversationReturn {
     setCurrentConversationId(null);
     setMessages([]);
     setSelectedMessage(null);
+    localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const handleReplayMessage = useCallback((msg: Message) => {
@@ -178,6 +219,7 @@ export function useConversation(): UseConversationReturn {
     setUseContext,
     clearError,
     loadConversations,
+    restoreSession,
     handleSubmit,
     handleLoadConversation,
     handleNewConversation,

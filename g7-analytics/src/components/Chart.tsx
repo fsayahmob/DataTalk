@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -36,8 +37,6 @@ const COLORS = [
   "#f87171", // Rouge doux
 ];
 
-// Gradient IDs
-const GRADIENT_ID = "chartGradient";
 
 interface ChartProps {
   config: ChartConfig;
@@ -63,6 +62,9 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 export function Chart({ config, data, height = "100%" }: ChartProps) {
+  // Debug log
+  console.log("Chart render:", { type: config.type, x: config.x, y: config.y, dataKeys: data?.[0] ? Object.keys(data[0]) : [], dataLength: data?.length });
+
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 bg-secondary/30 rounded-lg border border-border">
@@ -79,11 +81,25 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
   // Multi-séries: utiliser le tableau Y si fourni, sinon une seule série
   const yKeys = Array.isArray(config.y) ? config.y : [config.y];
 
+  // Vérifier que les colonnes Y existent dans les données
+  const dataKeys = data[0] ? Object.keys(data[0]) : [];
+  const missingYKeys = yKeys.filter(y => typeof y === "string" && !dataKeys.includes(y));
+  if (missingYKeys.length > 0) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-secondary/30 rounded-lg border border-border">
+        <p className="text-muted-foreground text-sm text-center px-4">
+          Format de données incompatible.<br />
+          <span className="text-xs opacity-70">Relancez la question pour régénérer le graphique.</span>
+        </p>
+      </div>
+    );
+  }
+
   // Détecte si l'axe Y représente une note (valeurs entre 0 et 5)
   const allYValues = yKeys.flatMap(yKey => data.map(d => Number(d[yKey]) || 0));
   const maxY = Math.max(...allYValues);
   const minY = Math.min(...allYValues);
-  const isRatingScale = yKeys.some(y => y?.includes("note")) || (minY >= 0 && maxY <= 5.5);
+  const isRatingScale = yKeys.some(y => typeof y === "string" && y.includes("note")) || (minY >= 0 && maxY <= 5.5);
   const yDomain = isRatingScale ? [0, 5] : undefined;
 
   // Styles communs pour dark mode - couleurs explicites car Recharts n'interprète pas les variables CSS
@@ -92,18 +108,32 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
   const axisLineStyle = { stroke: "#52525b" }; // zinc-600
   const legendStyle = { paddingTop: 20, color: "#a1a1aa" }; // zinc-400
 
+  // ID unique pour les gradients de ce chart
+  const chartId = useMemo(() => `chart-${Math.random().toString(36).slice(2, 9)}`, []);
+
   switch (config.type) {
     case "bar":
+      // Multi-séries: une barre colorée par série. Série unique: une couleur par barre.
+      const isMultiSeries = yKeys.length > 1;
+
       return (
         <ResponsiveContainer width="100%" height={height}>
           <BarChart {...commonProps}>
             <defs>
-              {yKeys.map((_, idx) => (
-                <linearGradient key={idx} id={`${GRADIENT_ID}-bar-${idx}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={1} />
-                  <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.6} />
-                </linearGradient>
-              ))}
+              {/* Gradients pour chaque série (multi-séries) ou chaque barre (série unique) */}
+              {isMultiSeries
+                ? yKeys.map((_, idx) => (
+                    <linearGradient key={idx} id={`${chartId}-bar-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={1} />
+                      <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.6} />
+                    </linearGradient>
+                  ))
+                : data.map((_, idx) => (
+                    <linearGradient key={idx} id={`${chartId}-bar-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={1} />
+                      <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.6} />
+                    </linearGradient>
+                  ))}
             </defs>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
@@ -122,15 +152,19 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               tickLine={axisLineStyle}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: "#3f3f46", fillOpacity: 0.5 }} />
-            <Legend wrapperStyle={legendStyle} />
-            {yKeys.map((yKey, idx) => (
+            {isMultiSeries && <Legend wrapperStyle={legendStyle} />}
+            {yKeys.map((yKey, yIdx) => (
               <Bar
                 key={yKey}
                 dataKey={yKey}
-                fill={`url(#${GRADIENT_ID}-bar-${idx})`}
+                fill={isMultiSeries ? `url(#${chartId}-bar-${yIdx})` : undefined}
                 radius={[6, 6, 0, 0]}
                 maxBarSize={60}
-              />
+              >
+                {!isMultiSeries && data.map((_, idx) => (
+                  <Cell key={idx} fill={`url(#${chartId}-bar-${idx})`} />
+                ))}
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -216,7 +250,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
           <PieChart>
             <defs>
               {COLORS.map((color, index) => (
-                <linearGradient key={index} id={`${GRADIENT_ID}-pie-${index}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient key={index} id={`${chartId}-pie-${index}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={color} stopOpacity={1} />
                   <stop offset="100%" stopColor={color} stopOpacity={0.7} />
                 </linearGradient>
@@ -237,7 +271,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               {data.map((_, index) => (
                 <Cell
                   key={index}
-                  fill={`url(#${GRADIENT_ID}-pie-${index % COLORS.length})`}
+                  fill={`url(#${chartId}-pie-${index % COLORS.length})`}
                   stroke="#1c1c22"
                   strokeWidth={1}
                 />
@@ -265,7 +299,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
           <AreaChart {...commonProps}>
             <defs>
               {yKeys.map((_, idx) => (
-                <linearGradient key={idx} id={`${GRADIENT_ID}-area-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                <linearGradient key={idx} id={`${chartId}-area-${idx}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.4} />
                   <stop offset="100%" stopColor={COLORS[idx % COLORS.length]} stopOpacity={0.05} />
                 </linearGradient>
@@ -296,7 +330,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
                 dataKey={yKey}
                 stroke={COLORS[idx % COLORS.length]}
                 strokeWidth={2}
-                fill={`url(#${GRADIENT_ID}-area-${idx})`}
+                fill={`url(#${chartId}-area-${idx})`}
               />
             ))}
           </AreaChart>

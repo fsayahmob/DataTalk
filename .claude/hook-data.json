@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Tout est cohérent côté frontend : `onSetDefaultModel(model.model_id)` passe bien le `model_id` string.\n\n**Récapitulatif de la vérification :**\n\n| Emplacement | Type passé | Attendu | Status |\n|------------|-----------|---------|--------|\n| `main.py:1132` (endpoint PUT) | `model_id` (string) | string | ✅ Corrigé |\n| `main.py:771` (settings) | `request.default_model_id` (string) | string | ✅ OK |\n| `llm_service.py` (`log_cost`) | `model[\"id\"]` (int) | int | ✅ OK |\n| Frontend `ModelsTab` | `model.model_id` (string) | string | ✅ OK |\n\nLe seul bug était celui qu'on a corrigé à la ligne 1131-1132. Tous les autres usages sont corrects.\n",
+  "lastMessage": "Maintenant il faut mettre à jour le prompt en base. Lance cette commande :\n\n```bash\ncd g7-analytics/backend && python seed_prompts.py --force\n```\n\nCela mettra à jour le prompt avec la nouvelle règle pour le GROUP BY.\n",
   "repoName": "datalakeG7",
   "conversationId": "c51f0bb6-5100-4f5a-b378-bdd39d1a480a",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-11T17:21:30Z"
+  "timestamp": "2026-01-11T22:06:19Z"
 }

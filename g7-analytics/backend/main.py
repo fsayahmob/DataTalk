@@ -13,15 +13,16 @@ import duckdb
 from catalog import (
     add_message,
     create_conversation,
+    delete_all_conversations,
     delete_conversation,
     delete_report,
     get_all_settings,
     get_conversations,
     get_messages,
-    get_predefined_questions,
     get_saved_reports,
     get_schema_for_llm,
     get_setting,
+    get_suggested_questions,
     save_report,
     toggle_pin_report,
 )
@@ -47,6 +48,11 @@ from llm_config import (
 )
 from llm_service import LLMError, call_llm, check_llm_status
 from pydantic import BaseModel, Field
+from widget_service import (
+    get_all_widgets_with_data,
+    refresh_all_widgets_cache,
+    refresh_single_widget_cache,
+)
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -442,7 +448,7 @@ async def analyze(request: QuestionRequest):
 
         sql = llm_response.get("sql", "")
         message = llm_response.get("message", "")
-        chart = llm_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
+        chart = llm_response.get("chart") or {"type": "none", "x": None, "y": None, "title": ""}
         metadata = llm_response.get("_metadata", {})
 
         if not sql:
@@ -496,6 +502,13 @@ async def remove_conversation(conversation_id: int):
     return {"message": "Conversation supprimée"}
 
 
+@app.delete("/conversations")
+async def remove_all_conversations():
+    """Supprime toutes les conversations et leurs messages."""
+    deleted_count = delete_all_conversations()
+    return {"message": f"{deleted_count} conversation(s) supprimée(s)", "count": deleted_count}
+
+
 @app.get("/conversations/{conversation_id}/messages")
 async def get_conversation_messages(conversation_id: int):
     """Récupère les messages d'une conversation."""
@@ -527,7 +540,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
 
         sql = llm_response.get("sql", "")
         message = llm_response.get("message", "")
-        chart = llm_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
+        chart = llm_response.get("chart") or {"type": "none", "x": None, "y": None, "title": ""}
         metadata = llm_response.get("_metadata", {})
 
         if not sql:
@@ -700,17 +713,6 @@ async def execute_report(report_id: int):
 
 
 # ========================================
-# ENDPOINTS QUESTIONS PRÉDÉFINIES
-# ========================================
-
-@app.get("/questions/predefined")
-async def list_predefined_questions():
-    """Récupère les questions prédéfinies."""
-    questions = get_predefined_questions()
-    return {"questions": questions}
-
-
-# ========================================
 # ENDPOINTS SETTINGS
 # ========================================
 
@@ -785,148 +787,6 @@ async def get_single_setting(key: str):
 
 
 # ========================================
-# ENDPOINTS STATISTIQUES SÉMANTIQUES
-# ========================================
-
-@app.get("/semantic-stats")
-async def get_semantic_stats():
-    """
-    Retourne les statistiques sémantiques des commentaires enrichis.
-    Utilisé pour les KPIs et graphiques de la zone 3.
-    """
-    if not db_connection:
-        raise HTTPException(status_code=500, detail="Base de données non connectée")
-
-    # Statistiques globales
-    global_stats = db_connection.execute("""
-        SELECT
-            COUNT(*) as total_evaluations,
-            COUNT(CASE WHEN commentaire IS NOT NULL AND commentaire != '' THEN 1 END) as total_commentaires,
-            COUNT(CASE WHEN categories IS NOT NULL AND categories != '[]' THEN 1 END) as commentaires_enrichis,
-            ROUND(AVG(CASE WHEN sentiment_global IS NOT NULL THEN sentiment_global END), 2) as sentiment_moyen
-        FROM evaluations
-    """).fetchone()
-
-    # Distribution des sentiments
-    sentiment_distribution = db_connection.execute("""
-        SELECT
-            CASE
-                WHEN sentiment_global >= 0.5 THEN 'Très positif'
-                WHEN sentiment_global >= 0.1 THEN 'Positif'
-                WHEN sentiment_global >= -0.1 THEN 'Neutre'
-                WHEN sentiment_global >= -0.5 THEN 'Négatif'
-                ELSE 'Très négatif'
-            END as sentiment_label,
-            COUNT(*) as count
-        FROM evaluations
-        WHERE sentiment_global IS NOT NULL
-        GROUP BY sentiment_label
-        ORDER BY
-            CASE sentiment_label
-                WHEN 'Très positif' THEN 1
-                WHEN 'Positif' THEN 2
-                WHEN 'Neutre' THEN 3
-                WHEN 'Négatif' THEN 4
-                WHEN 'Très négatif' THEN 5
-            END
-    """).fetchall()
-
-    # Distribution des catégories avec sentiment moyen
-    # On parse le JSON des catégories et sentiment_par_categorie
-    categories_raw = db_connection.execute("""
-        SELECT categories, sentiment_par_categorie, sentiment_global
-        FROM evaluations
-        WHERE categories IS NOT NULL AND categories != '[]'
-    """).fetchall()
-
-    # Calculer le sentiment moyen par catégorie
-    from collections import defaultdict
-    category_sentiments = defaultdict(list)
-
-    for row in categories_raw:
-        try:
-            cats = json.loads(row[0])
-            sent_par_cat = json.loads(row[1]) if row[1] else {}
-            sent_global = row[2]
-
-            for cat in cats:
-                # Utiliser le sentiment par catégorie si disponible, sinon le global
-                if cat in sent_par_cat:
-                    category_sentiments[cat].append(sent_par_cat[cat])
-                elif sent_global is not None:
-                    category_sentiments[cat].append(sent_global)
-        except Exception:
-            continue  # Skip malformed rows silently
-
-    # Calculer les moyennes et trier
-    category_stats = []
-    for cat, sentiments in category_sentiments.items():
-        if sentiments:
-            avg_sentiment = sum(sentiments) / len(sentiments)
-            category_stats.append({
-                "category": cat,
-                "count": len(sentiments),
-                "sentiment": round(avg_sentiment, 2)
-            })
-
-    # Trier par sentiment pour identifier alertes et points forts
-    category_stats_sorted = sorted(category_stats, key=lambda x: x["sentiment"])
-
-    # Top 5 alertes (sentiment le plus négatif)
-    alerts = [c for c in category_stats_sorted if c["sentiment"] < 0][:5]
-
-    # Top 5 points forts (sentiment le plus positif)
-    strengths = [c for c in reversed(category_stats_sorted) if c["sentiment"] > 0][:5]
-
-    return {
-        "global": {
-            "total_evaluations": global_stats[0],
-            "total_commentaires": global_stats[1],
-            "commentaires_enrichis": global_stats[2],
-            "sentiment_moyen": global_stats[3] or 0,
-            "taux_enrichissement": round((global_stats[2] / global_stats[1] * 100) if global_stats[1] > 0 else 0, 1)
-        },
-        "sentiment_distribution": [
-            {"label": row[0], "count": row[1]}
-            for row in sentiment_distribution
-        ],
-        "alerts": alerts,
-        "strengths": strengths,
-        "categories_by_sentiment": category_stats_sorted
-    }
-
-
-# ========================================
-# ENDPOINT STATISTIQUES GLOBALES (KPIs)
-# ========================================
-
-@app.get("/stats/global")
-async def get_global_stats():
-    """
-    Retourne les statistiques globales pour les KPIs du dashboard.
-    Utilisé par VisualizationZone pour afficher les 4 KPIs principaux.
-    """
-    if not db_connection:
-        raise HTTPException(status_code=500, detail="Base de données non connectée")
-
-    stats = db_connection.execute("""
-        SELECT
-            COUNT(*) as total_evaluations,
-            ROUND(AVG(note_eval), 2) as note_moyenne,
-            COUNT(CASE WHEN commentaire IS NOT NULL AND commentaire != '' THEN 1 END) as total_commentaires,
-            COUNT(DISTINCT cod_taxi) as total_chauffeurs
-        FROM evaluations
-    """).fetchone()
-
-    return {
-        "total_evaluations": stats[0],
-        "note_moyenne": stats[1],
-        "total_commentaires": stats[2],
-        "total_chauffeurs": stats[3]
-    }
-
-
-# ========================================
 # ENDPOINTS CATALOGUE DE DONNÉES
 # ========================================
 
@@ -984,15 +844,27 @@ async def get_catalog():
 async def delete_catalog():
     """
     Supprime tout le catalogue (pour permettre de retester la génération).
+    Supprime aussi les widgets et questions suggérées associées.
     """
     from catalog import get_connection
 
     conn = get_connection()
     cursor = conn.cursor()
+
+    # Supprimer le catalogue sémantique
     cursor.execute("DELETE FROM synonyms")
     cursor.execute("DELETE FROM columns")
     cursor.execute("DELETE FROM tables")
     cursor.execute("DELETE FROM datasources")
+
+    # Supprimer les widgets et questions générées
+    try:
+        cursor.execute("DELETE FROM widget_cache")
+        cursor.execute("DELETE FROM widgets")
+        cursor.execute("DELETE FROM suggested_questions")
+    except Exception:
+        pass  # Tables n'existent peut-être pas encore
+
     conn.commit()
     conn.close()
 
@@ -1012,6 +884,9 @@ async def generate_catalog_endpoint():
     3. Instructor pour les appels LLM structurés
     4. Sauvegarde dans SQLite
     """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
     from catalog import get_connection
     from catalog_engine import generate_catalog_from_connection
 
@@ -1033,10 +908,14 @@ async def generate_catalog_endpoint():
     conn.commit()
     conn.close()
 
-    # 2. Générer le catalogue avec la connexion DuckDB existante
-    # catalog_engine utilise désormais llm_service en interne
+    # 2. Générer le catalogue dans un thread séparé pour ne pas bloquer les autres requêtes
+    def run_generation():
+        return generate_catalog_from_connection(db_connection=db_connection)
+
     try:
-        result = generate_catalog_from_connection(db_connection=db_connection)
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, run_generation)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur génération catalogue: {e}") from e
 
@@ -1207,6 +1086,99 @@ async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
             detail=f"Prompt '{key}' version '{request.version}' non trouvé"
         )
     return {"message": f"Prompt '{key}' version '{request.version}' activé"}
+
+
+# ========================================
+# ENDPOINTS WIDGETS DYNAMIQUES
+# ========================================
+
+@app.get("/widgets")
+async def list_widgets(use_cache: bool = True):
+    """
+    Récupère tous les widgets actifs avec leurs données.
+    Les données sont cachées pour éviter 100 clients = 100 requêtes identiques.
+
+    Query params:
+        use_cache: Si False, force le recalcul (défaut: True)
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    try:
+        widgets = get_all_widgets_with_data(db_connection, use_cache=use_cache)
+        return {"widgets": widgets}
+    except Exception as e:
+        # Table n'existe pas encore ou autre erreur -> retourner liste vide
+        logging.warning(f"Erreur chargement widgets: {e}")
+        return {"widgets": []}
+
+
+@app.post("/widgets/refresh")
+async def refresh_widgets():
+    """
+    Force le recalcul du cache de tous les widgets.
+    Utile après une mise à jour des données ou du catalogue.
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    result = refresh_all_widgets_cache(db_connection)
+    return result
+
+
+@app.post("/widgets/{widget_id}/refresh")
+async def refresh_widget(widget_id: str):
+    """
+    Force le recalcul du cache d'un widget spécifique.
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    result = refresh_single_widget_cache(widget_id, db_connection)
+    if "error" in result and not result.get("success", True):
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
+
+
+# ========================================
+# ENDPOINTS KPIs
+# ========================================
+
+@app.get("/kpis")
+async def list_kpis():
+    """
+    Récupère les 4 KPIs avec leurs données calculées.
+    Exécute les 3 requêtes SQL par KPI (value, trend, sparkline).
+    """
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    try:
+        from kpi_service import get_all_kpis_with_data
+        kpis = get_all_kpis_with_data(db_connection)
+        return {"kpis": kpis}
+    except Exception as e:
+        logging.warning(f"Erreur chargement KPIs: {e}")
+        return {"kpis": []}
+
+
+# ========================================
+# ENDPOINTS QUESTIONS SUGGÉRÉES
+# ========================================
+
+@app.get("/suggested-questions")
+async def list_suggested_questions():
+    """
+    Récupère les questions suggérées générées par le LLM.
+    Ces questions sont générées lors de la création du catalogue.
+    """
+    try:
+        questions = get_suggested_questions(enabled_only=True)
+        return {"questions": questions}
+    except Exception as e:
+        # Table n'existe pas encore -> retourner liste vide
+        logging.warning(f"Erreur chargement questions suggérées: {e}")
+        return {"questions": []}
 
 
 if __name__ == "__main__":

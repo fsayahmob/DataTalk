@@ -57,30 +57,3 @@ export interface Conversation {
   message_count: number;
   created_at: string;
 }
-
-export interface CategoryStat {
-  category: string;
-  count: number;
-  sentiment: number;
-}
-
-export interface SemanticStats {
-  global: {
-    total_evaluations: number;
-    total_commentaires: number;
-    commentaires_enrichis: number;
-    sentiment_moyen: number;
-    taux_enrichissement: number;
-  };
-  sentiment_distribution: Array<{ label: string; count: number }>;
-  alerts: CategoryStat[];
-  strengths: CategoryStat[];
-  categories_by_sentiment: CategoryStat[];
-}
-
-export interface GlobalStats {
-  total_evaluations: number;
-  note_moyenne: number;
-  total_commentaires: number;
-  total_chauffeurs: number;
-}

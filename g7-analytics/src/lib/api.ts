@@ -10,9 +10,6 @@ export type {
   PredefinedQuestion,
   SavedReport,
   Conversation,
-  CategoryStat,
-  SemanticStats,
-  GlobalStats,
 } from "@/types";
 
 // Types spécifiques API
@@ -198,20 +195,6 @@ export async function fetchLLMCosts(days: number = 30): Promise<LLMCosts | null>
   }
 }
 
-// Questions prédéfinies
-export async function fetchPredefinedQuestions(): Promise<
-  import("@/types").PredefinedQuestion[]
-> {
-  try {
-    const res = await fetch(`${API_BASE}/questions/predefined`);
-    const data = await res.json();
-    return data.questions || [];
-  } catch (e) {
-    console.error("Erreur chargement questions:", e);
-    return [];
-  }
-}
-
 // Rapports
 export async function fetchSavedReports(): Promise<
   import("@/types").SavedReport[]
@@ -319,6 +302,17 @@ export async function fetchConversationMessages(
   }
 }
 
+export async function deleteAllConversations(): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE}/conversations`, { method: "DELETE" });
+    const data = await res.json();
+    return data.count || 0;
+  } catch (e) {
+    console.error("Erreur suppression conversations:", e);
+    return 0;
+  }
+}
+
 // Filtres structurés
 export interface AnalysisFilters {
   dateStart?: string;
@@ -347,34 +341,6 @@ export async function analyzeInConversation(
   }
 
   return data;
-}
-
-// Stats sémantiques
-export async function fetchSemanticStats(): Promise<
-  import("@/types").SemanticStats | null
-> {
-  try {
-    const res = await fetch(`${API_BASE}/semantic-stats`);
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error("Erreur chargement stats sémantiques:", e);
-    return null;
-  }
-}
-
-// Stats globales (KPIs)
-export async function fetchGlobalStats(): Promise<
-  import("@/types").GlobalStats | null
-> {
-  try {
-    const res = await fetch(`${API_BASE}/stats/global`);
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error("Erreur chargement stats globales:", e);
-    return null;
-  }
 }
 
 // ============ Catalogue de données ============
@@ -505,5 +471,135 @@ export async function setActivePromptVersion(
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+// ============ Widgets dynamiques ============
+
+export interface WidgetChartConfig {
+  x?: string;
+  y?: string | string[];
+  title?: string;
+}
+
+export interface Widget {
+  id: number;
+  widget_id: string;
+  title: string;
+  description: string | null;
+  icon: string | null;
+  sql_query: string;
+  chart_type: "bar" | "line" | "pie" | "area" | "scatter" | "none";
+  chart_config: string | null; // JSON string
+  display_order: number;
+  priority: "high" | "normal";
+  is_enabled: boolean;
+  // Données calculées (ajoutées par le backend)
+  data?: Record<string, unknown>[];
+  cached_at?: string;
+  from_cache?: boolean;
+  error?: string;
+}
+
+export interface WidgetsResponse {
+  widgets: Widget[];
+}
+
+export async function fetchWidgets(useCache: boolean = true): Promise<Widget[]> {
+  try {
+    const res = await fetch(`${API_BASE}/widgets?use_cache=${useCache}`);
+    const data: WidgetsResponse = await res.json();
+    return data.widgets || [];
+  } catch (e) {
+    console.error("Erreur chargement widgets:", e);
+    return [];
+  }
+}
+
+export interface RefreshWidgetsResponse {
+  total: number;
+  success: number;
+  errors: Array<{ widget_id: string; error: string }>;
+  refreshed_at: string;
+}
+
+export async function refreshWidgets(): Promise<RefreshWidgetsResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/widgets/refresh`, { method: "POST" });
+    return await res.json();
+  } catch (e) {
+    console.error("Erreur refresh widgets:", e);
+    return null;
+  }
+}
+
+export async function refreshSingleWidget(widgetId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/widgets/${widgetId}/refresh`, {
+      method: "POST",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ============ Questions suggérées ============
+
+export interface SuggestedQuestion {
+  id: number;
+  question: string;
+  category: string | null;
+  icon: string | null;
+  business_value: string | null;
+  display_order: number;
+  is_enabled: boolean;
+}
+
+export async function fetchSuggestedQuestions(): Promise<SuggestedQuestion[]> {
+  try {
+    const res = await fetch(`${API_BASE}/suggested-questions`);
+    const data = await res.json();
+    return data.questions || [];
+  } catch (e) {
+    console.error("Erreur chargement questions suggérées:", e);
+    return [];
+  }
+}
+
+// ============ KPIs dynamiques ============
+
+export interface KpiTrend {
+  value: number;
+  direction: "up" | "down";
+  label?: string;
+}
+
+export interface KpiSparkline {
+  data: number[];
+  type: "area" | "bar";
+}
+
+export interface KpiCompactData {
+  id: string;
+  title: string;
+  value: number | string;
+  trend?: KpiTrend;
+  sparkline?: KpiSparkline;
+  footer?: string;
+}
+
+export interface KpisResponse {
+  kpis: KpiCompactData[];
+}
+
+export async function fetchKpis(): Promise<KpiCompactData[]> {
+  try {
+    const res = await fetch(`${API_BASE}/kpis`);
+    const data: KpisResponse = await res.json();
+    return data.kpis || [];
+  } catch (e) {
+    console.error("Erreur chargement KPIs:", e);
+    return [];
   }
 }
