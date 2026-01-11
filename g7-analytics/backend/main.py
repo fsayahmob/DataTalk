@@ -43,7 +43,7 @@ from llm_config import (
     set_default_model,
 )
 from llm_service import LLMError, call_llm, check_llm_status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Configuration du logging
 logging.basicConfig(level=logging.INFO)
@@ -107,19 +107,12 @@ RÉPONSE: Un seul objet JSON (pas de tableau):
 # Modèles Pydantic
 class AnalysisFilters(BaseModel):
     """Filtres structurés pour l'analyse."""
-    date_start: str | None = None
-    date_end: str | None = None
-    note_min: str | None = None
-    note_max: str | None = None
+    date_start: str | None = Field(default=None, alias="dateStart")
+    date_end: str | None = Field(default=None, alias="dateEnd")
+    note_min: str | None = Field(default=None, alias="noteMin")
+    note_max: str | None = Field(default=None, alias="noteMax")
 
-    class Config:
-        populate_by_name = True
-
-    # Alias pour compatibilité API (frontend camelCase)
-    model_config = {"alias_generator": lambda x: "".join(
-        word if i == 0 else word.capitalize()
-        for i, word in enumerate(x.split("_"))
-    )}
+    model_config = {"populate_by_name": True}
 
 
 class QuestionRequest(BaseModel):
