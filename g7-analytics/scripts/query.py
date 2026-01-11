@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Script pour exécuter des requêtes DuckDB depuis Next.js"""
-import sys
 import json
-import duckdb
 import os
+import sys
+
+import duckdb
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
 

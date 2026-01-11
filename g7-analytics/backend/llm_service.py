@@ -19,14 +19,13 @@ from litellm.exceptions import (
     RateLimitError,
     ServiceUnavailableError,
 )
-from pydantic import BaseModel
-
 from llm_config import (
     get_api_key,
     get_default_model,
     get_model,
     log_cost,
 )
+from pydantic import BaseModel
 
 
 class LLMErrorCode(str, Enum):

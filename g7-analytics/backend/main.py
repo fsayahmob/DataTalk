@@ -9,16 +9,7 @@ import re
 from contextlib import asynccontextmanager
 from typing import Any
 
-# Configuration du logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 import duckdb
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-
 from catalog import (
     add_message,
     create_conversation,
@@ -34,8 +25,9 @@ from catalog import (
     save_report,
     toggle_pin_report,
 )
-
-# i18n - Messages localisés
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from i18n import t
 from llm_config import (
     get_api_key_hint,
@@ -50,9 +42,12 @@ from llm_config import (
     set_api_key,
     set_default_model,
 )
-
-# LLM Service centralisé
 from llm_service import LLMError, call_llm, check_llm_status
+from pydantic import BaseModel
+
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -112,10 +107,19 @@ RÉPONSE: Un seul objet JSON (pas de tableau):
 # Modèles Pydantic
 class AnalysisFilters(BaseModel):
     """Filtres structurés pour l'analyse."""
-    dateStart: str | None = None
-    dateEnd: str | None = None
-    noteMin: str | None = None
-    noteMax: str | None = None
+    date_start: str | None = None
+    date_end: str | None = None
+    note_min: str | None = None
+    note_max: str | None = None
+
+    class Config:
+        populate_by_name = True
+
+    # Alias pour compatibilité API (frontend camelCase)
+    model_config = {"alias_generator": lambda x: "".join(
+        word if i == 0 else word.capitalize()
+        for i, word in enumerate(x.split("_"))
+    )}
 
 
 class QuestionRequest(BaseModel):
@@ -255,14 +259,14 @@ def build_filter_context(filters: AnalysisFilters | None) -> str:
         return ""
 
     constraints = []
-    if filters.dateStart:
-        constraints.append(f"dat_course >= '{filters.dateStart}'")
-    if filters.dateEnd:
-        constraints.append(f"dat_course <= '{filters.dateEnd}'")
-    if filters.noteMin:
-        constraints.append(f"note_eval >= {filters.noteMin}")
-    if filters.noteMax:
-        constraints.append(f"note_eval <= {filters.noteMax}")
+    if filters.date_start:
+        constraints.append(f"dat_course >= '{filters.date_start}'")
+    if filters.date_end:
+        constraints.append(f"dat_course <= '{filters.date_end}'")
+    if filters.note_min:
+        constraints.append(f"note_eval >= {filters.note_min}")
+    if filters.note_max:
+        constraints.append(f"note_eval <= {filters.note_max}")
 
     if not constraints:
         return ""

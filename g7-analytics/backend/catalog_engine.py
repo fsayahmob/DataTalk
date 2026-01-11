@@ -162,13 +162,13 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
                 Field(description=f"Enrichissement pour la colonne {col.name}")
             )
 
-        ColumnsModel = create_model(
+        ColumnsModel = create_model(  # noqa: N806
             f"{table.name}_Columns",
             **column_fields  # type: ignore
         )
 
         # Créer le modèle de la table
-        TableModel = create_model(
+        TableModel = create_model(  # noqa: N806
             f"{table.name}_Enrichment",
             description=(str, Field(description=f"Description métier de la table {table.name}")),
             columns=(ColumnsModel, Field(description="Enrichissement des colonnes"))
@@ -177,7 +177,7 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         table_models[table.name] = (TableModel, Field(description=f"Enrichissement de la table {table.name}"))
 
     # Modèle global
-    CatalogEnrichment = create_model(
+    CatalogEnrichment = create_model(  # noqa: N806
         "CatalogEnrichment",
         **table_models  # type: ignore
     )
@@ -201,7 +201,7 @@ def enrich_with_llm(catalog: ExtractedCatalog) -> dict[str, Any]:
     from llm_service import call_llm_structured
 
     # Construire le modèle de réponse dynamique
-    ResponseModel = build_response_model(catalog)
+    ResponseModel = build_response_model(catalog)  # noqa: N806
 
     # Construire le prompt avec le contexte
     tables_context = []

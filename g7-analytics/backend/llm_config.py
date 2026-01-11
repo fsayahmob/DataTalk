@@ -122,8 +122,8 @@ def check_local_provider_available(provider_name: str) -> bool:
     url = base_url.rstrip("/") + health_endpoint
 
     try:
-        req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=2):
+        req = urllib.request.Request(url, method="GET")  # noqa: S310
+        with urllib.request.urlopen(req, timeout=2):  # noqa: S310
             return True
     except (urllib.error.URLError, TimeoutError, OSError):
         return False
