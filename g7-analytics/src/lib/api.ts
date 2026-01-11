@@ -1,6 +1,6 @@
 // Service API centralisé pour G7 Analytics
 
-import { ChartConfig } from "./schema";
+import { ChartConfig } from "@/types";
 
 const API_BASE = "http://localhost:8000";
 
@@ -447,6 +447,63 @@ export async function deleteCatalog(): Promise<boolean> {
     return res.ok;
   } catch (e) {
     console.error("Erreur suppression catalogue:", e);
+    return false;
+  }
+}
+
+// ============ Prompts LLM ============
+
+export interface LLMPrompt {
+  id: number;
+  key: string;
+  name: string;
+  category: string;
+  content: string;
+  version: string;
+  is_active: boolean;
+  tokens_estimate: number | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchLLMPrompts(category?: string): Promise<LLMPrompt[]> {
+  try {
+    const url = category
+      ? `${API_BASE}/llm/prompts?category=${category}`
+      : `${API_BASE}/llm/prompts`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.prompts || [];
+  } catch (e) {
+    console.error("Erreur chargement prompts:", e);
+    return [];
+  }
+}
+
+export async function fetchActivePrompt(key: string): Promise<LLMPrompt | null> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/prompts/${key}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.prompt;
+  } catch {
+    return null;
+  }
+}
+
+export async function setActivePromptVersion(
+  key: string,
+  version: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/prompts/${key}/active`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version }),
+    });
+    return res.ok;
+  } catch {
     return false;
   }
 }

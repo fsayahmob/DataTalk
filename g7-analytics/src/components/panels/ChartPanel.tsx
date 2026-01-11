@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Chart } from "@/components/Chart";
 import { ChartIcon, ExpandIcon, CollapseIcon } from "@/components/icons";
-import type { ChartConfig } from "@/lib/schema";
+import type { ChartConfig } from "@/types";
 
 interface ChartPanelProps {
   config: ChartConfig;

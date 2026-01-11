@@ -20,11 +20,11 @@ import {
   Cell,
 } from "recharts";
 import type { Props as LegendProps } from "recharts/types/component/DefaultLegendContent";
-import { ChartConfig } from "@/lib/schema";
+import { ChartConfig } from "@/types";
 
 // Palette professionnelle pour dataviz dark mode
 const COLORS = [
-  "#a78bfa", // Violet G7
+  "#a78bfa", // Violet
   "#22d3ee", // Cyan
   "#fbbf24", // Or
   "#f472b6", // Magenta

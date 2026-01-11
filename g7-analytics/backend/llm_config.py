@@ -86,6 +86,29 @@ def init_llm_tables():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_costs_date ON llm_costs(created_at)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_costs_source ON llm_costs(source)")
 
+    # Table des prompts LLM (stockage centralisé)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS llm_prompts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL,
+            name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            content TEXT NOT NULL,
+            version TEXT DEFAULT 'normal',
+            is_active BOOLEAN DEFAULT 0,
+            tokens_estimate INTEGER,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(key, version)
+        )
+    """)
+
+    # Index pour les prompts
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_key ON llm_prompts(key)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_category ON llm_prompts(category)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_active ON llm_prompts(is_active)")
+
     conn.commit()
     conn.close()
 
@@ -490,6 +513,176 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return results
+
+
+# ========================================
+# CRUD PROMPTS
+# ========================================
+
+def get_prompts(category: Optional[str] = None, active_only: bool = False) -> list[dict]:
+    """Récupère la liste des prompts."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    query = "SELECT * FROM llm_prompts WHERE 1=1"
+    params: list[str] = []
+
+    if category:
+        query += " AND category = ?"
+        params.append(category)
+    if active_only:
+        query += " AND is_active = 1"
+
+    query += " ORDER BY category, key, version"
+
+    cursor.execute(query, params)
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
+def get_prompt(key: str, version: str = "normal") -> Optional[dict]:
+    """Récupère un prompt par clé et version."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM llm_prompts WHERE key = ? AND version = ?",
+        (key, version)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_active_prompt(key: str) -> Optional[dict]:
+    """Récupère le prompt actif pour une clé donnée."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM llm_prompts WHERE key = ? AND is_active = 1",
+        (key,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    # Fallback: si aucun prompt actif, prendre la version "normal"
+    if not row:
+        return get_prompt(key, "normal")
+
+    return dict(row) if row else None
+
+
+def add_prompt(
+    key: str,
+    name: str,
+    category: str,
+    content: str,
+    version: str = "normal",
+    is_active: bool = False,
+    tokens_estimate: Optional[int] = None,
+    description: Optional[str] = None
+) -> Optional[int]:
+    """Ajoute un nouveau prompt."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("""
+            INSERT INTO llm_prompts
+            (key, name, category, content, version, is_active, tokens_estimate, description)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (key, name, category, content, version, is_active, tokens_estimate, description))
+        conn.commit()
+        prompt_id = cursor.lastrowid
+        conn.close()
+        return prompt_id
+    except Exception:
+        conn.close()
+        return None
+
+
+def update_prompt(
+    prompt_id: int,
+    content: Optional[str] = None,
+    name: Optional[str] = None,
+    tokens_estimate: Optional[int] = None,
+    description: Optional[str] = None
+) -> bool:
+    """Met à jour un prompt existant."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    updates = []
+    params: list[str | int] = []
+
+    if content is not None:
+        updates.append("content = ?")
+        params.append(content)
+    if name is not None:
+        updates.append("name = ?")
+        params.append(name)
+    if tokens_estimate is not None:
+        updates.append("tokens_estimate = ?")
+        params.append(tokens_estimate)
+    if description is not None:
+        updates.append("description = ?")
+        params.append(description)
+
+    if not updates:
+        conn.close()
+        return False
+
+    updates.append("updated_at = CURRENT_TIMESTAMP")
+    params.append(prompt_id)
+
+    cursor.execute(
+        f"UPDATE llm_prompts SET {', '.join(updates)} WHERE id = ?",
+        params
+    )
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def set_active_prompt(key: str, version: str) -> bool:
+    """Active une version de prompt (désactive les autres versions de la même clé)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Vérifier que le prompt existe
+    cursor.execute(
+        "SELECT id FROM llm_prompts WHERE key = ? AND version = ?",
+        (key, version)
+    )
+    if not cursor.fetchone():
+        conn.close()
+        return False
+
+    # Désactiver tous les prompts de cette clé
+    cursor.execute("UPDATE llm_prompts SET is_active = 0 WHERE key = ?", (key,))
+
+    # Activer la version demandée
+    cursor.execute(
+        "UPDATE llm_prompts SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE key = ? AND version = ?",
+        (key, version)
+    )
+
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
+
+
+def delete_prompt(prompt_id: int) -> bool:
+    """Supprime un prompt."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM llm_prompts WHERE id = ?", (prompt_id,))
+    conn.commit()
+    affected = cursor.rowcount
+    conn.close()
+    return affected > 0
 
 
 if __name__ == "__main__":

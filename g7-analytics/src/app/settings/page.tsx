@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ModelsTab, ApiKeysTab, UsageTab, DatabaseTab } from "@/components/settings";
+import { ModelsTab, ApiKeysTab, UsageTab, DatabaseTab, PromptsTab } from "@/components/settings";
 import * as api from "@/lib/api";
 import type { LLMProvider, LLMModel, LLMCosts, LLMStatus } from "@/lib/api";
 
@@ -125,6 +125,9 @@ export default function SettingsPage() {
             <TabsTrigger value="keys" className="text-xs px-3 h-7">
               API Keys
             </TabsTrigger>
+            <TabsTrigger value="prompts" className="text-xs px-3 h-7">
+              Prompts
+            </TabsTrigger>
             <TabsTrigger value="usage" className="text-xs px-3 h-7">
               Usage
             </TabsTrigger>
@@ -153,6 +156,10 @@ export default function SettingsPage() {
               onDeleteApiKey={handleDeleteApiKey}
               onSaveBaseUrl={handleSaveBaseUrl}
             />
+          </TabsContent>
+
+          <TabsContent value="prompts" className="mt-0">
+            <PromptsTab />
           </TabsContent>
 
           <TabsContent value="usage" className="mt-0">

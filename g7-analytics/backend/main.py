@@ -30,15 +30,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from i18n import t
 from llm_config import (
+    get_active_prompt,
     get_api_key_hint,
     get_costs_by_hour,
     get_costs_by_model,
     get_default_model,
     get_models,
+    get_prompts,
     get_provider_by_name,
     get_providers,
     get_total_costs,
     init_llm_tables,
+    set_active_prompt,
     set_api_key,
     set_default_model,
 )
@@ -62,46 +65,33 @@ db_connection: duckdb.DuckDBPyConnection | None = None
 db_schema_cache: str | None = None
 
 
+class PromptNotConfiguredError(Exception):
+    """Erreur levée quand un prompt n'est pas configuré en base."""
+
+    def __init__(self, prompt_key: str):
+        self.prompt_key = prompt_key
+        super().__init__(f"Prompt '{prompt_key}' non configuré. Exécutez: python seed_prompts.py")
+
+
 def get_system_instruction() -> str:
-    """Génère les instructions système pour Gemini."""
+    """Génère les instructions système pour le LLM.
+
+    Charge le prompt depuis la base de données (llm_prompts).
+    Lève PromptNotConfiguredError si non trouvé.
+    """
     global db_schema_cache
 
     if db_schema_cache is None:
         db_schema_cache = get_schema_for_llm()
 
-    return f"""Assistant analytique G7 Taxis. Réponds en français.
+    # Récupérer le prompt actif depuis la DB
+    prompt_data = get_active_prompt("analytics_system")
 
-{db_schema_cache}
+    if not prompt_data or not prompt_data.get("content"):
+        raise PromptNotConfiguredError("analytics_system")
 
-TYPES DE GRAPHIQUES:
-- bar: comparaisons entre catégories
-- line: évolutions temporelles
-- pie: répartitions (max 10 items)
-- area: évolutions empilées
-- scatter: corrélations
-- none: pas de visualisation
-
-RÈGLES SQL:
-- SQL DuckDB uniquement (SELECT)
-- Alias en français
-- ORDER BY pour rankings/évolutions
-- LIMIT: "top N"→N, "tous"→pas de limit, défaut→500
-- Agrégations (GROUP BY)→pas de LIMIT
-- DUCKDB TIME: EXTRACT(HOUR FROM col), pas strftime
-
-MULTI-SÉRIES (comparaison par catégorie):
-Pour comparer plusieurs séries sur un même graphique:
-1. SQL avec FILTER pour créer une colonne par catégorie:
-   SELECT date,
-     AVG(note) FILTER (WHERE typ='A') AS "Type A",
-     AVG(note) FILTER (WHERE typ='B') AS "Type B"
-   FROM table GROUP BY date
-2. chart.y DOIT être un tableau: ["Type A", "Type B", ...]
-
-VUE evaluation_categories: pour sentiment par catégorie sémantique
-
-RÉPONSE: Un seul objet JSON (pas de tableau):
-{{"sql":"SELECT...","message":"Explication...","chart":{{"type":"...","x":"col","y":"col|[cols]","title":"..."}}}}"""
+    # Injecter le schéma dans le template
+    return prompt_data["content"].format(schema=db_schema_cache)
 
 
 # Modèles Pydantic
@@ -396,6 +386,14 @@ def call_llm_for_analytics(
             "response_time_ms": response.response_time_ms
         }
         return result
+
+    except PromptNotConfiguredError as e:
+        # Prompt non configuré en base
+        logger.error(f"Prompt non configuré: {e.prompt_key}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Prompt '{e.prompt_key}' non configuré. Exécutez: python seed_prompts.py"
+        ) from e
 
     except LLMError as e:
         # Erreur typée du service LLM - mapper via i18n
@@ -1173,6 +1171,42 @@ async def get_llm_costs(days: int = 30):
 async def get_llm_status_endpoint():
     """Vérifie le statut du LLM."""
     return check_llm_status()
+
+
+# ========================================
+# ENDPOINTS PROMPTS LLM
+# ========================================
+
+@app.get("/llm/prompts")
+async def list_llm_prompts(category: str | None = None):
+    """Liste tous les prompts LLM."""
+    prompts = get_prompts(category=category)
+    return {"prompts": prompts}
+
+
+@app.get("/llm/prompts/{key}")
+async def get_llm_prompt(key: str):
+    """Récupère le prompt actif pour une clé."""
+    prompt = get_active_prompt(key)
+    if not prompt:
+        raise HTTPException(status_code=404, detail=f"Prompt '{key}' non trouvé")
+    return {"prompt": prompt}
+
+
+class SetActivePromptRequest(BaseModel):
+    version: str
+
+
+@app.put("/llm/prompts/{key}/active")
+async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
+    """Active une version spécifique d'un prompt."""
+    success = set_active_prompt(key, request.version)
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Prompt '{key}' version '{request.version}' non trouvé"
+        )
+    return {"message": f"Prompt '{key}' version '{request.version}' activé"}
 
 
 if __name__ == "__main__":

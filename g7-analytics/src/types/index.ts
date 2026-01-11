@@ -1,5 +1,23 @@
-// Types partagés pour G7 Analytics
-import { ChartConfig } from "@/lib/schema";
+// Types partagés pour l'application Analytics
+
+export const CHART_TYPES = [
+  "bar",      // Barres verticales - comparaison de catégories
+  "line",     // Lignes - évolution temporelle
+  "pie",      // Camembert - répartition (max 10 valeurs)
+  "area",     // Aires - évolution avec volume
+  "scatter",  // Nuage de points - corrélation
+  "none"      // Pas de graphique, juste les données
+] as const;
+
+export type ChartType = typeof CHART_TYPES[number];
+
+export interface ChartConfig {
+  type: ChartType;
+  x: string;
+  y: string | string[];  // Une ou plusieurs séries Y
+  color?: string;
+  title: string;
+}
 
 export interface Message {
   id: number;

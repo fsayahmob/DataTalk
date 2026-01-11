@@ -189,6 +189,15 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
 # ÉTAPE 3: APPEL LLM AVEC INSTRUCTOR
 # =============================================================================
 
+
+class PromptNotConfiguredError(Exception):
+    """Erreur levée quand un prompt n'est pas configuré en base."""
+
+    def __init__(self, prompt_key: str):
+        self.prompt_key = prompt_key
+        super().__init__(f"Prompt '{prompt_key}' non configuré. Exécutez: python seed_prompts.py")
+
+
 def enrich_with_llm(catalog: ExtractedCatalog) -> dict[str, Any]:
     """
     Appelle le LLM via llm_service pour obtenir les descriptions.
@@ -197,7 +206,11 @@ def enrich_with_llm(catalog: ExtractedCatalog) -> dict[str, Any]:
     - Multi-provider (Gemini, OpenAI, Anthropic, etc.)
     - Instructor pour réponses structurées
     - Logging des coûts
+
+    Raises:
+        PromptNotConfiguredError: Si le prompt catalog_enrichment n'est pas en base.
     """
+    from llm_config import get_active_prompt
     from llm_service import call_llm_structured
 
     # Construire le modèle de réponse dynamique
@@ -221,17 +234,12 @@ Colonnes:
 {chr(10).join(cols_desc)}
 """)
 
-    prompt = f"""Tu es un expert en data catalog. Analyse cette structure de base de données et génère des descriptions sémantiques.
+    # Récupérer le prompt depuis la DB (erreur si non trouvé)
+    prompt_data = get_active_prompt("catalog_enrichment")
+    if not prompt_data or not prompt_data.get("content"):
+        raise PromptNotConfiguredError("catalog_enrichment")
 
-STRUCTURE À DOCUMENTER:
-{chr(10).join(tables_context)}
-
-INSTRUCTIONS:
-- Déduis le contexte métier à partir des noms et des exemples de valeurs
-- Génère des descriptions claires en français
-- Pour chaque colonne, propose 2-3 synonymes (termes alternatifs pour recherche NLP)
-- Descriptions concises mais complètes
-"""
+    prompt = prompt_data["content"].format(tables_context=chr(10).join(tables_context))
 
     # Appel avec llm_service (Instructor intégré)
     try:
