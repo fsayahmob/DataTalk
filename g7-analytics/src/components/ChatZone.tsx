@@ -16,6 +16,22 @@ import {
   StopIcon,
 } from "@/components/icons";
 
+// Formatage du timestamp relatif
+function formatTimestamp(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "à l'instant";
+  if (diffMins < 60) return `il y a ${diffMins}min`;
+  if (diffHours < 24) return `il y a ${diffHours}h`;
+  if (diffDays < 7) return `il y a ${diffDays}j`;
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
 // Animation 3 points
 function LoadingDots() {
   return (
@@ -152,12 +168,15 @@ export function ChatZone({
                     <button
                       key={conv.id}
                       onClick={() => onLoadConversation(conv)}
-                      className={`w-full text-left text-[11px] p-2 rounded-lg hover:bg-secondary/70 transition-colors truncate flex items-center gap-2 ${
+                      className={`w-full text-left text-[11px] p-2 rounded-lg hover:bg-secondary/70 transition-colors flex items-center gap-2 ${
                         currentConversationId === conv.id ? "bg-primary/15 text-primary border border-primary/30" : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       <ChatIcon size={12} className="flex-shrink-0 opacity-50" />
-                      <span className="truncate">{conv.title || "Conversation sans titre"}</span>
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate">{conv.title || "Conversation sans titre"}</span>
+                        <span className="text-[9px] opacity-50">{formatTimestamp(conv.created_at)}</span>
+                      </div>
                     </button>
                   ))
                 )}

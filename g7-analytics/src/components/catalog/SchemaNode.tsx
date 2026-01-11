@@ -1,0 +1,154 @@
+"use client";
+
+import { memo } from "react";
+import { Handle, Position } from "@xyflow/react";
+import { Badge } from "@/components/ui/badge";
+import type { CatalogColumn } from "@/lib/api";
+
+export interface SchemaNodeData {
+  label: string;
+  description?: string | null;
+  rowCount?: number | null;
+  columns: CatalogColumn[];
+  isPreview?: boolean;
+}
+
+interface SchemaNodeProps {
+  data: SchemaNodeData;
+}
+
+// Helper pour l'icône du type de données
+function getTypeIcon(dataType: string): string {
+  const type = dataType.toLowerCase();
+  if (type.includes("int") || type.includes("decimal") || type.includes("float") || type.includes("double")) return "#";
+  if (type.includes("varchar") || type.includes("text") || type.includes("char")) return "Aa";
+  if (type.includes("date") || type.includes("time") || type.includes("timestamp")) return "⏱";
+  if (type.includes("bool")) return "✓";
+  if (type.includes("json")) return "{}";
+  return "?";
+}
+
+// Helper pour la couleur du type
+function getTypeColor(dataType: string): string {
+  const type = dataType.toLowerCase();
+  if (type.includes("int") || type.includes("decimal") || type.includes("float") || type.includes("double"))
+    return "text-blue-400";
+  if (type.includes("varchar") || type.includes("text") || type.includes("char"))
+    return "text-emerald-400";
+  if (type.includes("date") || type.includes("time") || type.includes("timestamp"))
+    return "text-amber-400";
+  if (type.includes("bool"))
+    return "text-purple-400";
+  if (type.includes("json"))
+    return "text-pink-400";
+  return "text-muted-foreground";
+}
+
+function SchemaNodeComponent({ data }: SchemaNodeProps) {
+  const { label, description, rowCount, columns, isPreview } = data;
+  const maxVisibleColumns = 12;
+  const hasMoreColumns = columns.length > maxVisibleColumns;
+  const visibleColumns = columns.slice(0, maxVisibleColumns);
+
+  return (
+    <div
+      className={`
+        min-w-[280px] max-w-[320px] rounded-lg border-2 shadow-2xl overflow-hidden
+        ${isPreview
+          ? "border-amber-500/60 bg-gradient-to-b from-amber-950/40 to-amber-950/20"
+          : "border-primary/40 bg-gradient-to-b from-[hsl(260_15%_15%)] to-[hsl(260_10%_10%)]"
+        }
+      `}
+    >
+      {/* Handle d'entrée (gauche) */}
+      <Handle
+        type="target"
+        position={Position.Left}
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
+
+      {/* Header de la table */}
+      <div
+        className={`
+          px-4 py-3 flex items-center justify-between
+          ${isPreview
+            ? "bg-gradient-to-r from-amber-500/30 to-amber-600/20"
+            : "bg-gradient-to-r from-primary/30 to-primary/10"
+          }
+        `}
+      >
+        <div className="flex items-center gap-2">
+          <div className={`w-2.5 h-2.5 rounded-full ${isPreview ? "bg-amber-500" : "bg-primary"} shadow-lg`} />
+          <span className="font-mono font-bold text-sm text-foreground">{label}</span>
+        </div>
+        {rowCount !== undefined && rowCount !== null && (
+          <Badge
+            variant="secondary"
+            className={`text-[10px] ${isPreview ? "bg-amber-500/20 text-amber-300" : ""}`}
+          >
+            {rowCount.toLocaleString()} rows
+          </Badge>
+        )}
+      </div>
+
+      {/* Description */}
+      {description && (
+        <div className="px-4 py-2 text-xs text-muted-foreground border-b border-border/20 bg-background/20">
+          {description}
+        </div>
+      )}
+
+      {/* Colonnes */}
+      <div className="divide-y divide-border/10">
+        {visibleColumns.map((col, idx) => (
+          <div
+            key={col.name}
+            className={`
+              px-3 py-1.5 flex items-center gap-2 text-xs
+              ${idx % 2 === 0 ? "bg-background/10" : "bg-background/5"}
+              hover:bg-primary/10 transition-colors
+            `}
+          >
+            {/* Icône type */}
+            <span className={`w-5 text-center font-mono text-[10px] ${getTypeColor(col.data_type)}`}>
+              {getTypeIcon(col.data_type)}
+            </span>
+
+            {/* Nom colonne */}
+            <span className="font-mono text-foreground flex-1 truncate">
+              {col.name}
+            </span>
+
+            {/* Type */}
+            <span className="text-[9px] text-muted-foreground font-mono uppercase">
+              {col.data_type.split('(')[0]}
+            </span>
+
+            {/* Indicateur de range ou PK */}
+            {col.value_range && (
+              <Badge variant="outline" className="text-[8px] py-0 px-1 h-4">
+                {col.value_range}
+              </Badge>
+            )}
+          </div>
+        ))}
+
+        {/* Indicateur de colonnes supplémentaires */}
+        {hasMoreColumns && (
+          <div className="px-3 py-2 text-[10px] text-muted-foreground text-center bg-background/20">
+            +{columns.length - maxVisibleColumns} colonnes...
+          </div>
+        )}
+      </div>
+
+      {/* Handle de sortie (droite) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        className="!w-3 !h-3 !bg-primary !border-2 !border-background"
+      />
+    </div>
+  );
+}
+
+export const SchemaNode = memo(SchemaNodeComponent);

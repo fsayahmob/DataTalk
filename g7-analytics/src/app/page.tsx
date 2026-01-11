@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Header } from "@/components/Header";
 import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
 import { AnalyticsZone } from "@/components/AnalyticsZone";
@@ -56,11 +55,6 @@ export default function Home() {
   const [semanticStats, setSemanticStats] = useState<SemanticStats | null>(null);
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
 
-  // UI Settings
-  const [showSettings, setShowSettings] = useState(false);
-  const [apiKey, setApiKey] = useState("");
-  const [apiStatus, setApiStatus] = useState<"ok" | "error" | "unknown">("unknown");
-
   // Filtres (objet pour VisualizationZone)
   const [filters, setFilters] = useState({
     dateStart: "",
@@ -76,7 +70,6 @@ export default function Home() {
     api.fetchPredefinedQuestions().then(setPredefinedQuestions);
     loadReports();
     loadConversations();
-    api.checkApiStatus().then(setApiStatus);
     api.fetchSemanticStats().then(setSemanticStats);
     api.fetchGlobalStats().then(setGlobalStats);
   }, [loadReports, loadConversations]);
@@ -162,34 +155,11 @@ export default function Home() {
     }
   };
 
-  const handleSaveApiKey = async () => {
-    try {
-      await api.saveApiKey(apiKey);
-      setApiKey("");
-      setShowSettings(false);
-      api.checkApiStatus().then(setApiStatus);
-    } catch (e) {
-      console.error("Erreur sauvegarde clé:", e);
-    }
-  };
-
   // Combiner les états de loading
   const isLoading = loading || reportLoading;
 
   return (
-    <>
-      {/* Header */}
-      <Header
-        apiStatus={apiStatus}
-        showSettings={showSettings}
-        onShowSettingsChange={setShowSettings}
-        apiKey={apiKey}
-        onApiKeyChange={setApiKey}
-        onSaveApiKey={handleSaveApiKey}
-      />
-
-      {/* Main Content - 3 Panneaux */}
-      <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
+    <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
         {/* Zone 1: Chat */}
         <ChatZone
           collapsed={zone1Collapsed}
@@ -258,7 +228,6 @@ export default function Home() {
           onReportClick={handleReportClick}
           onReportDelete={handleDeleteReport}
         />
-      </div>
-    </>
+    </div>
   );
 }
