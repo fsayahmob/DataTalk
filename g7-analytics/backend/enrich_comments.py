@@ -26,8 +26,6 @@ from datetime import datetime
 from typing import Optional
 
 import duckdb
-import google.generativeai as genai
-from catalog import get_setting
 from dotenv import load_dotenv
 
 # Charger le .env du dossier backend
@@ -124,21 +122,20 @@ class EnrichmentResult:
     verbatim_cle: str
 
 
-def get_gemini_client():
-    """Configure et retourne le client Gemini."""
-    api_key = get_setting("gemini_api_key")
-    if not api_key:
-        api_key = os.getenv("GEMINI_API_KEY")
-
-    if not api_key:
-        raise ValueError("Clé API Gemini non configurée. Utilisez /settings ou GEMINI_API_KEY")
-
-    genai.configure(api_key=api_key)
-    return genai.GenerativeModel("gemini-2.0-flash")
+def check_llm_ready() -> bool:
+    """Vérifie que le LLM est configuré."""
+    from llm_service import check_llm_status
+    status = check_llm_status()
+    if status["status"] != "ok":
+        log(f"LLM non configuré: {status.get('message')}", "error")
+        return False
+    log(f"LLM prêt: {status.get('model')}")
+    return True
 
 
-def enrich_batch(model, comments: list[dict]) -> list[EnrichmentResult]:
-    """Enrichit un batch de commentaires avec Gemini."""
+def enrich_batch(comments: list[dict]) -> list[EnrichmentResult]:
+    """Enrichit un batch de commentaires via llm_service."""
+    from llm_service import call_llm
 
     comments_json = json.dumps(
         [{"id": c["id"], "commentaire": c["commentaire"], "note": float(c["note"])}
@@ -154,16 +151,16 @@ def enrich_batch(model, comments: list[dict]) -> list[EnrichmentResult]:
 
     for attempt in range(MAX_RETRIES):
         try:
-            response = model.generate_content(
-                [SYSTEM_PROMPT, prompt],
-                generation_config={
-                    "temperature": 0.1,  # Faible pour consistance
-                    "max_output_tokens": 4096,
-                }
+            response = call_llm(
+                prompt=prompt,
+                system_prompt=SYSTEM_PROMPT,
+                source="enrich_comments",
+                temperature=0.1,
+                max_tokens=4096
             )
 
             # Parser le JSON
-            text = response.text.strip()
+            text = response.content.strip()
             # Nettoyer si markdown
             if text.startswith("```"):
                 text = text.split("\n", 1)[1]
@@ -293,9 +290,11 @@ def run_enrichment(
         conn.close()
         return
 
-    # Initialiser Gemini
-    log("Connexion à Gemini 2.0 Flash...")
-    model = get_gemini_client()
+    # Vérifier que le LLM est prêt
+    log("Vérification du LLM...")
+    if not check_llm_ready():
+        conn.close()
+        return
 
     # Préparer tous les batches
     all_batches = []
@@ -317,7 +316,7 @@ def run_enrichment(
     def process_batch(batch_info):
         """Traite un batch et retourne (batch_num, results)."""
         batch_num, batch_dicts = batch_info
-        results = enrich_batch(model, batch_dicts)
+        results = enrich_batch(batch_dicts)
         return (batch_num, results)
 
     with ThreadPoolExecutor(max_workers=PARALLEL_WORKERS) as executor:
@@ -389,6 +388,10 @@ def test_batch():
     """Test rapide sur 5 commentaires."""
     log("Test sur 5 commentaires...")
 
+    # Vérifier que le LLM est prêt
+    if not check_llm_ready():
+        return
+
     conn = duckdb.connect(DB_PATH, read_only=True)
 
     samples = conn.execute("""
@@ -408,9 +411,8 @@ def test_batch():
     for c in batch:
         log(f"  [{c['note']}] {c['commentaire'][:80]}...")
 
-    log("Appel Gemini...")
-    model = get_gemini_client()
-    results = enrich_batch(model, batch)
+    log("Appel LLM...")
+    results = enrich_batch(batch)
 
     log("Résultats:")
     for r in results:

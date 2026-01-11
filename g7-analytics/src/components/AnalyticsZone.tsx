@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { SemanticStats, SavedReport } from "@/types";
+import { SemanticStats, SavedReport, GlobalStats } from "@/types";
 import { ChartIcon, ChevronRightIcon, SaveIcon } from "@/components/icons";
 
 interface AnalyticsZoneProps {
@@ -10,6 +10,7 @@ interface AnalyticsZoneProps {
   width: number;
   isResizing: boolean;
   semanticStats: SemanticStats | null;
+  globalStats: GlobalStats | null;
   savedReports: SavedReport[];
   onReportClick: (report: SavedReport) => void;
   onReportDelete: (id: number) => void;
@@ -21,6 +22,7 @@ export function AnalyticsZone({
   width,
   isResizing,
   semanticStats,
+  globalStats,
   savedReports,
   onReportClick,
   onReportDelete,
@@ -61,6 +63,30 @@ export function AnalyticsZone({
 
           {/* Contenu scrollable */}
           <div className="flex-1 overflow-y-auto">
+            {/* KPIs Globaux - Compact */}
+            {globalStats && (
+              <div className="p-2 border-b border-amber-500/10">
+                <div className="grid grid-cols-4 gap-1">
+                  <div className="text-center p-1.5 rounded bg-secondary/30">
+                    <p className="text-[8px] text-muted-foreground uppercase">Éval.</p>
+                    <p className="text-xs font-bold text-foreground">{globalStats.total_evaluations?.toLocaleString("fr-FR") ?? "—"}</p>
+                  </div>
+                  <div className="text-center p-1.5 rounded bg-secondary/30">
+                    <p className="text-[8px] text-muted-foreground uppercase">Note</p>
+                    <p className="text-xs font-bold text-primary">{globalStats.note_moyenne?.toFixed(1) ?? "—"}</p>
+                  </div>
+                  <div className="text-center p-1.5 rounded bg-secondary/30">
+                    <p className="text-[8px] text-muted-foreground uppercase">Com.</p>
+                    <p className="text-xs font-bold text-foreground">{globalStats.total_commentaires?.toLocaleString("fr-FR") ?? "—"}</p>
+                  </div>
+                  <div className="text-center p-1.5 rounded bg-secondary/30">
+                    <p className="text-[8px] text-muted-foreground uppercase">Chauff.</p>
+                    <p className="text-xs font-bold text-foreground">{globalStats.total_chauffeurs?.toLocaleString("fr-FR") ?? "—"}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* KPIs Sémantiques */}
             {semanticStats && (
               <div className="p-3 space-y-3">
@@ -86,7 +112,7 @@ export function AnalyticsZone({
                     </div>
                     <div className="absolute top-6 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
                       <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-44 shadow-2xl">
-                        Pourcentage de commentaires analysés par l'IA ({semanticStats.global.commentaires_enrichis.toLocaleString('fr-FR')} / {semanticStats.global.total_commentaires.toLocaleString('fr-FR')}).
+                        Pourcentage de commentaires analysés par l&apos;IA ({semanticStats.global.commentaires_enrichis.toLocaleString('fr-FR')} / {semanticStats.global.total_commentaires.toLocaleString('fr-FR')}).
                       </div>
                     </div>
                     <p className="text-[10px] text-blue-400/70 uppercase tracking-wider">Enrichis</p>
@@ -142,8 +168,8 @@ export function AnalyticsZone({
                     </div>
                     <div className="absolute top-7 right-0 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200 z-[100]">
                       <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-2.5 text-[10px] text-zinc-300 w-52 shadow-2xl">
-                        <p className="font-medium text-red-400 mb-1">Points d'attention</p>
-                        <p>Catégories avec le plus de commentaires négatifs. Ce sont les axes d'amélioration prioritaires.</p>
+                        <p className="font-medium text-red-400 mb-1">Points d&apos;attention</p>
+                        <p>Catégories avec le plus de commentaires négatifs. Ce sont les axes d&apos;amélioration prioritaires.</p>
                       </div>
                     </div>
                     <p className="text-[10px] text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">

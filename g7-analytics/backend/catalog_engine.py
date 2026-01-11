@@ -1,19 +1,17 @@
 """
 Moteur de génération de catalogue avec:
 - Pydantic pour les modèles dynamiques (JSON Schema)
-- Instructor pour les appels LLM structurés
+- LLM Service centralisé (LiteLLM + Instructor)
 
 Architecture:
 1. extract_metadata_from_connection() - DuckDB native
 2. build_response_model() - Pydantic create_model()
-3. enrich_with_llm() - Instructor + Gemini
+3. enrich_with_llm() - llm_service.call_llm_structured()
 4. save_to_catalog() - SQLite update
 """
 import os
 from typing import Any
 
-import google.generativeai as genai
-import instructor
 from pydantic import BaseModel, Field, create_model
 
 # Configuration
@@ -191,27 +189,16 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
 # ÉTAPE 3: APPEL LLM AVEC INSTRUCTOR
 # =============================================================================
 
-def enrich_with_llm(
-    catalog: ExtractedCatalog,
-    api_key: str,
-    model_name: str = "gemini-2.0-flash"
-) -> dict[str, Any]:
+def enrich_with_llm(catalog: ExtractedCatalog) -> dict[str, Any]:
     """
-    Appelle le LLM avec Instructor pour obtenir les descriptions.
+    Appelle le LLM via llm_service pour obtenir les descriptions.
 
-    Instructor:
-    - Envoie le JSON Schema au LLM
-    - Parse et valide la réponse
-    - Retry automatique si erreur
+    Utilise call_llm_structured() qui gère:
+    - Multi-provider (Gemini, OpenAI, Anthropic, etc.)
+    - Instructor pour réponses structurées
+    - Logging des coûts
     """
-    # Configurer Gemini
-    genai.configure(api_key=api_key)
-
-    # Créer le client Instructor pour Gemini
-    client = instructor.from_gemini(
-        client=genai.GenerativeModel(model_name),
-        mode=instructor.Mode.GEMINI_JSON
-    )
+    from llm_service import call_llm_structured
 
     # Construire le modèle de réponse dynamique
     ResponseModel = build_response_model(catalog)
@@ -246,19 +233,19 @@ INSTRUCTIONS:
 - Descriptions concises mais complètes
 """
 
-    # Appel avec Instructor - le JSON Schema est envoyé automatiquement
+    # Appel avec llm_service (Instructor intégré)
     try:
-        result = client.chat.completions.create(
+        result, _metadata = call_llm_structured(
+            prompt=prompt,
             response_model=ResponseModel,
-            messages=[{"role": "user", "content": prompt}],
-            max_retries=2
+            source="catalog_engine"
         )
 
         # Convertir en dict
         return result.model_dump()
 
     except Exception as e:
-        print(f"Erreur Instructor: {e}")
+        print(f"Erreur LLM: {e}")
         # Fallback: retourner un dict vide structuré
         fallback: dict[str, Any] = {}
         for table in catalog.tables:
@@ -389,20 +376,14 @@ def save_to_catalog(
 # FONCTION PRINCIPALE: GÉNÉRATION COMPLÈTE
 # =============================================================================
 
-def generate_catalog_from_connection(
-    db_connection: Any,
-    api_key: str,
-    model_name: str = "gemini-2.0-flash"
-) -> dict[str, Any]:
+def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
     """
     Génère le catalogue complet depuis une connexion DuckDB existante.
 
-    Utile quand le backend a déjà une connexion ouverte.
+    Utilise le LLM configuré par défaut via llm_service.
 
     Args:
         db_connection: Connexion DuckDB native (duckdb.DuckDBPyConnection)
-        api_key: Clé API Gemini
-        model_name: Nom du modèle Gemini
 
     Retourne les statistiques et le catalogue.
     """
@@ -414,9 +395,9 @@ def generate_catalog_from_connection(
     # 2. Modèle dynamique (implicite dans enrich_with_llm)
     print("2/4 - Création du modèle Pydantic dynamique...")
 
-    # 3. Enrichissement LLM
-    print("3/4 - Enrichissement avec Instructor + Gemini...")
-    enrichment = enrich_with_llm(catalog, api_key, model_name)
+    # 3. Enrichissement LLM (utilise llm_service)
+    print("3/4 - Enrichissement avec LLM Service...")
+    enrichment = enrich_with_llm(catalog)
 
     # 4. Sauvegarde
     print("4/4 - Sauvegarde dans le catalogue SQLite...")

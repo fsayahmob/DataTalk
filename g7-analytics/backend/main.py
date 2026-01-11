@@ -1,15 +1,24 @@
 """
 FastAPI Backend pour G7 Analytics
-Gère les appels Gemini + DuckDB dans un seul processus Python persistant
+Gère les appels LLM + DuckDB dans un seul processus Python persistant
 """
 import json
+import logging
 import os
-import time
+import re
 from contextlib import asynccontextmanager
 from typing import Any
 
+# Configuration du logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 import duckdb
-import google.generativeai as genai
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from catalog import (
     add_message,
     create_conversation,
@@ -18,37 +27,44 @@ from catalog import (
     get_all_settings,
     get_conversations,
     get_messages,
-    # Questions prédéfinies
     get_predefined_questions,
     get_saved_reports,
     get_schema_for_llm,
-    # Settings
     get_setting,
-    # Rapports
     save_report,
-    set_setting,
     toggle_pin_report,
 )
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+
+# i18n - Messages localisés
+from i18n import t
+from llm_config import (
+    get_api_key_hint,
+    get_costs_by_model,
+    get_costs_by_period,
+    get_default_model,
+    get_models,
+    get_provider_by_name,
+    get_providers,
+    get_total_costs,
+    init_llm_tables,
+    set_api_key,
+    set_default_model,
+)
+
+# LLM Service centralisé
+from llm_service import LLMError, call_llm, check_llm_status
 
 # Charger les variables d'environnement
 load_dotenv()
 
 # Configuration
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Connexion DuckDB persistante
 db_connection: duckdb.DuckDBPyConnection | None = None
 
 # Schéma chargé dynamiquement depuis le catalogue
 db_schema_cache: str | None = None
-
-# Modèle Gemini caché (évite de recréer à chaque requête)
-gemini_model: genai.GenerativeModel | None = None
 
 
 def get_system_instruction() -> str:
@@ -58,23 +74,54 @@ def get_system_instruction() -> str:
     if db_schema_cache is None:
         db_schema_cache = get_schema_for_llm()
 
-    return f"""Assistant analytique. Réponds en français.
+    return f"""Assistant analytique G7 Taxis. Réponds en français.
 
 {db_schema_cache}
 
-GRAPHIQUES: bar, line, pie (≤10 items), area, scatter, none
-RÈGLES: SQL DuckDB SELECT, alias français, ORDER BY pour évolutions/rankings
-LIMIT: "top N"→N, "tous"→aucun, défaut→500, agrégations→pas de limit
-MULTI-SÉRIES: PIVOT SQL + y:["col1","col2",...], max 5-6 séries
-VUE evaluation_categories: pour sentiment par catégorie sémantique
-DUCKDB TIME: EXTRACT(HOUR FROM col) ou HOUR(col), PAS strftime
+TYPES DE GRAPHIQUES:
+- bar: comparaisons entre catégories
+- line: évolutions temporelles
+- pie: répartitions (max 10 items)
+- area: évolutions empilées
+- scatter: corrélations
+- none: pas de visualisation
 
-JSON: {{"sql":"SELECT..."|null,"message":"...","chart":{{"type":"...","x":"col","y":"col|[cols]","title":"..."}}}}"""
+RÈGLES SQL:
+- SQL DuckDB uniquement (SELECT)
+- Alias en français
+- ORDER BY pour rankings/évolutions
+- LIMIT: "top N"→N, "tous"→pas de limit, défaut→500
+- Agrégations (GROUP BY)→pas de LIMIT
+- DUCKDB TIME: EXTRACT(HOUR FROM col), pas strftime
+
+MULTI-SÉRIES (comparaison par catégorie):
+Pour comparer plusieurs séries sur un même graphique:
+1. SQL avec FILTER pour créer une colonne par catégorie:
+   SELECT date,
+     AVG(note) FILTER (WHERE typ='A') AS "Type A",
+     AVG(note) FILTER (WHERE typ='B') AS "Type B"
+   FROM table GROUP BY date
+2. chart.y DOIT être un tableau: ["Type A", "Type B", ...]
+
+VUE evaluation_categories: pour sentiment par catégorie sémantique
+
+RÉPONSE: Un seul objet JSON (pas de tableau):
+{{"sql":"SELECT...","message":"Explication...","chart":{{"type":"...","x":"col","y":"col|[cols]","title":"..."}}}}"""
 
 
 # Modèles Pydantic
+class AnalysisFilters(BaseModel):
+    """Filtres structurés pour l'analyse."""
+    dateStart: str | None = None
+    dateEnd: str | None = None
+    noteMin: str | None = None
+    noteMax: str | None = None
+
+
 class QuestionRequest(BaseModel):
     question: str
+    filters: AnalysisFilters | None = None
+    use_context: bool = False  # Stateless par défaut
 
 
 class ChartConfig(BaseModel):
@@ -91,7 +138,7 @@ class AnalysisResponse(BaseModel):
     chart: ChartConfig
     data: list[dict[str, Any]]
     # Métadonnées de performance
-    model_name: str = "gemini-2.0-flash"
+    model_name: str = "unknown"
     tokens_input: int | None = None
     tokens_output: int | None = None
     response_time_ms: int | None = None
@@ -111,8 +158,11 @@ class SaveReportRequest(BaseModel):
 
 
 class SettingsUpdateRequest(BaseModel):
-    gemini_api_key: str | None = None
-    model_name: str | None = None
+    # API keys par provider
+    api_key: str | None = None
+    provider_name: str | None = None  # google, openai, anthropic, mistral
+    # Modèle par défaut
+    default_model_id: str | None = None
 
 
 @asynccontextmanager
@@ -125,12 +175,16 @@ async def lifespan(app: FastAPI):
     db_connection = duckdb.connect(DB_PATH, read_only=True)
     print("DuckDB connecté")
 
-    # Configurer Gemini
-    if GEMINI_API_KEY:
-        genai.configure(api_key=GEMINI_API_KEY)
-        print("Gemini configuré")
+    # Initialiser les tables LLM
+    init_llm_tables()
+    print("Tables LLM initialisées")
+
+    # Vérifier le statut LLM
+    llm_status = check_llm_status()
+    if llm_status["status"] == "ok":
+        print(f"LLM configuré: {llm_status.get('model')}")
     else:
-        print("ATTENTION: GEMINI_API_KEY non définie")
+        print(f"ATTENTION: {llm_status.get('message')}")
 
     # Pré-charger le schéma du catalogue au démarrage
     global db_schema_cache
@@ -195,77 +249,180 @@ def execute_query(sql: str) -> list[dict[str, Any]]:
     return data
 
 
-def get_gemini_model() -> genai.GenerativeModel:
-    """Retourne le modèle Gemini caché (créé une seule fois)."""
-    global gemini_model
+def build_filter_context(filters: AnalysisFilters | None) -> str:
+    """Construit le contexte de filtre pour le LLM."""
+    if not filters:
+        return ""
 
-    if gemini_model is None:
-        gemini_model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
-            generation_config={
-                "temperature": 0.1,
-                "response_mime_type": "application/json"
-            }
-        )
-    return gemini_model
+    constraints = []
+    if filters.dateStart:
+        constraints.append(f"dat_course >= '{filters.dateStart}'")
+    if filters.dateEnd:
+        constraints.append(f"dat_course <= '{filters.dateEnd}'")
+    if filters.noteMin:
+        constraints.append(f"note_eval >= {filters.noteMin}")
+    if filters.noteMax:
+        constraints.append(f"note_eval <= {filters.noteMax}")
+
+    if not constraints:
+        return ""
+
+    return f"""
+FILTRES OBLIGATOIRES (à ajouter dans WHERE):
+{' AND '.join(constraints)}
+"""
 
 
-def call_gemini(question: str) -> dict:
-    """Appelle Gemini pour générer SQL + message + config chart + métadonnées."""
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY non configurée")
+def build_conversation_context(conversation_id: int | None, max_messages: int = 6) -> str:
+    """Construit le contexte conversationnel à partir des messages précédents."""
+    if not conversation_id:
+        return ""
 
-    model = get_gemini_model()
-    model_name = "gemini-2.0-flash"
+    messages = get_messages(conversation_id)
+    if not messages:
+        return ""
 
-    start_time = time.time()
+    # Limiter aux N derniers messages (paires question/réponse)
+    recent_messages = messages[-max_messages:]
+    if not recent_messages:
+        return ""
 
-    # Format multi-turn comme avant (plus rapide que system_instruction)
-    response = model.generate_content([
-        {"role": "user", "parts": [get_system_instruction()]},
-        {"role": "model", "parts": ['{"sql": "", "message": "", "chart": {"type": "none", "x": "", "y": "", "title": ""}}']},
-        {"role": "user", "parts": [question]}
-    ])
+    context_parts = ["HISTORIQUE DE LA CONVERSATION:"]
+    for msg in recent_messages:
+        role = "Utilisateur" if msg["role"] == "user" else "Assistant"
+        content = msg["content"]
+        # Pour les réponses assistant, inclure le SQL si présent (résumé)
+        if msg["role"] == "assistant" and msg.get("sql_query"):
+            sql_preview = msg["sql_query"][:100] + "..." if len(msg["sql_query"]) > 100 else msg["sql_query"]
+            context_parts.append(f"{role}: {content}\n  SQL: {sql_preview}")
+        else:
+            context_parts.append(f"{role}: {content}")
 
-    response_time_ms = int((time.time() - start_time) * 1000)
+    context_parts.append("")  # Ligne vide avant la nouvelle question
+    return "\n".join(context_parts)
 
-    # Extraire les métadonnées de tokens
-    tokens_input = None
-    tokens_output = None
-    if hasattr(response, 'usage_metadata'):
-        usage = response.usage_metadata
-        tokens_input = getattr(usage, 'prompt_token_count', None)
-        tokens_output = getattr(usage, 'candidates_token_count', None)
 
+def call_llm_for_analytics(
+    question: str,
+    conversation_id: int | None = None,
+    filters: AnalysisFilters | None = None,
+    use_context: bool = False
+) -> dict:
+    """Appelle le LLM pour générer SQL + message + config chart + métadonnées.
+
+    Args:
+        use_context: Si True, inclut l'historique de la conversation (stateful).
+                    Par défaut False (stateless) pour économiser les tokens.
+    """
+    # Vérifier le statut LLM
+    status = check_llm_status()
+    if status["status"] != "ok":
+        raise HTTPException(status_code=500, detail=status.get("message", t("llm.not_configured")))
+
+    # Construire le contexte conversationnel (seulement si use_context=True)
+    conversation_context = ""
+    if use_context and conversation_id:
+        conversation_context = build_conversation_context(conversation_id)
+
+    # Construire le prompt avec les filtres
+    filter_context = build_filter_context(filters)
+
+    # Assembler le prompt complet
+    prompt_parts = []
+    if conversation_context:
+        prompt_parts.append(conversation_context)
+    prompt_parts.append(question)
+    if filter_context:
+        prompt_parts.append(filter_context)
+
+    full_prompt = "\n".join(prompt_parts)
+
+    # Appeler le LLM via llm_service
     try:
-        result = json.loads(response.text)
+        response = call_llm(
+            prompt=full_prompt,
+            system_prompt=get_system_instruction(),
+            source="analytics",
+            conversation_id=conversation_id,
+            temperature=0.1,
+        )
+
+        # Nettoyer le contenu (enlever les backticks markdown si présents)
+        content = response.content.strip() if response.content else ""
+        if content.startswith("```"):
+            lines = content.split("\n")
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+
+        # Parser la réponse JSON (avec extraction robuste)
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError as e:
+            logger.warning(f"JSON parse failed: {e}")
+            logger.warning(f"Raw LLM response ({len(content)} chars): {content[:500]}...")
+
+            # Tenter d'extraire le JSON du contenu
+            json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', content, re.DOTALL)
+            if not json_match:
+                # Essayer avec une regex plus permissive pour JSON imbriqué
+                json_match = re.search(r'\{.*"sql"\s*:\s*".*?".*\}', content, re.DOTALL)
+            if json_match:
+                logger.info(f"Found JSON via regex: {json_match.group()[:200]}...")
+                try:
+                    result = json.loads(json_match.group())
+                except json.JSONDecodeError as e2:
+                    logger.error(f"Regex JSON also invalid: {e2}")
+                    # Retourner le texte brut comme message (pas d'erreur)
+                    result = {
+                        "sql": "",
+                        "message": content,
+                        "chart": {"type": "none", "x": None, "y": None, "title": ""}
+                    }
+            else:
+                # Pas de JSON trouvé - retourner le texte brut comme message
+                logger.info("No JSON found, returning raw text as message")
+                result = {
+                    "sql": "",
+                    "message": content,
+                    "chart": {"type": "none", "x": None, "y": None, "title": ""}
+                }
+
+        if isinstance(result, list):
+            result = result[0] if result else {}
         result["_metadata"] = {
-            "model_name": model_name,
-            "tokens_input": tokens_input,
-            "tokens_output": tokens_output,
-            "response_time_ms": response_time_ms
+            "model_name": response.model_name,
+            "tokens_input": response.tokens_input,
+            "tokens_output": response.tokens_output,
+            "response_time_ms": response.response_time_ms
         }
         return result
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=500, detail=f"Réponse Gemini invalide: {e}") from e
+
+    except LLMError as e:
+        # Erreur typée du service LLM - mapper via i18n
+        logger.error(f"LLM Error: {e.code.value} - {e.details}")
+        detail = t(e.code.value, provider=e.provider, error=e.details)
+        raise HTTPException(status_code=500, detail=detail) from e
 
 
 @app.get("/health")
 async def health_check():
     """Vérifie que l'API est opérationnelle"""
+    llm_status = check_llm_status()
     return {
         "status": "ok",
         "database": "connected" if db_connection else "disconnected",
-        "gemini": "configured" if GEMINI_API_KEY else "not configured"
+        "llm": llm_status
     }
 
 
 @app.post("/refresh-schema")
 async def refresh_schema():
     """Rafraîchit le cache du schéma depuis le catalogue SQLite."""
-    global db_schema_cache, gemini_model
+    global db_schema_cache
     db_schema_cache = None  # Force le rechargement
-    gemini_model = None  # Force la recréation du modèle avec le nouveau schéma
     db_schema_cache = get_schema_for_llm()
     return {"status": "ok", "message": "Schéma rafraîchi", "schema_preview": db_schema_cache[:500] + "..."}
 
@@ -280,21 +437,21 @@ async def get_schema():
 async def analyze(request: QuestionRequest):
     """
     Analyse une question en langage naturel:
-    1. Appelle Gemini pour générer SQL + message + config chart
+    1. Appelle le LLM pour générer SQL + message + config chart
     2. Exécute le SQL sur DuckDB
     3. Retourne le tout au frontend
     """
     try:
-        # 1. Appeler Gemini
-        gemini_response = call_gemini(request.question)
+        # 1. Appeler le LLM avec les filtres
+        llm_response = call_llm_for_analytics(request.question, filters=request.filters)
 
-        sql = gemini_response.get("sql", "")
-        message = gemini_response.get("message", "")
-        chart = gemini_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
-        metadata = gemini_response.get("_metadata", {})
+        sql = llm_response.get("sql", "")
+        message = llm_response.get("message", "")
+        chart = llm_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
+        metadata = llm_response.get("_metadata", {})
 
         if not sql:
-            raise HTTPException(status_code=400, detail="Gemini n'a pas généré de requête SQL")
+            raise HTTPException(status_code=400, detail="Le LLM n'a pas généré de requête SQL")
 
         # 2. Exécuter le SQL
         data = execute_query(sql)
@@ -305,7 +462,7 @@ async def analyze(request: QuestionRequest):
             sql=sql,
             chart=ChartConfig(**chart),
             data=data,
-            model_name=metadata.get("model_name", "gemini-2.0-flash"),
+            model_name=metadata.get("model_name", "unknown"),
             tokens_input=metadata.get("tokens_input"),
             tokens_output=metadata.get("tokens_output"),
             response_time_ms=metadata.get("response_time_ms")
@@ -365,16 +522,21 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
             content=request.question
         )
 
-        # Appeler Gemini
-        gemini_response = call_gemini(request.question)
+        # Appeler le LLM avec les filtres et le mode contexte
+        llm_response = call_llm_for_analytics(
+            request.question,
+            conversation_id,
+            request.filters,
+            use_context=request.use_context
+        )
 
-        sql = gemini_response.get("sql", "")
-        message = gemini_response.get("message", "")
-        chart = gemini_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
-        metadata = gemini_response.get("_metadata", {})
+        sql = llm_response.get("sql", "")
+        message = llm_response.get("message", "")
+        chart = llm_response.get("chart", {"type": "none", "x": "", "y": "", "title": ""})
+        metadata = llm_response.get("_metadata", {})
 
         if not sql:
-            # Gemini n'a pas généré de SQL - retourner quand même le message
+            # Le LLM n'a pas généré de SQL - retourner quand même le message
             message_id = add_message(
                 conversation_id=conversation_id,
                 role="assistant",
@@ -390,7 +552,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "sql": "",
                 "chart": {"type": "none", "x": None, "y": None, "title": ""},
                 "data": [],
-                "model_name": metadata.get("model_name", "gemini-2.0-flash"),
+                "model_name": metadata.get("model_name", "unknown"),
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
                 "response_time_ms": metadata.get("response_time_ms")
@@ -419,7 +581,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "sql_error": sql_error_str,
                 "chart": {"type": "none", "x": None, "y": None, "title": ""},
                 "data": [],
-                "model_name": metadata.get("model_name", "gemini-2.0-flash"),
+                "model_name": metadata.get("model_name", "unknown"),
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
                 "response_time_ms": metadata.get("response_time_ms")
@@ -448,7 +610,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
             "sql": sql,
             "chart": chart,
             "data": data,
-            "model_name": metadata.get("model_name", "gemini-2.0-flash"),
+            "model_name": metadata.get("model_name", "unknown"),
             "tokens_input": metadata.get("tokens_input"),
             "tokens_output": metadata.get("tokens_output"),
             "response_time_ms": metadata.get("response_time_ms")
@@ -559,31 +721,60 @@ async def list_predefined_questions():
 
 @app.get("/settings")
 async def get_settings():
-    """Récupère toutes les configurations."""
+    """Récupère toutes les configurations + statut LLM."""
     settings = get_all_settings()
-    # Masquer partiellement la clé API si elle existe
-    if "gemini_api_key" in settings:
-        key = settings["gemini_api_key"]
-        if key and len(key) > 8:
-            settings["gemini_api_key_masked"] = key[:4] + "..." + key[-4:]
-            del settings["gemini_api_key"]
-    return {"settings": settings}
+
+    # Ajouter les infos LLM
+    llm_status = check_llm_status()
+    default_model = get_default_model()
+
+    # Liste des providers avec statut des clés
+    providers = get_providers()
+    providers_status = []
+    for p in providers:
+        hint = get_api_key_hint(p["name"])
+        providers_status.append({
+            "name": p["name"],
+            "display_name": p["display_name"],
+            "type": p["type"],
+            "requires_api_key": p["requires_api_key"],
+            "api_key_configured": hint is not None,
+            "api_key_hint": hint
+        })
+
+    return {
+        "settings": settings,
+        "llm": {
+            "status": llm_status["status"],
+            "message": llm_status.get("message"),
+            "current_model": default_model,
+            "providers": providers_status
+        }
+    }
 
 
 @app.put("/settings")
 async def update_settings(request: SettingsUpdateRequest):
-    """Met à jour les configurations."""
-    if request.gemini_api_key is not None:
-        set_setting("gemini_api_key", request.gemini_api_key)
-        # Reconfigurer Gemini avec la nouvelle clé
-        global GEMINI_API_KEY
-        GEMINI_API_KEY = request.gemini_api_key
-        genai.configure(api_key=GEMINI_API_KEY)
+    """Met à jour les configurations LLM."""
+    messages = []
 
-    if request.model_name is not None:
-        set_setting("model_name", request.model_name)
+    # Mettre à jour une clé API
+    if request.api_key is not None and request.provider_name is not None:
+        provider = get_provider_by_name(request.provider_name)
+        if not provider:
+            raise HTTPException(status_code=404, detail=f"Provider '{request.provider_name}' non trouvé")
+        set_api_key(provider["id"], request.api_key)
+        messages.append(f"Clé API {request.provider_name} mise à jour")
 
-    return {"message": "Configuration mise à jour"}
+    # Mettre à jour le modèle par défaut
+    if request.default_model_id is not None:
+        set_default_model(request.default_model_id)
+        messages.append(f"Modèle par défaut: {request.default_model_id}")
+
+    if not messages:
+        return {"message": "Aucune modification"}
+
+    return {"message": "; ".join(messages)}
 
 
 @app.get("/settings/{key}")
@@ -811,9 +1002,8 @@ async def delete_catalog():
     conn.close()
 
     # Rafraîchir le cache du schéma
-    global db_schema_cache, gemini_model
+    global db_schema_cache
     db_schema_cache = None
-    gemini_model = None
 
     return {"status": "ok", "message": "Catalogue supprimé"}
 
@@ -830,8 +1020,10 @@ async def generate_catalog_endpoint():
     from catalog import get_connection
     from catalog_engine import generate_catalog_from_connection
 
-    if not GEMINI_API_KEY:
-        raise HTTPException(status_code=500, detail="GEMINI_API_KEY non configurée")
+    # Vérifier que le LLM est configuré
+    llm_status = check_llm_status()
+    if llm_status["status"] != "ok":
+        raise HTTPException(status_code=500, detail=llm_status.get("message", "LLM non configuré"))
 
     if not db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
@@ -847,19 +1039,15 @@ async def generate_catalog_endpoint():
     conn.close()
 
     # 2. Générer le catalogue avec la connexion DuckDB existante
+    # catalog_engine utilise désormais llm_service en interne
     try:
-        result = generate_catalog_from_connection(
-            db_connection=db_connection,
-            api_key=GEMINI_API_KEY,
-            model_name="gemini-2.0-flash"
-        )
+        result = generate_catalog_from_connection(db_connection=db_connection)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur génération catalogue: {e}") from e
 
     # 3. Rafraîchir le cache du schéma
-    global db_schema_cache, gemini_model
+    global db_schema_cache
     db_schema_cache = None
-    gemini_model = None
     db_schema_cache = get_schema_for_llm()
 
     return {
@@ -869,6 +1057,125 @@ async def generate_catalog_endpoint():
         "columns_count": result.get("stats", {}).get("columns", 0),
         "synonyms_count": result.get("stats", {}).get("synonyms", 0)
     }
+
+
+# ========================================
+# ENDPOINTS LLM
+# ========================================
+
+@app.get("/llm/providers")
+async def list_llm_providers():
+    """Liste tous les providers LLM disponibles."""
+    from llm_config import check_local_provider_available
+
+    providers = get_providers()
+    result = []
+    for p in providers:
+        hint = get_api_key_hint(p["id"])
+
+        # Déterminer si le provider est prêt à être utilisé
+        if p.get("requires_api_key"):
+            is_available = hint is not None
+        else:
+            # Provider local - vérifier s'il est accessible
+            is_available = check_local_provider_available(p["name"])
+
+        # Convertir les booléens SQLite (0/1) en vrais booléens
+        provider_data = {
+            "id": p["id"],
+            "name": p["name"],
+            "display_name": p["display_name"],
+            "type": p["type"],
+            "base_url": p.get("base_url"),
+            "requires_api_key": bool(p.get("requires_api_key")),
+            "is_enabled": bool(p.get("is_enabled")),
+            "api_key_configured": hint is not None,
+            "api_key_hint": hint,
+            "is_available": is_available,
+        }
+        result.append(provider_data)
+    return {"providers": result}
+
+
+@app.get("/llm/models")
+async def list_llm_models(provider_name: str | None = None):
+    """Liste les modèles LLM disponibles (optionnellement filtrés par provider)."""
+    if provider_name:
+        provider = get_provider_by_name(provider_name)
+        if not provider:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_name}' non trouvé")
+        models = get_models(provider["id"])
+    else:
+        models = get_models()
+    return {"models": models}
+
+
+@app.get("/llm/models/default")
+async def get_llm_default_model():
+    """Récupère le modèle LLM par défaut."""
+    model = get_default_model()
+    if not model:
+        raise HTTPException(status_code=404, detail="Aucun modèle par défaut configuré")
+    return {"model": model}
+
+
+@app.put("/llm/models/default/{model_id}")
+async def set_llm_default_model(model_id: str):
+    """Définit le modèle LLM par défaut."""
+    # Chercher le modèle par model_id
+    models = get_models()
+    model = next((m for m in models if m["model_id"] == model_id), None)
+    if not model:
+        raise HTTPException(status_code=404, detail=f"Modèle '{model_id}' non trouvé")
+
+    # set_default_model attend le model_id string (pas l'id interne)
+    set_default_model(model_id)
+    return {"message": f"Modèle par défaut: {model_id}"}
+
+
+class ProviderConfigRequest(BaseModel):
+    base_url: str | None = None
+
+
+@app.put("/llm/providers/{provider_name}/config")
+async def update_provider_config(provider_name: str, config: ProviderConfigRequest):
+    """Met à jour la configuration d'un provider (base_url pour self-hosted)."""
+    from llm_config import update_provider_base_url
+
+    provider = get_provider_by_name(provider_name)
+    if not provider:
+        raise HTTPException(status_code=404, detail=f"Provider '{provider_name}' non trouvé")
+
+    if provider.get("requires_api_key"):
+        raise HTTPException(status_code=400, detail="Ce provider n'accepte pas de base_url")
+
+    if config.base_url:
+        update_provider_base_url(provider["id"], config.base_url)
+        return {"message": f"Configuration mise à jour pour {provider_name}"}
+    else:
+        update_provider_base_url(provider["id"], None)
+        return {"message": f"Configuration supprimée pour {provider_name}"}
+
+
+@app.get("/llm/costs")
+async def get_llm_costs(days: int = 30):
+    """Récupère les coûts LLM des N derniers jours."""
+    total = get_total_costs(days)
+    by_period = get_costs_by_period(days)
+    by_model = get_costs_by_model(days)
+
+    return {
+        "period_days": days,
+        "total": total,
+        "by_date": by_period,
+        "by_model": by_model
+    }
+
+
+@app.get("/llm/status")
+async def get_llm_status_endpoint():
+    """Vérifie le statut du LLM."""
+    return check_llm_status()
 
 
 if __name__ == "__main__":

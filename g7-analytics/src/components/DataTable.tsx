@@ -1,29 +1,99 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import {
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  flexRender,
+  type ColumnDef,
+  type SortingState,
+  type ColumnFiltersState,
+} from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Pagination } from "@/components/Pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   FilterIcon,
   SortIcon,
   SortAscIcon,
   SortDescIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
 } from "@/components/icons";
 
 interface DataTableProps {
   data: Record<string, unknown>[];
 }
 
-type SortDirection = "asc" | "desc" | null;
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? value.toLocaleString("fr-FR") : value.toFixed(2);
+  }
+  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  const str = String(value);
+  return str.length > 100 ? str.slice(0, 100) + "..." : str;
+}
 
 export function DataTable({ data }: DataTableProps) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
-  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [showFilters, setShowFilters] = useState(false);
+
+  // Générer les colonnes dynamiquement
+  const columns = useMemo<ColumnDef<Record<string, unknown>>[]>(() => {
+    if (!data || data.length === 0) return [];
+
+    return Object.keys(data[0]).map((key) => ({
+      accessorKey: key,
+      header: key,
+      cell: ({ getValue }) => {
+        const value = getValue();
+        return (
+          <span className="block truncate" title={String(value ?? "")}>
+            {formatValue(value)}
+          </span>
+        );
+      },
+    }));
+  }, [data]);
+
+  const table = useReactTable({
+    data: data || [],
+    columns,
+    state: {
+      sorting,
+      columnFilters,
+    },
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    initialState: {
+      pagination: {
+        pageSize: 25,
+      },
+    },
+  });
 
   if (!data || data.length === 0) {
     return (
@@ -33,90 +103,19 @@ export function DataTable({ data }: DataTableProps) {
     );
   }
 
-  const columns = Object.keys(data[0]);
+  const hasActiveFilters = columnFilters.length > 0;
 
-  // Filtrage
-  const filteredData = useMemo(() => {
-    return data.filter((row) => {
-      return Object.entries(columnFilters).every(([col, filterValue]) => {
-        if (!filterValue) return true;
-        const cellValue = String(row[col] ?? "").toLowerCase();
-        return cellValue.includes(filterValue.toLowerCase());
-      });
-    });
-  }, [data, columnFilters]);
-
-  // Tri
-  const sortedData = useMemo(() => {
-    if (!sortColumn || !sortDirection) return filteredData;
-
-    return [...filteredData].sort((a, b) => {
-      const aVal = a[sortColumn];
-      const bVal = b[sortColumn];
-
-      // Gestion des nulls
-      if (aVal === null || aVal === undefined) return sortDirection === "asc" ? 1 : -1;
-      if (bVal === null || bVal === undefined) return sortDirection === "asc" ? -1 : 1;
-
-      // Comparaison numérique
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-      }
-
-      // Comparaison string
-      const aStr = String(aVal).toLowerCase();
-      const bStr = String(bVal).toLowerCase();
-      if (sortDirection === "asc") {
-        return aStr.localeCompare(bStr);
-      }
-      return bStr.localeCompare(aStr);
-    });
-  }, [filteredData, sortColumn, sortDirection]);
-
-  // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize);
-  const paginatedData = sortedData.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
-
-  // Handlers
-  const handleSort = (column: string) => {
-    if (sortColumn === column) {
-      if (sortDirection === "asc") {
-        setSortDirection("desc");
-      } else if (sortDirection === "desc") {
-        setSortColumn(null);
-        setSortDirection(null);
-      }
-    } else {
-      setSortColumn(column);
-      setSortDirection("asc");
+  const getSortIcon = (columnId: string) => {
+    const sortedColumn = sorting.find((s) => s.id === columnId);
+    if (!sortedColumn) {
+      return <SortIcon size={14} className="opacity-30" />;
     }
-    setCurrentPage(1);
+    return sortedColumn.desc ? (
+      <SortDescIcon size={14} />
+    ) : (
+      <SortAscIcon size={14} />
+    );
   };
-
-  const handleFilterChange = (column: string, value: string) => {
-    setColumnFilters((prev) => ({ ...prev, [column]: value }));
-    setCurrentPage(1);
-  };
-
-  const clearFilters = () => {
-    setColumnFilters({});
-    setCurrentPage(1);
-  };
-
-  const getSortIcon = (column: string) => {
-    if (sortColumn !== column) {
-      return <SortIcon size={16} className="opacity-30" />;
-    }
-    if (sortDirection === "asc") {
-      return <SortAscIcon size={16} />;
-    }
-    return <SortDescIcon size={16} />;
-  };
-
-  const hasActiveFilters = Object.values(columnFilters).some(Boolean);
 
   return (
     <div className="flex flex-col h-full">
@@ -133,110 +132,169 @@ export function DataTable({ data }: DataTableProps) {
             Filtres
             {hasActiveFilters && (
               <span className="ml-1 bg-primary text-primary-foreground text-xs px-1.5 rounded-full">
-                {Object.values(columnFilters).filter(Boolean).length}
+                {columnFilters.length}
               </span>
             )}
           </Button>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="h-8 text-xs">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setColumnFilters([])}
+              className="h-8 text-xs"
+            >
               Effacer
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{sortedData.length} résultats</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setCurrentPage(1);
-            }}
-            className="h-8 text-xs rounded border border-input bg-background px-2"
+          <span>{table.getFilteredRowModel().rows.length} résultats</span>
+          <Select
+            value={String(table.getState().pagination.pageSize)}
+            onValueChange={(value) => table.setPageSize(Number(value))}
           >
-            <option value={10}>10 / page</option>
-            <option value={25}>25 / page</option>
-            <option value={50}>50 / page</option>
-            <option value={100}>100 / page</option>
-          </select>
+            <SelectTrigger className="h-8 w-[100px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10 / page</SelectItem>
+              <SelectItem value="25">25 / page</SelectItem>
+              <SelectItem value="50">50 / page</SelectItem>
+              <SelectItem value="100">100 / page</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {/* Table Container - Responsive */}
+      {/* Table */}
       <div className="flex-1 overflow-auto border rounded-lg">
-        <table className="w-full text-sm table-fixed">
-          <thead className="bg-secondary/50 sticky top-0">
-            {/* Headers */}
-            <tr>
-              {columns.map((col) => (
-                <th
-                  key={col}
-                  onClick={() => handleSort(col)}
-                  className="px-3 py-2 text-left font-medium text-muted-foreground cursor-pointer hover:bg-secondary/80 transition-colors select-none"
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="truncate" title={col}>
-                      {col}
-                    </span>
-                    {getSortIcon(col)}
-                  </div>
-                </th>
-              ))}
-            </tr>
+        <Table>
+          <TableHeader className="bg-secondary/50 sticky top-0">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    key={header.id}
+                    onClick={header.column.getToggleSortingHandler()}
+                    className="cursor-pointer hover:bg-secondary/80 transition-colors select-none whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1">
+                      <span className="truncate">
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
+                      </span>
+                      {getSortIcon(header.column.id)}
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
             {/* Filter row */}
             {showFilters && (
-              <tr className="bg-secondary/30">
-                {columns.map((col) => (
-                  <th key={`filter-${col}`} className="px-2 py-1">
+              <TableRow className="bg-secondary/30">
+                {table.getAllColumns().map((column) => (
+                  <TableHead key={`filter-${column.id}`} className="p-1">
                     <Input
                       type="text"
                       placeholder="Filtrer..."
-                      value={columnFilters[col] || ""}
-                      onChange={(e) => handleFilterChange(col, e.target.value)}
+                      value={(column.getFilterValue() as string) ?? ""}
+                      onChange={(e) => column.setFilterValue(e.target.value)}
                       className="h-7 text-xs"
                     />
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
+              </TableRow>
             )}
-          </thead>
-          <tbody className="divide-y divide-border">
-            {paginatedData.map((row, i) => (
-              <tr key={i} className="hover:bg-secondary/30 transition-colors">
-                {columns.map((col) => (
-                  <td
-                    key={col}
-                    className="px-3 py-2"
-                    title={String(row[col] ?? "")}
-                  >
-                    <span className="block truncate">
-                      {formatValue(row[col])}
-                    </span>
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  className="hover:bg-secondary/30 transition-colors"
+                >
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="py-2">
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center text-muted-foreground"
+                >
+                  Aucun résultat
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Pagination */}
-      <Pagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        onPageChange={setCurrentPage}
-      />
+      <div className="flex items-center justify-between py-3 flex-shrink-0">
+        <div className="text-sm text-muted-foreground">
+          Page {table.getState().pagination.pageIndex + 1} sur{" "}
+          {table.getPageCount()}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.previousPage()}
+            disabled={!table.getCanPreviousPage()}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronLeftIcon size={16} />
+          </Button>
+          {/* Page numbers */}
+          {Array.from({ length: Math.min(5, table.getPageCount()) }, (_, i) => {
+            const pageCount = table.getPageCount();
+            const currentPage = table.getState().pagination.pageIndex;
+            let pageIndex: number;
+
+            if (pageCount <= 5) {
+              pageIndex = i;
+            } else if (currentPage < 3) {
+              pageIndex = i;
+            } else if (currentPage > pageCount - 4) {
+              pageIndex = pageCount - 5 + i;
+            } else {
+              pageIndex = currentPage - 2 + i;
+            }
+
+            return (
+              <Button
+                key={pageIndex}
+                variant={currentPage === pageIndex ? "default" : "outline"}
+                size="sm"
+                onClick={() => table.setPageIndex(pageIndex)}
+                className="h-8 w-8 p-0"
+              >
+                {pageIndex + 1}
+              </Button>
+            );
+          })}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => table.nextPage()}
+            disabled={!table.getCanNextPage()}
+            className="h-8 w-8 p-0"
+          >
+            <ChevronRightIcon size={16} />
+          </Button>
+        </div>
+      </div>
     </div>
   );
-}
-
-function formatValue(value: unknown): string {
-  if (value === null || value === undefined) return "-";
-  if (typeof value === "number") {
-    return Number.isInteger(value) ? value.toLocaleString("fr-FR") : value.toFixed(2);
-  }
-  if (typeof value === "boolean") return value ? "Oui" : "Non";
-  // Truncate long strings
-  const str = String(value);
-  return str.length > 100 ? str.slice(0, 100) + "..." : str;
 }

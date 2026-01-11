@@ -8,6 +8,8 @@ import os
 
 import duckdb
 import google.generativeai as genai
+from dotenv import load_dotenv
+
 from catalog import (
     add_column,
     add_datasource,
@@ -17,7 +19,6 @@ from catalog import (
     get_schema_for_llm,
     init_catalog,
 )
-from dotenv import load_dotenv
 
 load_dotenv()
 

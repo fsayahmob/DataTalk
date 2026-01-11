@@ -2,18 +2,9 @@
 Catalogue sémantique SQLite pour stocker les métadonnées des tables/colonnes.
 Permet de générer dynamiquement le contexte pour le LLM.
 """
-import os
-import sqlite3
 from typing import Any, Optional
 
-CATALOG_PATH = os.path.join(os.path.dirname(__file__), "catalog.sqlite")
-
-
-def get_connection() -> sqlite3.Connection:
-    """Retourne une connexion au catalogue SQLite."""
-    conn = sqlite3.connect(CATALOG_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+from db import CATALOG_PATH, get_connection
 
 
 def init_catalog():
@@ -226,10 +217,11 @@ def add_synonym(column_id: int, term: str):
     conn.close()
 
 
-def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
+def get_schema_for_llm(datasource_name: Optional[str] = None, compact: bool = True) -> str:
     """
     Génère le schéma formaté pour le contexte LLM.
-    C'est cette fonction qui remplace le DB_SCHEMA hardcodé.
+    compact=True: schéma optimisé pour réduire les tokens (pas de sample_values)
+    compact=False: schéma complet avec exemples
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -253,13 +245,10 @@ def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
 
         for table in tables:
             table_desc = f"Table: {table['name']}"
-            if table['description']:
-                table_desc += f" ({table['description']})"
             if table['row_count']:
-                table_desc += f" - {table['row_count']:,} lignes"
+                table_desc += f" ({table['row_count']:,} lignes)"
 
             schema_parts.append(table_desc)
-            schema_parts.append("\nColonnes:")
 
             # Récupérer les colonnes
             cursor.execute("""
@@ -268,13 +257,24 @@ def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
             columns = cursor.fetchall()
 
             for col in columns:
-                col_line = f"- {col['name']} ({col['data_type']})"
-                if col['description']:
-                    col_line += f": {col['description']}"
-                if col['value_range']:
-                    col_line += f" [Valeurs: {col['value_range']}]"
-                if col['sample_values']:
-                    col_line += f" [Ex: {col['sample_values']}]"
+                if compact:
+                    # Format compact: nom (type): description [range]
+                    col_line = f"- {col['name']} ({col['data_type']})"
+                    if col['description']:
+                        # Tronquer description longue
+                        desc = col['description'][:80] + "..." if len(col['description'] or "") > 80 else col['description']
+                        col_line += f": {desc}"
+                    if col['value_range']:
+                        col_line += f" [{col['value_range']}]"
+                else:
+                    # Format complet avec exemples
+                    col_line = f"- {col['name']} ({col['data_type']})"
+                    if col['description']:
+                        col_line += f": {col['description']}"
+                    if col['value_range']:
+                        col_line += f" [Valeurs: {col['value_range']}]"
+                    if col['sample_values']:
+                        col_line += f" [Ex: {col['sample_values']}]"
                 schema_parts.append(col_line)
 
             schema_parts.append("")  # Ligne vide entre tables

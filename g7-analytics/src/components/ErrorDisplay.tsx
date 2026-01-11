@@ -23,10 +23,10 @@ export function ErrorDisplay({ error, sql }: ErrorDisplayProps) {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-destructive mb-2">
-                Erreur d'exécution SQL
+                Erreur d&apos;exécution SQL
               </h3>
               <p className="text-sm text-muted-foreground mb-4">
-                La requête générée n'a pas pu être exécutée sur la base de données.
+                La requête générée n&apos;a pas pu être exécutée sur la base de données.
               </p>
               <div className="bg-background/50 rounded-lg p-3 font-mono text-xs text-destructive/90 break-words">
                 {error}

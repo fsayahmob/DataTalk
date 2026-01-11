@@ -18,11 +18,15 @@ interface UseConversationReturn {
   conversations: Conversation[];
   currentConversationId: number | null;
   showHistory: boolean;
+  useContext: boolean;  // Mode stateful/stateless
+  error: string | null;  // Erreur technique à afficher dans le footer
 
   // Setters
   setQuestion: (q: string) => void;
   setSelectedMessage: (msg: Message | null) => void;
   setShowHistory: (show: boolean) => void;
+  setUseContext: (use: boolean) => void;
+  clearError: () => void;
 
   // Actions
   loadConversations: () => Promise<void>;
@@ -40,6 +44,10 @@ export function useConversation(): UseConversationReturn {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [useContext, setUseContext] = useState(false);  // Stateless par défaut
+  const [error, setError] = useState<string | null>(null);
+
+  const clearError = useCallback(() => setError(null), []);
 
   const loadConversations = useCallback(async () => {
     const convs = await api.fetchConversations();
@@ -62,13 +70,14 @@ export function useConversation(): UseConversationReturn {
     }
   }, [loadConversations]);
 
-  const buildFilterContext = useCallback((filters: Filters) => {
-    const parts: string[] = [];
-    if (filters.dateStart) parts.push(`à partir du ${filters.dateStart}`);
-    if (filters.dateEnd) parts.push(`jusqu'au ${filters.dateEnd}`);
-    if (filters.noteMin) parts.push(`note minimum ${filters.noteMin}`);
-    if (filters.noteMax) parts.push(`note maximum ${filters.noteMax}`);
-    return parts.length > 0 ? ` (Filtres: ${parts.join(", ")})` : "";
+  // Convertir les filtres UI en filtres API (ne garde que les valeurs non vides)
+  const toApiFilters = useCallback((filters: Filters): api.AnalysisFilters | undefined => {
+    const apiFilters: api.AnalysisFilters = {};
+    if (filters.dateStart) apiFilters.dateStart = filters.dateStart;
+    if (filters.dateEnd) apiFilters.dateEnd = filters.dateEnd;
+    if (filters.noteMin) apiFilters.noteMin = filters.noteMin;
+    if (filters.noteMax) apiFilters.noteMax = filters.noteMax;
+    return Object.keys(apiFilters).length > 0 ? apiFilters : undefined;
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent, filters: Filters) => {
@@ -87,8 +96,8 @@ export function useConversation(): UseConversationReturn {
       }
     }
 
-    // Ajouter le contexte des filtres à la question
-    const questionWithFilters = question + buildFilterContext(filters);
+    // Convertir les filtres pour l'API
+    const apiFilters = toApiFilters(filters);
 
     // Ajouter le message user localement
     const userMessage: Message = {
@@ -100,7 +109,7 @@ export function useConversation(): UseConversationReturn {
     setQuestion("");
 
     try {
-      const data = await api.analyzeInConversation(convId, questionWithFilters);
+      const data = await api.analyzeInConversation(convId, question, apiFilters, useContext);
 
       const assistantMessage: Message = {
         id: data.message_id,
@@ -120,17 +129,14 @@ export function useConversation(): UseConversationReturn {
       setSelectedMessage(assistantMessage);
       await loadConversations();
     } catch (e) {
-      const errorMessage: Message = {
-        id: Date.now(),
-        role: "assistant",
-        content: `Erreur: ${e instanceof Error ? e.message : "Erreur inconnue"}`,
-      };
-      setMessages((prev) => [...prev, errorMessage]);
-      setSelectedMessage(errorMessage);
+      // Erreur technique → affichée dans le footer, pas dans la conversation
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+      // Supprimer le message user qui n'a pas abouti
+      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
     } finally {
       setLoading(false);
     }
-  }, [question, loading, currentConversationId, createNewConversation, buildFilterContext, loadConversations]);
+  }, [question, loading, currentConversationId, createNewConversation, toApiFilters, loadConversations, useContext]);
 
   const handleLoadConversation = useCallback(async (conv: Conversation) => {
     setCurrentConversationId(conv.id);
@@ -164,9 +170,13 @@ export function useConversation(): UseConversationReturn {
     conversations,
     currentConversationId,
     showHistory,
+    useContext,
+    error,
     setQuestion,
     setSelectedMessage,
     setShowHistory,
+    setUseContext,
+    clearError,
     loadConversations,
     handleSubmit,
     handleLoadConversation,

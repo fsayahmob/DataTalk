@@ -67,6 +67,9 @@ interface ChatZoneProps {
   predefinedQuestions: PredefinedQuestion[];
   onQuestionClick: (q: string) => void;
   onReplayMessage: (msg: Message) => void;
+  // Mode contexte
+  useContext: boolean;
+  onUseContextChange: (use: boolean) => void;
 }
 
 export function ChatZone({
@@ -90,6 +93,8 @@ export function ChatZone({
   predefinedQuestions,
   onQuestionClick,
   onReplayMessage,
+  useContext,
+  onUseContextChange,
 }: ChatZoneProps) {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -296,9 +301,25 @@ export function ChatZone({
                 {loading ? <StopIcon size={14} /> : <SendIcon size={16} />}
               </button>
             </form>
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Entrée pour envoyer, Shift+Entrée pour nouvelle ligne
-            </p>
+            {/* Mode toggle + instructions */}
+            <div className="mt-2 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => onUseContextChange(!useContext)}
+                className={`text-[10px] px-2 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                  useContext
+                    ? "bg-primary/20 text-primary border border-primary/30"
+                    : "bg-secondary/50 text-muted-foreground border border-border/30 hover:bg-secondary"
+                }`}
+                title={useContext ? "Mode avec contexte (historique inclus)" : "Mode sans contexte (économise les tokens)"}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${useContext ? "bg-primary" : "bg-muted-foreground"}`} />
+                {useContext ? "Avec contexte" : "Sans contexte"}
+              </button>
+              <p className="text-[10px] text-muted-foreground">
+                Entrée pour envoyer
+              </p>
+            </div>
           </div>
         </>
       )}

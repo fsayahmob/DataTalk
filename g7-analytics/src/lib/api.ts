@@ -31,27 +31,170 @@ export interface AnalysisResponse {
 
 // ============ API Functions ============
 
+// ============ LLM Types ============
+export interface LLMProvider {
+  id: number;
+  name: string;
+  display_name: string;
+  type: "cloud" | "self-hosted";
+  base_url: string | null;
+  requires_api_key: boolean;
+  api_key_configured: boolean;
+  api_key_hint: string | null;
+  is_available: boolean;
+}
+
+export interface LLMModel {
+  id: number;
+  provider_id: number;
+  model_id: string;
+  display_name: string;
+  context_window: number;
+  cost_per_1m_input: number | null;
+  cost_per_1m_output: number | null;
+  is_default: boolean;
+}
+
+export interface LLMStatus {
+  status: "ok" | "error";
+  message?: string;
+  model?: string;
+  provider?: string;
+}
+
+export interface LLMCosts {
+  period_days: number;
+  total: {
+    total_calls: number;
+    total_tokens_input: number;
+    total_tokens_output: number;
+    total_cost: number;
+  };
+  by_date: Array<{
+    date: string;
+    calls: number;
+    tokens_input: number;
+    tokens_output: number;
+    cost: number;
+  }>;
+  by_model: Array<{
+    model_name: string;
+    provider_name: string;
+    calls: number;
+    tokens_input: number;
+    tokens_output: number;
+    cost: number;
+  }>;
+}
+
 // Health & Settings
 export async function checkApiStatus(): Promise<"ok" | "error"> {
   try {
-    const res = await fetch(`${API_BASE}/health`);
-    const data = await res.json();
-    return data.gemini === "configured" ? "ok" : "error";
+    const res = await fetch(`${API_BASE}/llm/status`);
+    const data: LLMStatus = await res.json();
+    return data.status === "ok" ? "ok" : "error";
   } catch {
     return "error";
   }
 }
 
-export async function saveApiKey(apiKey: string): Promise<boolean> {
+export async function fetchLLMStatus(): Promise<LLMStatus> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/status`);
+    return await res.json();
+  } catch {
+    return { status: "error", message: "Connexion impossible" };
+  }
+}
+
+export async function saveApiKey(
+  providerName: string,
+  apiKey: string
+): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gemini_api_key: apiKey }),
+      body: JSON.stringify({ provider_name: providerName, api_key: apiKey }),
     });
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+export async function saveProviderConfig(
+  providerName: string,
+  baseUrl: string | null
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/providers/${providerName}/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ base_url: baseUrl }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// LLM Providers & Models
+export async function fetchLLMProviders(): Promise<LLMProvider[]> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/providers`);
+    const data = await res.json();
+    return data.providers || [];
+  } catch (e) {
+    console.error("Erreur chargement providers:", e);
+    return [];
+  }
+}
+
+export async function fetchLLMModels(
+  providerName?: string
+): Promise<LLMModel[]> {
+  try {
+    const url = providerName
+      ? `${API_BASE}/llm/models?provider_name=${providerName}`
+      : `${API_BASE}/llm/models`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data.models || [];
+  } catch (e) {
+    console.error("Erreur chargement modèles:", e);
+    return [];
+  }
+}
+
+export async function fetchDefaultModel(): Promise<LLMModel | null> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/models/default`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.model;
+  } catch {
+    return null;
+  }
+}
+
+export async function setDefaultModel(modelId: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/models/default/${modelId}`, {
+      method: "PUT",
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function fetchLLMCosts(days: number = 30): Promise<LLMCosts | null> {
+  try {
+    const res = await fetch(`${API_BASE}/llm/costs?days=${days}`);
+    return await res.json();
+  } catch {
+    return null;
   }
 }
 
@@ -176,15 +319,25 @@ export async function fetchConversationMessages(
   }
 }
 
+// Filtres structurés
+export interface AnalysisFilters {
+  dateStart?: string;
+  dateEnd?: string;
+  noteMin?: string;
+  noteMax?: string;
+}
+
 // Analyse
 export async function analyzeInConversation(
   conversationId: number,
-  question: string
+  question: string,
+  filters?: AnalysisFilters,
+  useContext: boolean = false
 ): Promise<AnalysisResponse> {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, filters, use_context: useContext }),
   });
 
   const data = await res.json();

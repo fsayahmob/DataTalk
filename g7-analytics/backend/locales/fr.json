@@ -1,0 +1,46 @@
+{
+  "llm": {
+    "not_configured": "Aucun modèle LLM configuré. Allez dans Paramètres > Modèles LLM.",
+    "api_key_missing": "Clé API non configurée pour {provider}. Configurez-la dans Paramètres.",
+    "api_key_invalid": "Clé API invalide ou expirée. Vérifiez votre configuration dans Paramètres.",
+    "empty_response": "Le LLM a retourné une réponse vide. Vérifiez votre clé API dans Paramètres > Modèles LLM.",
+    "quota_exceeded": "Quota API dépassé. Réessayez plus tard ou changez de modèle.",
+    "connection_error": "Impossible de joindre le service LLM. Vérifiez votre connexion.",
+    "timeout": "Le LLM a mis trop de temps à répondre. Réessayez.",
+    "context_too_long": "Le contexte est trop long pour ce modèle. Réduisez la taille de votre requête.",
+    "content_policy": "La requête a été bloquée par les politiques de contenu du modèle.",
+    "service_unavailable": "Le service LLM est temporairement indisponible. Réessayez dans quelques minutes.",
+    "invalid_json": "Le LLM n'a pas retourné un JSON valide.",
+    "generic_error": "Erreur LLM: {error}"
+  },
+  "db": {
+    "not_connected": "Base de données non connectée.",
+    "query_error": "Erreur d'exécution SQL: {error}",
+    "connection_error": "Impossible de se connecter à la base de données."
+  },
+  "catalog": {
+    "empty": "Le catalogue est vide. Générez-le depuis Paramètres > Base de données.",
+    "generation_error": "Erreur lors de la génération du catalogue: {error}",
+    "generation_success": "Catalogue généré avec succès: {tables} tables, {columns} colonnes."
+  },
+  "conversation": {
+    "not_found": "Conversation introuvable.",
+    "created": "Nouvelle conversation créée.",
+    "deleted": "Conversation supprimée."
+  },
+  "report": {
+    "not_found": "Rapport introuvable.",
+    "saved": "Rapport sauvegardé.",
+    "deleted": "Rapport supprimé.",
+    "execution_error": "Erreur lors de l'exécution du rapport: {error}"
+  },
+  "settings": {
+    "saved": "Paramètres sauvegardés.",
+    "api_key_saved": "Clé API sauvegardée pour {provider}.",
+    "model_set": "Modèle par défaut mis à jour: {model}."
+  },
+  "validation": {
+    "required_field": "Le champ '{field}' est requis.",
+    "invalid_format": "Format invalide pour '{field}'."
+  }
+}

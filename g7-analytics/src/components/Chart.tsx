@@ -41,6 +41,7 @@ const GRADIENT_ID = "chartGradient";
 interface ChartProps {
   config: ChartConfig;
   data: Record<string, unknown>[];
+  height?: number | `${number}%`;
 }
 
 // Custom tooltip pour dark mode
@@ -60,7 +61,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   return null;
 };
 
-export function Chart({ config, data }: ChartProps) {
+export function Chart({ config, data, height = "100%" }: ChartProps) {
   if (!data || data.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 bg-secondary/30 rounded-lg border border-border">
@@ -93,7 +94,7 @@ export function Chart({ config, data }: ChartProps) {
   switch (config.type) {
     case "bar":
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={height}>
           <BarChart {...commonProps}>
             <defs>
               {yKeys.map((_, idx) => (
@@ -136,7 +137,7 @@ export function Chart({ config, data }: ChartProps) {
 
     case "line":
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={height}>
           <LineChart {...commonProps}>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
@@ -174,8 +175,44 @@ export function Chart({ config, data }: ChartProps) {
     case "pie":
       // Pie chart ne supporte qu'une série, on prend la première
       const pieYKey = yKeys[0];
+      // Pour les pie charts avec beaucoup de données, on ajuste le layout
+      const hasManyItems = data.length > 10;
+
+      // Custom legend pour les nombreuses entrées - 2 colonnes à droite
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const renderCustomLegend = (props: any) => {
+        const { payload } = props;
+        if (!payload) return null;
+        return (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: "2px 8px",
+            fontSize: 9,
+            maxHeight: 350,
+            overflowY: "auto",
+            paddingRight: 4,
+          }}>
+            {payload.map((entry: { value: string; color: string }, index: number) => (
+              <div key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 2,
+                  backgroundColor: entry.color,
+                  flexShrink: 0,
+                }} />
+                <span style={{ color: "#a1a1aa", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {String(entry.value).length > 18 ? `${String(entry.value).slice(0, 18)}...` : entry.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      };
+
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={height}>
           <PieChart>
             <defs>
               {COLORS.map((color, index) => (
@@ -189,32 +226,42 @@ export function Chart({ config, data }: ChartProps) {
               data={data}
               dataKey={pieYKey}
               nameKey={config.x}
-              cx="50%"
+              cx={hasManyItems ? "25%" : "50%"}
               cy="50%"
-              innerRadius={60}
-              outerRadius={140}
-              paddingAngle={2}
-              label={({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(1)}%`}
-              labelLine={{ stroke: "#a1a1aa", strokeWidth: 1 }}
+              innerRadius={hasManyItems ? 35 : 60}
+              outerRadius={hasManyItems ? 85 : 120}
+              paddingAngle={1}
+              label={hasManyItems ? false : ({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(1)}%`}
+              labelLine={hasManyItems ? false : { stroke: "#a1a1aa", strokeWidth: 1 }}
             >
               {data.map((_, index) => (
                 <Cell
                   key={index}
                   fill={`url(#${GRADIENT_ID}-pie-${index % COLORS.length})`}
                   stroke="#1c1c22"
-                  strokeWidth={2}
+                  strokeWidth={1}
                 />
               ))}
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={legendStyle} />
+            {hasManyItems ? (
+              <Legend
+                layout="vertical"
+                align="right"
+                verticalAlign="middle"
+                content={renderCustomLegend}
+                wrapperStyle={{ paddingLeft: 15, width: "55%" }}
+              />
+            ) : (
+              <Legend wrapperStyle={legendStyle} />
+            )}
           </PieChart>
         </ResponsiveContainer>
       );
 
     case "area":
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={height}>
           <AreaChart {...commonProps}>
             <defs>
               {yKeys.map((_, idx) => (
@@ -258,7 +305,7 @@ export function Chart({ config, data }: ChartProps) {
 
     case "scatter":
       return (
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={height}>
           <ScatterChart {...commonProps}>
             <CartesianGrid {...gridStyle} />
             <XAxis

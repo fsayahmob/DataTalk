@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HamburgerIcon, ChartIcon, ChevronLeftIcon, CatalogIcon } from "@/components/icons";
+import { HamburgerIcon, ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon } from "@/components/icons";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -25,6 +25,11 @@ const navItems: NavItem[] = [
     href: "/catalog",
     label: "Catalogue",
     icon: <CatalogIcon size={18} />,
+  },
+  {
+    href: "/settings",
+    label: "Paramètres",
+    icon: <SettingsIcon size={18} />,
   },
 ];
 

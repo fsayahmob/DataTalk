@@ -1,0 +1,46 @@
+{
+  "llm": {
+    "not_configured": "No LLM model configured. Go to Settings > LLM Models.",
+    "api_key_missing": "API key not configured for {provider}. Configure it in Settings.",
+    "api_key_invalid": "Invalid or expired API key. Check your configuration in Settings.",
+    "empty_response": "The LLM returned an empty response. Check your API key in Settings > LLM Models.",
+    "quota_exceeded": "API quota exceeded. Try again later or switch models.",
+    "connection_error": "Unable to reach the LLM service. Check your connection.",
+    "timeout": "The LLM took too long to respond. Please retry.",
+    "context_too_long": "The context is too long for this model. Reduce your request size.",
+    "content_policy": "The request was blocked by the model's content policy.",
+    "service_unavailable": "The LLM service is temporarily unavailable. Try again in a few minutes.",
+    "invalid_json": "The LLM did not return valid JSON.",
+    "generic_error": "LLM error: {error}"
+  },
+  "db": {
+    "not_connected": "Database not connected.",
+    "query_error": "SQL execution error: {error}",
+    "connection_error": "Unable to connect to the database."
+  },
+  "catalog": {
+    "empty": "Catalog is empty. Generate it from Settings > Database.",
+    "generation_error": "Error generating catalog: {error}",
+    "generation_success": "Catalog generated successfully: {tables} tables, {columns} columns."
+  },
+  "conversation": {
+    "not_found": "Conversation not found.",
+    "created": "New conversation created.",
+    "deleted": "Conversation deleted."
+  },
+  "report": {
+    "not_found": "Report not found.",
+    "saved": "Report saved.",
+    "deleted": "Report deleted.",
+    "execution_error": "Error executing report: {error}"
+  },
+  "settings": {
+    "saved": "Settings saved.",
+    "api_key_saved": "API key saved for {provider}.",
+    "model_set": "Default model updated: {model}."
+  },
+  "validation": {
+    "required_field": "Field '{field}' is required.",
+    "invalid_format": "Invalid format for '{field}'."
+  }
+}
