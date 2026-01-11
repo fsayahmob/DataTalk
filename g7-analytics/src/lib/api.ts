@@ -257,34 +257,6 @@ export interface CatalogResponse {
   catalog: CatalogDatasource[];
 }
 
-export interface CatalogRelationship {
-  source_table: string;
-  source_column: string;
-  target_table: string;
-  target_column: string;
-  constraint_name?: string;
-}
-
-export interface CatalogExtractResponse {
-  datasource: string;
-  tables: CatalogTable[];
-  relationships: CatalogRelationship[];
-}
-
-export interface CatalogEnrichResponse {
-  tables: CatalogTable[];
-}
-
-export interface CatalogApplyResponse {
-  status: string;
-  message: string;
-  stats: {
-    tables: number;
-    columns: number;
-    synonyms: number;
-  };
-}
-
 // Récupérer le catalogue actuel
 export async function fetchCatalog(): Promise<CatalogResponse | null> {
   try {
@@ -297,55 +269,7 @@ export async function fetchCatalog(): Promise<CatalogResponse | null> {
   }
 }
 
-// Extraire la structure depuis DuckDB
-export async function extractCatalog(): Promise<CatalogExtractResponse | null> {
-  try {
-    const res = await fetch(`${API_BASE}/catalog/extract`, { method: "POST" });
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error("Erreur extraction catalogue:", e);
-    return null;
-  }
-}
-
-// Enrichir avec LLM
-export async function enrichCatalog(
-  tables: CatalogTable[]
-): Promise<CatalogEnrichResponse | null> {
-  try {
-    const res = await fetch(`${API_BASE}/catalog/enrich`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tables }),
-    });
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error("Erreur enrichissement catalogue:", e);
-    return null;
-  }
-}
-
-// Appliquer le catalogue
-export async function applyCatalog(
-  tables: CatalogTable[]
-): Promise<CatalogApplyResponse | null> {
-  try {
-    const res = await fetch(`${API_BASE}/catalog/apply`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tables }),
-    });
-    const data = await res.json();
-    return data;
-  } catch (e) {
-    console.error("Erreur application catalogue:", e);
-    return null;
-  }
-}
-
-// Générer le catalogue complet (extract + enrich + save)
+// Générer le catalogue complet
 export interface CatalogGenerateResponse {
   status: string;
   message: string;
