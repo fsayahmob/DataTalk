@@ -91,9 +91,16 @@ def get_kpi_with_data(
 
             if previous != 0:
                 pct_change = ((current - previous) / abs(previous)) * 100
+
+                # Déterminer la direction visuelle (pour les couleurs)
+                # Si invert_trend=true, on inverse: baisse=positif, hausse=négatif
+                invert = kpi.get("invert_trend", False)
+                raw_direction = "up" if pct_change >= 0 else "down"
+
                 result["trend"] = {
                     "value": round(abs(pct_change), 1),
-                    "direction": "up" if pct_change >= 0 else "down",
+                    "direction": raw_direction,
+                    "invert": invert,  # Le frontend utilisera ça pour inverser les couleurs
                 }
                 if kpi.get("trend_label"):
                     result["trend"]["label"] = kpi["trend_label"]

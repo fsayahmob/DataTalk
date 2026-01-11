@@ -13,8 +13,10 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Chemin du projet
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_DIR"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+FRONTEND_DIR="$ROOT_DIR/frontend"
+BACKEND_DIR="$ROOT_DIR/backend"
+cd "$FRONTEND_DIR"
 
 echo -e "${BOLD}========================================${NC}"
 echo -e "${BOLD}  G7 Analytics - Analyse du Code${NC}"
@@ -177,13 +179,13 @@ echo ""
 # ============================================
 echo -e "${BLUE}[6/6] Analyse backend Python...${NC}"
 
-if [ -d "backend" ]; then
+if [ -d "$BACKEND_DIR" ]; then
     # Lignes de code
-    BACKEND_LINES=$(wc -l backend/*.py 2>/dev/null | tail -1 | awk '{print $1}')
+    BACKEND_LINES=$(wc -l $BACKEND_DIR/*.py 2>/dev/null | tail -1 | awk '{print $1}')
     echo -e "  ${BLUE}INFO${NC}: $BACKEND_LINES lignes de code Python"
 
     # Fonctions longues (>50 lignes)
-    LONG_FUNCS=$(awk '/^def |^async def /{name=$2; start=NR} /^def |^async def |^class /{if(NR-start>50 && name) print name " (" NR-start " lignes)"}' backend/main.py 2>/dev/null)
+    LONG_FUNCS=$(awk '/^def |^async def /{name=$2; start=NR} /^def |^async def |^class /{if(NR-start>50 && name) print name " (" NR-start " lignes)"}' $BACKEND_DIR/main.py 2>/dev/null)
     if [ -n "$LONG_FUNCS" ]; then
         echo -e "  ${YELLOW}WARNING${NC}: Fonctions longues (>50 lignes):"
         echo "$LONG_FUNCS" | while read line; do echo "    - $line"; done
@@ -195,10 +197,10 @@ if [ -d "backend" ]; then
     # S110/S112 ignoré: try-except-pass/continue intentionnel pour skip silencieux
     if command -v ruff &> /dev/null; then
         echo -e "  ${BLUE}Ruff linting:${NC}"
-        RUFF_ERRORS=$(ruff check backend/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | wc -l | tr -d ' ')
+        RUFF_ERRORS=$(ruff check $BACKEND_DIR/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | wc -l | tr -d ' ')
         if [ "$RUFF_ERRORS" -gt 0 ]; then
             echo -e "  ${YELLOW}WARNING${NC}: $RUFF_ERRORS erreurs ruff"
-            ruff check backend/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | head -10
+            ruff check $BACKEND_DIR/ --select=E,F,W,I,N,S,B,C4 --ignore=E501,S101,S608,S110,S112 2>/dev/null | head -10
         else
             echo -e "  ${GREEN}OK${NC}: Pas d'erreurs ruff"
         fi
@@ -209,11 +211,11 @@ if [ -d "backend" ]; then
     # Mypy (typage) - tous les fichiers Python
     if command -v mypy &> /dev/null; then
         echo -e "  ${BLUE}Mypy type checking:${NC}"
-        MYPY_ERRORS=$(mypy backend/ --ignore-missing-imports --no-error-summary 2>/dev/null | grep -c "error:" || true)
+        MYPY_ERRORS=$(mypy $BACKEND_DIR/ --ignore-missing-imports --no-error-summary 2>/dev/null | grep -c "error:" || true)
         MYPY_ERRORS=${MYPY_ERRORS:-0}
         if [ "$MYPY_ERRORS" -gt 0 ]; then
             echo -e "  ${YELLOW}WARNING${NC}: $MYPY_ERRORS erreurs de typage mypy"
-            mypy backend/ --ignore-missing-imports --no-error-summary 2>/dev/null | head -10
+            mypy $BACKEND_DIR/ --ignore-missing-imports --no-error-summary 2>/dev/null | head -10
         else
             echo -e "  ${GREEN}OK${NC}: Pas d'erreurs mypy"
         fi

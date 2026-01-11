@@ -573,6 +573,7 @@ export interface KpiTrend {
   value: number;
   direction: "up" | "down";
   label?: string;
+  invert?: boolean; // Si true, inverser les couleurs (baisse=vert, hausse=rouge)
 }
 
 export interface KpiSparkline {

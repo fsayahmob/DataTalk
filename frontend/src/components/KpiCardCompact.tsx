@@ -9,7 +9,7 @@ export interface KpiCompactData {
   id: string;
   title: string;
   value: string | number;
-  trend?: { value: number; direction: "up" | "down"; label?: string };
+  trend?: { value: number; direction: "up" | "down"; label?: string; invert?: boolean };
   sparkline?: { data: number[]; type: "area" | "bar" };
   footer?: string;
 }
@@ -50,6 +50,14 @@ function Sparkline({ data, type }: { data: number[]; type: "area" | "bar" }) {
 export function KpiCardCompact({ data }: KpiCardCompactProps) {
   const { title, value, trend, sparkline, footer } = data;
 
+  // Calculer si la tendance est positive (bonne) ou négative (mauvaise)
+  // Si invert=true, une baisse est positive (ex: taux d'insatisfaction)
+  const isPositiveTrend = trend
+    ? trend.invert
+      ? trend.direction === "down" // Invert: baisse = positif
+      : trend.direction === "up"   // Normal: hausse = positif
+    : false;
+
   return (
     <div className="bg-secondary/30 border border-border/50 rounded-xl p-4">
       {/* Header: titre + badge trend */}
@@ -59,7 +67,7 @@ export function KpiCardCompact({ data }: KpiCardCompactProps) {
           <Badge
             variant="outline"
             className={`text-[10px] px-1.5 py-0 ${
-              trend.direction === "up"
+              isPositiveTrend
                 ? "text-emerald-400 border-emerald-400/30"
                 : "text-rose-400 border-rose-400/30"
             }`}
@@ -89,9 +97,9 @@ export function KpiCardCompact({ data }: KpiCardCompactProps) {
             <span className="flex items-center gap-1 text-foreground/80 mb-0.5">
               {trend.label}
               {trend.direction === "up" ? (
-                <TrendUpIcon size={12} className="text-emerald-400" />
+                <TrendUpIcon size={12} className={isPositiveTrend ? "text-emerald-400" : "text-rose-400"} />
               ) : (
-                <TrendDownIcon size={12} className="text-rose-400" />
+                <TrendDownIcon size={12} className={isPositiveTrend ? "text-emerald-400" : "text-rose-400"} />
               )}
             </span>
           )}

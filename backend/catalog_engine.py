@@ -8,9 +8,117 @@ Architecture:
 2. build_response_model() - Pydantic create_model()
 3. enrich_with_llm() - llm_service.call_llm_structured()
 4. save_to_catalog() - SQLite update
+5. generate_kpis() - Génération des 4 KPIs
 """
 import os
 from typing import Any
+
+
+# =============================================================================
+# UTILITAIRES: ESTIMATION TOKENS & VALIDATION
+# =============================================================================
+
+def estimate_tokens(text: str) -> int:
+    """
+    Estime le nombre de tokens d'un texte.
+    Approximation: ~4 caractères = 1 token (pour le français/anglais).
+    """
+    return len(text) // 4
+
+
+def check_token_limit(prompt: str, max_input_tokens: int = 100000) -> tuple[bool, int, str]:
+    """
+    Vérifie si le prompt ne dépasse pas la limite de tokens.
+
+    Args:
+        prompt: Le texte du prompt
+        max_input_tokens: Limite maximale (défaut 100k pour Gemini)
+
+    Returns:
+        (is_ok, token_count, message)
+    """
+    token_count = estimate_tokens(prompt)
+
+    if token_count > max_input_tokens:
+        return (False, token_count, f"Prompt trop long: {token_count:,} tokens (max: {max_input_tokens:,})")
+    elif token_count > max_input_tokens * 0.8:
+        return (True, token_count, f"Prompt volumineux: {token_count:,} tokens (80% de la limite)")
+    else:
+        return (True, token_count, f"OK: {token_count:,} tokens")
+
+
+class CatalogValidationResult:
+    """Résultat de validation du catalogue complet."""
+
+    def __init__(self):
+        self.tables_ok = 0
+        self.tables_warning = 0
+        self.columns_ok = 0
+        self.columns_warning = 0
+        self.synonyms_total = 0
+        self.issues: list[str] = []
+
+    @property
+    def status(self) -> str:
+        """Retourne OK si tout est bon, WARNING sinon."""
+        if self.tables_warning == 0 and self.columns_warning == 0:
+            return "OK"
+        return "WARNING"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "tables": {"ok": self.tables_ok, "warning": self.tables_warning},
+            "columns": {"ok": self.columns_ok, "warning": self.columns_warning},
+            "synonyms": self.synonyms_total,
+            "issues": self.issues
+        }
+
+
+def validate_catalog_enrichment(
+    catalog: "ExtractedCatalog",
+    enrichment: dict[str, Any]
+) -> CatalogValidationResult:
+    """
+    Valide que l'enrichissement LLM a bien rempli tous les champs.
+
+    Args:
+        catalog: Le catalogue extrait (structure)
+        enrichment: Les données enrichies par le LLM
+
+    Returns:
+        CatalogValidationResult avec status OK ou WARNING
+    """
+    result = CatalogValidationResult()
+
+    for table in catalog.tables:
+        table_enrichment = enrichment.get(table.name, {})
+
+        # Vérifier la description de la table
+        table_desc = table_enrichment.get("description")
+        if table_desc and len(str(table_desc)) > 5:
+            result.tables_ok += 1
+        else:
+            result.tables_warning += 1
+            result.issues.append(f"Table '{table.name}': description manquante")
+
+        # Vérifier chaque colonne
+        columns_enrichment = table_enrichment.get("columns", {})
+        for col in table.columns:
+            col_enrichment = columns_enrichment.get(col.name, {})
+
+            col_desc = col_enrichment.get("description")
+            col_synonyms = col_enrichment.get("synonyms", [])
+
+            if col_desc and len(str(col_desc)) > 3:
+                result.columns_ok += 1
+            else:
+                result.columns_warning += 1
+                result.issues.append(f"Colonne '{table.name}.{col.name}': description manquante")
+
+            result.synonyms_total += len(col_synonyms) if col_synonyms else 0
+
+    return result
 
 from pydantic import BaseModel, Field, create_model
 
@@ -241,12 +349,19 @@ Colonnes:
 
     prompt = prompt_data["content"].format(tables_context=chr(10).join(tables_context))
 
+    # Vérifier la taille du prompt avant l'appel
+    is_ok, token_count, token_msg = check_token_limit(prompt)
+    print(f"    → Tokens input: {token_msg}")
+    if not is_ok:
+        raise ValueError(f"Prompt trop volumineux pour le LLM: {token_count:,} tokens")
+
     # Appel avec llm_service (Instructor intégré)
     try:
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=ResponseModel,
-            source="catalog_engine"
+            source="catalog_engine",
+            max_tokens=8192  # Assez pour les descriptions de toutes les colonnes
         )
 
         # Convertir en dict
@@ -394,11 +509,112 @@ class KpiDefinition(BaseModel):
     sparkline_type: str = Field(default="area", description="Type de sparkline: area ou bar")
     footer: str = Field(description="Texte explicatif avec la période")
     trend_label: str | None = Field(default=None, description="Label de tendance (ex: 'vs 1ère quinzaine')")
+    invert_trend: bool = Field(default=False, description="Si true, baisse=positif (vert), hausse=négatif (rouge). Ex: taux d'erreur, insatisfaction")
+
+    @classmethod
+    def get_fields_description(cls) -> str:
+        """
+        Génère automatiquement la description des champs pour le prompt LLM.
+        Extrait les infos du modèle Pydantic (nom, type, description, défaut).
+        """
+        from pydantic_core import PydanticUndefined
+
+        lines = []
+        for field_name, field_info in cls.model_fields.items():
+            # Type du champ
+            annotation = field_info.annotation
+            if hasattr(annotation, "__origin__"):  # Pour Union, Optional, etc.
+                type_str = str(annotation).replace("typing.", "")
+            else:
+                type_str = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
+
+            # Description
+            desc = field_info.description or "Non documenté"
+
+            # Valeur par défaut (ignorer PydanticUndefined = champ obligatoire)
+            default = field_info.default
+            if default is not None and default is not PydanticUndefined:
+                default_str = f" (défaut: {default})"
+            else:
+                default_str = ""
+
+            lines.append(f"- {field_name}: {type_str}{default_str} - {desc}")
+
+        return "\n".join(lines)
 
 
 class KpisGenerationResult(BaseModel):
     """Résultat de la génération de KPIs."""
     kpis: list[KpiDefinition] = Field(description="Liste des 4 KPIs")
+
+
+class KpiValidationResult(BaseModel):
+    """Résultat de la validation d'un KPI."""
+    kpi_id: str
+    status: str  # "OK" ou "WARNING"
+    issues: list[str] = []
+
+
+def validate_kpi(kpi: KpiDefinition) -> KpiValidationResult:
+    """
+    Valide qu'un KPI a tous ses champs requis correctement remplis.
+
+    Returns:
+        KpiValidationResult avec status OK ou WARNING et liste des problèmes
+    """
+    issues = []
+
+    # Vérifier les champs obligatoires
+    if not kpi.id or len(kpi.id) < 2:
+        issues.append("id manquant ou trop court")
+
+    if not kpi.title or len(kpi.title) < 2:
+        issues.append("title manquant ou trop court")
+
+    if not kpi.sql_value or "SELECT" not in kpi.sql_value.upper():
+        issues.append("sql_value invalide (pas de SELECT)")
+
+    if not kpi.sql_trend or "SELECT" not in kpi.sql_trend.upper():
+        issues.append("sql_trend invalide (pas de SELECT)")
+
+    if not kpi.sql_sparkline or "SELECT" not in kpi.sql_sparkline.upper():
+        issues.append("sql_sparkline invalide (pas de SELECT)")
+
+    if kpi.sparkline_type not in ("area", "bar"):
+        issues.append(f"sparkline_type invalide: {kpi.sparkline_type}")
+
+    if not kpi.footer:
+        issues.append("footer manquant")
+
+    return KpiValidationResult(
+        kpi_id=kpi.id,
+        status="OK" if not issues else "WARNING",
+        issues=issues
+    )
+
+
+def validate_all_kpis(result: KpisGenerationResult) -> dict[str, Any]:
+    """
+    Valide tous les KPIs générés.
+
+    Returns:
+        {
+            "total": 4,
+            "ok": 3,
+            "warnings": 1,
+            "details": [KpiValidationResult, ...]
+        }
+    """
+    details = [validate_kpi(kpi) for kpi in result.kpis]
+    ok_count = sum(1 for d in details if d.status == "OK")
+    warning_count = sum(1 for d in details if d.status == "WARNING")
+
+    return {
+        "total": len(result.kpis),
+        "ok": ok_count,
+        "warnings": warning_count,
+        "details": details
+    }
 
 
 def get_data_period(conn: Any) -> str:
@@ -457,16 +673,28 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
     # Récupérer la période des données
     data_period = get_data_period(db_connection)
 
+    # Générer la description des champs KPI depuis le modèle Pydantic
+    kpi_fields = KpiDefinition.get_fields_description()
+
     prompt = prompt_data["content"].format(
         schema="\n".join(schema_lines),
-        data_period=data_period
+        data_period=data_period,
+        kpi_fields=kpi_fields
     )
+
+    # Vérifier la taille du prompt avant l'appel
+    is_ok, token_count, token_msg = check_token_limit(prompt)
+    print(f"    → Tokens input: {token_msg}")
+    if not is_ok:
+        print(f"  [ERROR] Prompt trop volumineux: {token_count:,} tokens")
+        return None
 
     try:
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=KpisGenerationResult,
-            source="kpi_generation"
+            source="kpi_generation",
+            max_tokens=8192  # 4 KPIs avec 3 SQL chacun = réponse longue
         )
         return result
     except Exception as e:
@@ -493,8 +721,8 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
             cursor.execute("""
                 INSERT INTO kpis (
                     kpi_id, title, sql_value, sql_trend, sql_sparkline,
-                    sparkline_type, footer, trend_label, display_order, is_enabled
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+                    sparkline_type, footer, trend_label, invert_trend, display_order, is_enabled
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
             """, (
                 kpi.id,
                 kpi.title,
@@ -504,6 +732,7 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
                 kpi.sparkline_type,
                 kpi.footer,
                 kpi.trend_label,
+                kpi.invert_trend,
                 i
             ))
             stats["kpis"] += 1
@@ -528,22 +757,37 @@ def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
     Args:
         db_connection: Connexion DuckDB native (duckdb.DuckDBPyConnection)
 
-    Retourne les statistiques et le catalogue.
+    Retourne les statistiques, validations et le catalogue.
     """
+    validation_results: dict[str, Any] = {
+        "catalog": None,
+        "kpis": None
+    }
+
     # 1. Extraction depuis la connexion existante
-    print("1/4 - Extraction des métadonnées depuis connexion DuckDB...")
+    print("1/5 - Extraction des métadonnées depuis connexion DuckDB...")
     catalog = extract_metadata_from_connection(db_connection)
     print(f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes")
 
     # 2. Modèle dynamique (implicite dans enrich_with_llm)
-    print("2/4 - Création du modèle Pydantic dynamique...")
+    print("2/5 - Création du modèle Pydantic dynamique...")
 
     # 3. Enrichissement LLM (utilise llm_service)
-    print("3/4 - Enrichissement avec LLM Service...")
+    print("3/5 - Enrichissement avec LLM Service...")
     enrichment = enrich_with_llm(catalog)
 
+    # 3bis. Validation de l'enrichissement
+    catalog_validation = validate_catalog_enrichment(catalog, enrichment)
+    validation_results["catalog"] = catalog_validation.to_dict()
+    if catalog_validation.status == "OK":
+        print(f"    → Validation: [OK] {catalog_validation.tables_ok} tables, {catalog_validation.columns_ok} colonnes")
+    else:
+        print(f"    → Validation: [WARNING] {catalog_validation.tables_warning} tables, {catalog_validation.columns_warning} colonnes avec problèmes")
+        for issue in catalog_validation.issues[:5]:  # Limiter à 5 issues
+            print(f"      - {issue}")
+
     # 4. Sauvegarde du catalogue
-    print("4/4 - Sauvegarde dans le catalogue SQLite...")
+    print("4/5 - Sauvegarde dans le catalogue SQLite...")
     stats = save_to_catalog(catalog, enrichment, DB_PATH)
     print(f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
 
@@ -551,16 +795,44 @@ def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
     print("5/5 - Génération des 4 KPIs...")
     kpis_result = generate_kpis(catalog, db_connection)
     if kpis_result:
+        # Validation des KPIs
+        kpis_validation = validate_all_kpis(kpis_result)
+        validation_results["kpis"] = kpis_validation
+
         kpis_stats = save_kpis(kpis_result)
         stats["kpis"] = kpis_stats["kpis"]
-        print(f"    → {kpis_stats['kpis']} KPIs générés")
+
+        if kpis_validation["warnings"] == 0:
+            print(f"    → [OK] {kpis_stats['kpis']} KPIs générés")
+        else:
+            print(f"    → [WARNING] {kpis_stats['kpis']} KPIs générés, {kpis_validation['warnings']} avec problèmes")
+            for detail in kpis_validation["details"]:
+                if detail.status == "WARNING":
+                    print(f"      - {detail.kpi_id}: {', '.join(detail.issues)}")
     else:
         stats["kpis"] = 0
-        print("    → KPIs non générés (prompt manquant ou erreur)")
+        validation_results["kpis"] = {"total": 0, "ok": 0, "warnings": 0, "details": []}
+        print("    → [ERROR] KPIs non générés (prompt manquant ou erreur)")
+
+    # Rapport final
+    print("\n" + "=" * 50)
+    overall_status = "OK"
+    if validation_results["catalog"] and validation_results["catalog"]["status"] == "WARNING":
+        overall_status = "WARNING"
+    if validation_results["kpis"] and validation_results["kpis"]["warnings"] > 0:
+        overall_status = "WARNING"
+    if stats["kpis"] == 0:
+        overall_status = "WARNING"
+
+    print(f"RAPPORT FINAL: [{overall_status}]")
+    print(f"  - Catalogue: {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
+    print(f"  - KPIs: {stats['kpis']}/4 générés")
+    print("=" * 50)
 
     return {
-        "status": "ok",
-        "message": "Catalogue généré avec succès",
+        "status": overall_status.lower(),
+        "message": "Catalogue généré avec succès" if overall_status == "OK" else "Catalogue généré avec des avertissements",
         "stats": stats,
-        "tables": [t.name for t in catalog.tables]
+        "tables": [t.name for t in catalog.tables],
+        "validation": validation_results
     }

@@ -13,10 +13,9 @@ from catalog import (
     add_datasource,
     add_synonym,
     add_table,
-    get_connection,
     get_schema_for_llm,
-    init_catalog,
 )
+from db import get_connection
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -138,10 +137,7 @@ def sync_catalog(use_llm: bool = True):
     """
     print("Synchronisation du catalogue...")
 
-    # 1. Initialiser le catalogue si nécessaire
-    init_catalog()
-
-    # 2. Récupérer le schéma DuckDB
+    # 1. Récupérer le schéma DuckDB
     print("Lecture du schéma DuckDB...")
     duckdb_schema = get_duckdb_schema()
 

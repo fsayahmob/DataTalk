@@ -1,116 +1,14 @@
 """
 Configuration LLM pour G7 Analytics.
 Gère les providers, modèles, secrets (chiffrés) et tracking des coûts.
+
+NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
+      Utiliser db.init_db() pour initialiser la base.
 """
 from typing import Optional
 
 from crypto import decrypt, encrypt
 from db import get_connection
-
-# ========================================
-# INITIALISATION DES TABLES
-# ========================================
-
-def init_llm_tables():
-    """Crée les tables LLM si elles n'existent pas."""
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # Table des providers LLM
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS llm_providers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
-            display_name TEXT NOT NULL,
-            type TEXT NOT NULL,
-            base_url TEXT,
-            requires_api_key BOOLEAN DEFAULT 1,
-            is_enabled BOOLEAN DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-
-    # Table des modèles LLM
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS llm_models (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            provider_id INTEGER NOT NULL,
-            model_id TEXT NOT NULL,
-            display_name TEXT NOT NULL,
-            supports_json_mode BOOLEAN DEFAULT 1,
-            supports_structured_output BOOLEAN DEFAULT 1,
-            context_window INTEGER,
-            cost_per_1m_input REAL,
-            cost_per_1m_output REAL,
-            is_default BOOLEAN DEFAULT 0,
-            is_enabled BOOLEAN DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (provider_id) REFERENCES llm_providers(id)
-        )
-    """)
-
-    # Table des secrets (clés API chiffrées)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS llm_secrets (
-            provider_id INTEGER PRIMARY KEY,
-            encrypted_api_key BLOB,
-            key_hint TEXT,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (provider_id) REFERENCES llm_providers(id)
-        )
-    """)
-
-    # Table des coûts (historique des appels)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS llm_costs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            model_id INTEGER NOT NULL,
-            source TEXT NOT NULL,
-            conversation_id INTEGER,
-            tokens_input INTEGER NOT NULL,
-            tokens_output INTEGER NOT NULL,
-            cost_input REAL,
-            cost_output REAL,
-            cost_total REAL,
-            response_time_ms INTEGER,
-            success BOOLEAN DEFAULT 1,
-            error_message TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (model_id) REFERENCES llm_models(id),
-            FOREIGN KEY (conversation_id) REFERENCES conversations(id)
-        )
-    """)
-
-    # Index pour les requêtes de stats
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_costs_model ON llm_costs(model_id)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_costs_date ON llm_costs(created_at)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_costs_source ON llm_costs(source)")
-
-    # Table des prompts LLM (stockage centralisé)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS llm_prompts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            key TEXT NOT NULL,
-            name TEXT NOT NULL,
-            category TEXT NOT NULL,
-            content TEXT NOT NULL,
-            version TEXT DEFAULT 'normal',
-            is_active BOOLEAN DEFAULT 0,
-            tokens_estimate INTEGER,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(key, version)
-        )
-    """)
-
-    # Index pour les prompts
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_key ON llm_prompts(key)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_category ON llm_prompts(category)")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_prompts_active ON llm_prompts(is_active)")
-
-    conn.commit()
-    conn.close()
 
 
 # ========================================
@@ -685,6 +583,3 @@ def delete_prompt(prompt_id: int) -> bool:
     return affected > 0
 
 
-if __name__ == "__main__":
-    init_llm_tables()
-    print("Tables LLM créées avec succès!")

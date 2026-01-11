@@ -26,6 +26,7 @@ from catalog import (
     save_report,
     toggle_pin_report,
 )
+from db import get_connection
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,7 +42,6 @@ from llm_config import (
     get_provider_by_name,
     get_providers,
     get_total_costs,
-    init_llm_tables,
     set_active_prompt,
     set_api_key,
     set_default_model,
@@ -167,10 +167,6 @@ async def lifespan(app: FastAPI):
     print(f"Connexion à DuckDB: {DB_PATH}")
     db_connection = duckdb.connect(DB_PATH, read_only=True)
     print("DuckDB connecté")
-
-    # Initialiser les tables LLM
-    init_llm_tables()
-    print("Tables LLM initialisées")
 
     # Vérifier le statut LLM
     llm_status = check_llm_status()
@@ -1170,14 +1166,23 @@ async def list_kpis():
 @app.get("/suggested-questions")
 async def list_suggested_questions():
     """
-    Récupère les questions suggérées générées par le LLM.
-    Ces questions sont générées lors de la création du catalogue.
+    Récupère les questions suggérées.
+    Priorité: questions générées par LLM, sinon questions prédéfinies.
     """
     try:
         questions = get_suggested_questions(enabled_only=True)
-        return {"questions": questions}
+        if questions:
+            return {"questions": questions}
+        # Fallback: utiliser predefined_questions
+        conn = get_connection()
+        rows = conn.execute("""
+            SELECT id, question, category, icon, display_order
+            FROM predefined_questions
+            ORDER BY display_order
+        """).fetchall()
+        conn.close()
+        return {"questions": [dict(row) for row in rows]}
     except Exception as e:
-        # Table n'existe pas encore -> retourner liste vide
         logging.warning(f"Erreur chargement questions suggérées: {e}")
         return {"questions": []}
 
