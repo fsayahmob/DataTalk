@@ -857,11 +857,12 @@ async def delete_catalog():
     cursor.execute("DELETE FROM tables")
     cursor.execute("DELETE FROM datasources")
 
-    # Supprimer les widgets et questions générées
+    # Supprimer les widgets, questions et KPIs générés
     try:
         cursor.execute("DELETE FROM widget_cache")
         cursor.execute("DELETE FROM widgets")
         cursor.execute("DELETE FROM suggested_questions")
+        cursor.execute("DELETE FROM kpis")
     except Exception:
         pass  # Tables n'existent peut-être pas encore
 
