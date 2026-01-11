@@ -387,8 +387,8 @@ def log_cost(
     return cost_id
 
 
-def get_total_costs(model_id: Optional[int] = None, source: Optional[str] = None) -> dict:
-    """Récupère les coûts totaux."""
+def get_total_costs(days: int = 30, model_id: Optional[int] = None, source: Optional[str] = None) -> dict:
+    """Récupère les coûts totaux pour les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -399,9 +399,9 @@ def get_total_costs(model_id: Optional[int] = None, source: Optional[str] = None
             SUM(tokens_output) as total_tokens_output,
             SUM(cost_total) as total_cost
         FROM llm_costs
-        WHERE success = 1
+        WHERE success = 1 AND created_at >= datetime('now', ?)
     """
-    params: list[int | str] = []
+    params: list[int | str] = [f"-{days} days"]
 
     if model_id:
         query += " AND model_id = ?"
