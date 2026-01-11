@@ -1,8 +1,11 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HamburgerIcon, ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon } from "@/components/icons";
+import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon } from "@/components/icons";
+import * as api from "@/lib/api";
+import type { LLMStatus } from "@/lib/api";
 
 interface SidebarProps {
   collapsed: boolean;
@@ -35,6 +38,11 @@ const navItems: NavItem[] = [
 
 export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const [llmStatus, setLlmStatus] = useState<LLMStatus | null>(null);
+
+  useEffect(() => {
+    api.fetchLLMStatus().then(setLlmStatus);
+  }, [pathname]);
 
   return (
     <div
@@ -42,14 +50,14 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         collapsed ? "w-14" : "w-48"
       } transition-all duration-300 ease-in-out`}
     >
-      {/* Toggle Menu */}
+      {/* Logo G7 + Toggle */}
       <div className="h-14 flex items-center justify-center border-b border-border/30">
         <button
           onClick={() => onCollapse(!collapsed)}
-          className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all"
+          className="w-10 h-10 bg-gradient-to-br from-primary to-primary/60 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow cursor-pointer"
           title={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
         >
-          <HamburgerIcon size={20} />
+          <span className="text-primary-foreground font-bold text-lg">G7</span>
         </button>
       </div>
 
@@ -79,6 +87,34 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
           })}
         </ul>
       </nav>
+
+      {/* LLM Status */}
+      <div className="px-2 py-3 border-t border-border/30">
+        <div
+          className={`relative group flex items-center gap-3 px-3 py-2 rounded-lg bg-secondary/30 ${
+            collapsed ? "justify-center" : ""
+          }`}
+          title={collapsed ? `${llmStatus?.status === "ok" ? "Connecté" : "Déconnecté"} - ${llmStatus?.model || "Non configuré"}` : undefined}
+        >
+          <span
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+              llmStatus?.status === "ok"
+                ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
+                : "bg-red-500 shadow-sm shadow-red-500/50"
+            }`}
+          />
+          {!collapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                {llmStatus?.status === "ok" ? "Connecté" : "Déconnecté"}
+              </p>
+              <p className="text-xs font-medium text-foreground truncate">
+                {llmStatus?.model || "Non configuré"}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Toggle button en bas */}
       <div className="p-2 border-t border-border/30">

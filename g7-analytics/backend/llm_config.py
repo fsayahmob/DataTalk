@@ -444,6 +444,28 @@ def get_costs_by_period(days: int = 30) -> list[dict]:
     return results
 
 
+def get_costs_by_hour(days: int = 7) -> list[dict]:
+    """Récupère les coûts par heure sur les N derniers jours."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            strftime('%Y-%m-%d %H:00', created_at) as hour,
+            COUNT(*) as calls,
+            SUM(tokens_input) as tokens_input,
+            SUM(tokens_output) as tokens_output,
+            SUM(cost_total) as cost
+        FROM llm_costs
+        WHERE success = 1 AND created_at >= datetime('now', ?)
+        GROUP BY strftime('%Y-%m-%d %H:00', created_at)
+        ORDER BY hour DESC
+    """, (f"-{days} days",))
+
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
 def get_costs_by_model(days: int = 30) -> list[dict]:
     """Récupère les coûts groupés par modèle pour les N derniers jours."""
     conn = get_connection()

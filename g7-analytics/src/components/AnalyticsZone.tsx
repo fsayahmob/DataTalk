@@ -87,6 +87,45 @@ export function AnalyticsZone({
               </div>
             )}
 
+            {/* Rapports sauvegardés - En premier, hauteur limitée */}
+            <div className="p-2 max-h-[140px] overflow-y-auto border-b border-amber-500/10">
+              <h4 className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                <SaveIcon size={10} />
+                Rapports
+              </h4>
+              <div className="space-y-1">
+                {savedReports.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground text-center py-1">
+                    Aucun rapport
+                  </p>
+                ) : (
+                  savedReports.slice(0, 5).map((report) => (
+                    <div
+                      key={report.id}
+                      className="p-1.5 rounded border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group cursor-pointer"
+                      onClick={() => onReportClick(report)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-medium truncate text-foreground flex-1">
+                          {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
+                          {report.title}
+                        </p>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onReportDelete(report.id);
+                          }}
+                          className="text-[8px] text-destructive opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
             {/* KPIs Sémantiques */}
             {semanticStats && (
               <div className="p-3 space-y-3">
@@ -231,45 +270,6 @@ export function AnalyticsZone({
               </div>
             )}
 
-            {/* Separator */}
-            <div className="border-t border-amber-500/20 mx-3" />
-
-            {/* Rapports sauvegardés */}
-            <div className="p-3">
-              <h4 className="text-[10px] text-amber-400/70 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <SaveIcon size={10} />
-                Rapports
-              </h4>
-              <div className="space-y-1.5">
-                {savedReports.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground text-center py-2">
-                    Aucun rapport
-                  </p>
-                ) : (
-                  savedReports.slice(0, 5).map((report) => (
-                    <div
-                      key={report.id}
-                      className="p-2 rounded-lg border border-border/50 hover:bg-secondary/50 hover:border-primary/30 transition-all group cursor-pointer"
-                      onClick={() => onReportClick(report)}
-                    >
-                      <p className="text-[11px] font-medium truncate text-foreground">
-                        {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
-                        {report.title}
-                      </p>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onReportDelete(report.id);
-                        }}
-                        className="text-[9px] text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Supprimer
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
         </>
       )}

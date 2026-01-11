@@ -2,6 +2,7 @@
 
 import { useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
+import { ZoomInIcon, ZoomOutIcon, FitViewIcon } from "@/components/icons";
 
 export function CustomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -15,9 +16,7 @@ export function CustomControls() {
         onClick={() => zoomIn()}
         title="Zoom +"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M12 5v14M5 12h14" />
-        </svg>
+        <ZoomInIcon size={16} />
       </Button>
       <Button
         variant="ghost"
@@ -26,9 +25,7 @@ export function CustomControls() {
         onClick={() => zoomOut()}
         title="Zoom -"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M5 12h14" />
-        </svg>
+        <ZoomOutIcon size={16} />
       </Button>
       <div className="h-px bg-border/50 my-1" />
       <Button
@@ -38,9 +35,7 @@ export function CustomControls() {
         onClick={() => fitView({ padding: 0.2 })}
         title="Ajuster la vue"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-        </svg>
+        <FitViewIcon size={16} />
       </Button>
     </div>
   );

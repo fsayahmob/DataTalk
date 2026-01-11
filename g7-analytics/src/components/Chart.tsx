@@ -19,6 +19,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import type { Props as LegendProps } from "recharts/types/component/DefaultLegendContent";
 import { ChartConfig } from "@/lib/schema";
 
 // Palette professionnelle pour dataviz dark mode
@@ -179,8 +180,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
       const hasManyItems = data.length > 10;
 
       // Custom legend pour les nombreuses entrées - 2 colonnes à droite
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const renderCustomLegend = (props: any) => {
+      const renderCustomLegend = (props: LegendProps) => {
         const { payload } = props;
         if (!payload) return null;
         return (
@@ -193,7 +193,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
             overflowY: "auto",
             paddingRight: 4,
           }}>
-            {payload.map((entry: { value: string; color: string }, index: number) => (
+            {payload.map((entry, index) => (
               <div key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <span style={{
                   width: 8,

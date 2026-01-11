@@ -39,8 +39,8 @@ from catalog import (
 from i18n import t
 from llm_config import (
     get_api_key_hint,
+    get_costs_by_hour,
     get_costs_by_model,
-    get_costs_by_period,
     get_default_model,
     get_models,
     get_provider_by_name,
@@ -1161,13 +1161,13 @@ async def update_provider_config(provider_name: str, config: ProviderConfigReque
 async def get_llm_costs(days: int = 30):
     """Récupère les coûts LLM des N derniers jours."""
     total = get_total_costs(days)
-    by_period = get_costs_by_period(days)
+    by_hour = get_costs_by_hour(days)
     by_model = get_costs_by_model(days)
 
     return {
         "period_days": days,
         "total": total,
-        "by_date": by_period,
+        "by_hour": by_hour,
         "by_model": by_model
     }
 

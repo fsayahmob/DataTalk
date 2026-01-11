@@ -70,8 +70,8 @@ export interface LLMCosts {
     total_tokens_output: number;
     total_cost: number;
   };
-  by_date: Array<{
-    date: string;
+  by_hour: Array<{
+    hour: string;
     calls: number;
     tokens_input: number;
     tokens_output: number;

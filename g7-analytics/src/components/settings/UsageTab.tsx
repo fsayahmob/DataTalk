@@ -51,11 +51,11 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
     }));
   }, [costs?.by_model]);
 
-  // Données du graphe (triées par date croissante)
+  // Données du graphe (triées par heure croissante)
   const chartData = useMemo(() => {
-    if (!costs?.by_date) return [];
-    return [...costs.by_date].sort((a, b) => a.date.localeCompare(b.date));
-  }, [costs?.by_date]);
+    if (!costs?.by_hour) return [];
+    return [...costs.by_hour].sort((a, b) => a.hour.localeCompare(b.hour));
+  }, [costs?.by_hour]);
 
   // Formatter pour le tooltip
   const formatValue = (value: number, metric: ChartMetric) => {
@@ -156,7 +156,7 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
         <div className="border border-border/30 rounded-md p-3">
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs text-muted-foreground">
-              {chartMetric === "tokens" ? "Tokens / day" : "Cost / day ($)"}
+              {chartMetric === "tokens" ? "Tokens / heure" : "Coût / heure ($)"}
             </p>
             {/* Switch tokens/cost */}
             <div className="flex items-center gap-1 bg-secondary/50 rounded-md p-0.5">
@@ -196,14 +196,14 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
               </defs>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
               <XAxis
-                dataKey="date"
+                dataKey="hour"
                 tick={AXIS_STYLE}
                 angle={-45}
                 textAnchor="end"
                 height={50}
-                tickFormatter={(date) => {
-                  const d = new Date(date);
-                  return `${d.getDate()}/${d.getMonth() + 1}`;
+                tickFormatter={(hour) => {
+                  const d = new Date(hour);
+                  return `${d.getDate()}/${d.getMonth() + 1} ${d.getHours()}h`;
                 }}
               />
               <YAxis

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { DatabaseIcon, BoltIcon } from "@/components/icons";
 
 interface CatalogEmptyStateProps {
   isGenerating: boolean;
@@ -12,9 +13,7 @@ export function CatalogEmptyState({ isGenerating, onGenerate }: CatalogEmptyStat
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center max-w-md">
         <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-          <svg className="w-10 h-10 text-primary/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-          </svg>
+          <DatabaseIcon size={40} className="text-primary/60" />
         </div>
         <h3 className="text-xl font-semibold mb-2">Aucun catalogue</h3>
         <p className="text-sm text-muted-foreground mb-6">
@@ -32,9 +31,7 @@ export function CatalogEmptyState({ isGenerating, onGenerate }: CatalogEmptyStat
             </span>
           ) : (
             <>
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+              <BoltIcon size={16} className="mr-2" />
               Générer le catalogue
             </>
           )}

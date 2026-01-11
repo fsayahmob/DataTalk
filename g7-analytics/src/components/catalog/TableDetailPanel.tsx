@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { CloseIcon } from "@/components/icons";
 import type { CatalogTable } from "@/lib/api";
 
 interface TableDetailPanelProps {
@@ -20,9 +21,7 @@ export function TableDetailPanel({ table, onClose }: TableDetailPanelProps) {
           </p>
         </div>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
+          <CloseIcon size={16} />
         </Button>
       </div>
 
