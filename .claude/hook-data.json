@@ -1,7 +1,7 @@
 {
-  "lastMessage": "```bash\nrm -rf /Users/sayahfarid/datalakeG7/frontend/.next\n```\n\nEnsuite relance avec `npm run dev` dans le dossier `frontend/`.\n",
+  "lastMessage": "Oui. Tu veux que j'intègre `react-markdown` pour afficher correctement le Markdown dans les messages LLM ?\n\nÇa permettra d'avoir :\n- **Gras**, *italique*\n- `code inline`\n- Listes à puces\n- Blocs de code SQL avec coloration\n\nJe le fais ?\n",
   "repoName": "datalakeG7",
   "conversationId": "c51f0bb6-5100-4f5a-b378-bdd39d1a480a",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-11T23:18:21Z"
+  "timestamp": "2026-01-12T09:29:32Z"
 }
