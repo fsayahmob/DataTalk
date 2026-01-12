@@ -116,7 +116,7 @@ export function AnalyticsZone({
                     >
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] truncate text-foreground/80 flex-1">
-                          {report.is_pinned && <span className="text-primary mr-1">●</span>}
+                          {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
                           {report.title}
                         </p>
                         <button
