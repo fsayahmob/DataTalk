@@ -11,6 +11,7 @@ export interface SchemaNodeData {
   rowCount?: number | null;
   columns: CatalogColumn[];
   isPreview?: boolean;
+  isEnabled?: boolean;
 }
 
 interface SchemaNodeProps {
@@ -45,19 +46,34 @@ function getTypeColor(dataType: string): string {
 }
 
 function SchemaNodeComponent({ data }: SchemaNodeProps) {
-  const { label, description, rowCount, columns, isPreview } = data;
+  const { label, description, rowCount, columns, isPreview, isEnabled = true } = data;
   const maxVisibleColumns = 12;
   const hasMoreColumns = columns.length > maxVisibleColumns;
   const visibleColumns = columns.slice(0, maxVisibleColumns);
+
+  // Une table est considérée "enrichie" si elle a une description
+  const isEnriched = !!description;
+
+  // Déterminer les classes de style selon l'état
+  const getContainerClasses = () => {
+    if (isPreview) {
+      return "border-amber-500/60 bg-gradient-to-b from-amber-950/40 to-amber-950/20";
+    }
+    if (!isEnabled) {
+      return "border-muted-foreground/30 bg-gradient-to-b from-[hsl(260_5%_12%)] to-[hsl(260_5%_8%)] opacity-60";
+    }
+    if (!isEnriched) {
+      // Table activée mais non enrichie (en attente d'enrichissement)
+      return "border-amber-500/40 bg-gradient-to-b from-[hsl(40_30%_12%)] to-[hsl(40_20%_8%)]";
+    }
+    return "border-primary/40 bg-gradient-to-b from-[hsl(260_15%_15%)] to-[hsl(260_10%_10%)]";
+  };
 
   return (
     <div
       className={`
         min-w-[280px] max-w-[320px] rounded-lg border-2 shadow-2xl overflow-hidden
-        ${isPreview
-          ? "border-amber-500/60 bg-gradient-to-b from-amber-950/40 to-amber-950/20"
-          : "border-primary/40 bg-gradient-to-b from-[hsl(260_15%_15%)] to-[hsl(260_10%_10%)]"
-        }
+        ${getContainerClasses()}
       `}
     >
       {/* Handle d'entrée (gauche) */}
@@ -73,13 +89,32 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
           px-4 py-3 flex items-center justify-between
           ${isPreview
             ? "bg-gradient-to-r from-amber-500/30 to-amber-600/20"
-            : "bg-gradient-to-r from-primary/30 to-primary/10"
+            : !isEnabled
+              ? "bg-gradient-to-r from-muted-foreground/20 to-muted-foreground/5"
+              : !isEnriched
+                ? "bg-gradient-to-r from-amber-500/20 to-amber-600/5"
+                : "bg-gradient-to-r from-primary/30 to-primary/10"
           }
         `}
       >
         <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${isPreview ? "bg-amber-500" : "bg-primary"} shadow-lg`} />
-          <span className="font-mono font-bold text-sm text-foreground">{label}</span>
+          <div className={`w-2.5 h-2.5 rounded-full ${
+            isPreview ? "bg-amber-500"
+            : !isEnabled ? "bg-muted-foreground"
+            : !isEnriched ? "bg-amber-500"
+            : "bg-primary"
+          } shadow-lg`} />
+          <span className={`font-mono font-bold text-sm ${!isEnabled ? "text-muted-foreground" : "text-foreground"}`}>{label}</span>
+          {!isEnabled && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted-foreground/20 text-muted-foreground uppercase">
+              Exclue
+            </span>
+          )}
+          {isEnabled && !isEnriched && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 uppercase">
+              Non enrichie
+            </span>
+          )}
         </div>
         {rowCount !== undefined && rowCount !== null && (
           <Badge

@@ -583,3 +583,46 @@ def delete_prompt(prompt_id: int) -> bool:
     return affected > 0
 
 
+def get_all_prompts() -> list[dict]:
+    """Récupère tous les prompts avec leur statut actif."""
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM llm_prompts
+            ORDER BY category, key, version
+        """)
+        prompts = [dict(row) for row in cursor.fetchall()]
+        return prompts
+    finally:
+        conn.close()
+
+
+def update_prompt_content(key: str, content: str) -> bool:
+    """
+    Met à jour le contenu du prompt actif pour une clé donnée.
+
+    Args:
+        key: Clé du prompt (ex: "catalog_questions")
+        content: Nouveau contenu
+
+    Returns:
+        True si mise à jour réussie, False sinon
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # Mettre à jour le prompt actif
+        cursor.execute("""
+            UPDATE llm_prompts
+            SET content = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE key = ? AND is_active = 1
+        """, (content, key))
+
+        conn.commit()
+        return cursor.rowcount > 0
+    finally:
+        conn.close()
+
+

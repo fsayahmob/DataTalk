@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon } from "@/components/icons";
+import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon } from "@/components/icons";
 import * as api from "@/lib/api";
 import type { LLMStatus } from "@/lib/api";
 
@@ -28,6 +28,11 @@ const navItems: NavItem[] = [
     href: "/catalog",
     label: "Catalogue",
     icon: <CatalogIcon size={18} />,
+  },
+  {
+    href: "/runs",
+    label: "Runs",
+    icon: <ActivityIcon size={18} />,
   },
   {
     href: "/settings",

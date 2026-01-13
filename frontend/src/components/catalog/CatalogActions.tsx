@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { TrashIcon } from "@/components/icons";
+import { TrashIcon, DatabaseIcon, SparklesIcon } from "@/components/icons";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,26 +16,34 @@ import {
 
 interface CatalogActionsProps {
   hasContent: boolean;
-  isGenerating: boolean;
+  isExtracting: boolean;
+  isEnriching: boolean;
   isDeleting: boolean;
-  onGenerate: () => void;
+  onExtract: () => void;
+  onEnrich: () => void;
   onDelete: () => void;
+  enabledTablesCount: number;
 }
 
 export function CatalogActions({
   hasContent,
-  isGenerating,
+  isExtracting,
+  isEnriching,
   isDeleting,
-  onGenerate,
+  onExtract,
+  onEnrich,
   onDelete,
+  enabledTablesCount,
 }: CatalogActionsProps) {
+  const isLoading = isExtracting || isEnriching || isDeleting;
+
   return (
     <div className="flex items-center gap-2">
       {hasContent && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
-              disabled={isDeleting || isGenerating}
+              disabled={isLoading}
               variant="outline"
               size="sm"
               className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30"
@@ -72,23 +80,49 @@ export function CatalogActions({
           </AlertDialogContent>
         </AlertDialog>
       )}
+
+      {/* Bouton Extraire - Étape 1 */}
       <Button
-        onClick={onGenerate}
-        disabled={isGenerating || isDeleting}
-        variant={hasContent ? "outline" : "default"}
+        onClick={onExtract}
+        disabled={isLoading}
+        variant="outline"
         size="sm"
       >
-        {isGenerating ? (
+        {isExtracting ? (
           <span className="flex items-center gap-2">
             <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Génération...
+            Extraction...
           </span>
-        ) : hasContent ? (
-          "Régénérer"
         ) : (
-          "Générer le catalogue"
+          <>
+            <DatabaseIcon size={16} className="mr-1" />
+            {hasContent ? "Ré-extraire" : "Extraire"}
+          </>
         )}
       </Button>
+
+      {/* Bouton Enrichir - Étape 2 (seulement si contenu existe) */}
+      {hasContent && (
+        <Button
+          onClick={onEnrich}
+          disabled={isLoading || enabledTablesCount === 0}
+          variant="default"
+          size="sm"
+          title={enabledTablesCount === 0 ? "Activez au moins une table" : `Enrichir ${enabledTablesCount} table(s)`}
+        >
+          {isEnriching ? (
+            <span className="flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Enrichissement...
+            </span>
+          ) : (
+            <>
+              <SparklesIcon size={16} className="mr-1" />
+              Enrichir ({enabledTablesCount})
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

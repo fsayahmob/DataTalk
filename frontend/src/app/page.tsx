@@ -95,6 +95,17 @@ export default function Home() {
     return () => window.removeEventListener("focus", handleFocus);
   }, [loadQuestions]);
 
+  // Écouter les changements de catalogue (suppression/enrichissement depuis /catalog)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "catalog-updated") {
+        loadQuestions();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [loadQuestions]);
+
   // Wrapper pour handleSubmit avec les filtres
   const handleSubmit = useCallback((e: React.FormEvent) => {
     submitConversation(e, filters);

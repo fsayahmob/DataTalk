@@ -23,13 +23,18 @@ from catalog import (
     get_schema_for_llm,
     get_setting,
     get_suggested_questions,
+    get_table_by_id,
     save_report,
+    set_setting,
     toggle_pin_report,
+    toggle_table_enabled,
 )
 from db import get_connection
 from dotenv import load_dotenv
+import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from i18n import t
 from llm_config import (
     get_active_prompt,
@@ -61,11 +66,23 @@ logger = logging.getLogger(__name__)
 # Charger les variables d'environnement
 load_dotenv()
 
-# Configuration
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
+# Configuration par défaut (fallback si settings non initialisé)
+DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
 
 # Connexion DuckDB persistante
 db_connection: duckdb.DuckDBPyConnection | None = None
+current_db_path: str | None = None  # Chemin actuellement utilisé
+
+
+def get_duckdb_path() -> str:
+    """Récupère le chemin DuckDB depuis les settings ou utilise le défaut."""
+    path = get_setting("duckdb_path")
+    if path:
+        # Si chemin relatif, le résoudre par rapport au dossier backend
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(__file__), "..", path)
+        return os.path.normpath(path)
+    return DEFAULT_DB_PATH
 
 # Schéma chargé dynamiquement depuis le catalogue
 db_schema_cache: str | None = None
@@ -161,11 +178,12 @@ class SettingsUpdateRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestion du cycle de vie de l'application"""
-    global db_connection
+    global db_connection, current_db_path
 
     # Startup: ouvrir la connexion DuckDB
-    print(f"Connexion à DuckDB: {DB_PATH}")
-    db_connection = duckdb.connect(DB_PATH, read_only=True)
+    current_db_path = get_duckdb_path()
+    print(f"Connexion à DuckDB: {current_db_path}")
+    db_connection = duckdb.connect(current_db_path, read_only=True)
     print("DuckDB connecté")
 
     # Vérifier le statut LLM
@@ -412,6 +430,17 @@ async def health_check():
         "status": "ok",
         "database": "connected" if db_connection else "disconnected",
         "llm": llm_status
+    }
+
+
+@app.get("/database/status")
+async def get_database_status():
+    """Retourne le statut et la configuration de la base DuckDB."""
+    return {
+        "status": "connected" if db_connection else "disconnected",
+        "path": current_db_path,
+        "configured_path": get_setting("duckdb_path") or "data/g7_analytics.duckdb",
+        "engine": "DuckDB"
     }
 
 
@@ -782,6 +811,63 @@ async def get_single_setting(key: str):
     return {"key": key, "value": value}
 
 
+class UpdateSettingRequest(BaseModel):
+    """Requête de mise à jour d'un setting."""
+    value: str
+
+
+@app.put("/settings/{key}")
+async def update_single_setting(key: str, request: UpdateSettingRequest):
+    """Met à jour une configuration spécifique."""
+    global db_connection, current_db_path, db_schema_cache
+
+    # Liste des clés autorisées
+    allowed_keys = ["catalog_context_mode", "duckdb_path", "max_tables_per_batch"]
+    if key not in allowed_keys:
+        raise HTTPException(status_code=400, detail=f"Clé '{key}' non modifiable via cet endpoint")
+
+    # Validation spécifique par clé
+    if key == "catalog_context_mode":
+        if request.value not in ("compact", "full"):
+            raise HTTPException(status_code=400, detail="Valeurs autorisées: 'compact' ou 'full'")
+
+    if key == "max_tables_per_batch":
+        try:
+            val = int(request.value)
+            if val < 1 or val > 50:
+                raise HTTPException(status_code=400, detail="Valeur entre 1 et 50")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Valeur numérique requise")
+
+    if key == "duckdb_path":
+        # Valider que le fichier existe
+        new_path = request.value
+        if not os.path.isabs(new_path):
+            new_path = os.path.join(os.path.dirname(__file__), "..", new_path)
+        new_path = os.path.normpath(new_path)
+
+        if not os.path.exists(new_path):
+            raise HTTPException(status_code=400, detail=f"Fichier non trouvé: {new_path}")
+
+        # Sauvegarder le setting
+        set_setting(key, request.value)
+
+        # Reconnecter à la nouvelle base
+        if db_connection:
+            db_connection.close()
+        current_db_path = new_path
+        db_connection = duckdb.connect(new_path, read_only=True)
+
+        # Invalider le cache du schéma
+        db_schema_cache = None
+
+        logger.info(f"DuckDB reconnecté à: {new_path}")
+        return {"status": "ok", "key": key, "value": request.value, "resolved_path": new_path}
+
+    set_setting(key, request.value)
+    return {"status": "ok", "key": key, "value": request.value}
+
+
 # ========================================
 # ENDPOINTS CATALOGUE DE DONNÉES
 # ========================================
@@ -872,14 +958,247 @@ async def delete_catalog():
     return {"status": "ok", "message": "Catalogue supprimé"}
 
 
+@app.patch("/catalog/tables/{table_id}/toggle")
+async def toggle_table_enabled_endpoint(table_id: int):
+    """
+    Toggle l'état is_enabled d'une table.
+    Une table désactivée n'apparaîtra plus dans le prompt LLM.
+    """
+    # Vérifier que la table existe
+    table = get_table_by_id(table_id)
+    if not table:
+        raise HTTPException(status_code=404, detail="Table non trouvée")
+
+    # Toggle l'état
+    updated = toggle_table_enabled(table_id)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour")
+
+    # Rafraîchir le cache du schéma
+    global db_schema_cache
+    db_schema_cache = None
+    db_schema_cache = get_schema_for_llm()
+
+    # Récupérer le nouvel état
+    table = get_table_by_id(table_id)
+    return {
+        "status": "ok",
+        "table_id": table_id,
+        "is_enabled": bool(table["is_enabled"]) if table else False,
+        "message": f"Table {'activée' if table and table['is_enabled'] else 'désactivée'}"
+    }
+
+
+@app.post("/catalog/extract")
+async def extract_catalog_endpoint():
+    """
+    ÉTAPE 1: Extraction du schéma depuis DuckDB SANS enrichissement LLM.
+
+    Les tables sont créées avec is_enabled=1 par défaut.
+    L'utilisateur peut ensuite désactiver les tables non souhaitées
+    avant de lancer l'enrichissement.
+    """
+    import asyncio
+    import uuid
+    from concurrent.futures import ThreadPoolExecutor
+
+    from catalog import create_catalog_job, get_connection, update_job_result, update_job_status
+    from catalog_engine import extract_only
+
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    # 0. Créer un nouveau run_id et un job d'extraction
+    run_id = str(uuid.uuid4())
+    # Extraction a 2 steps: extract_metadata, save_to_catalog (géré par WorkflowManager)
+    job_id = create_catalog_job(
+        job_type="extraction",
+        run_id=run_id,
+        total_steps=2,
+        details={"mode": "extraction_only"}
+    )
+
+    # 1. Vider le catalogue existant
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM synonyms")
+        cursor.execute("DELETE FROM columns")
+        cursor.execute("DELETE FROM tables")
+        cursor.execute("DELETE FROM datasources")
+        # Vider aussi KPIs et questions
+        try:
+            cursor.execute("DELETE FROM kpis")
+            cursor.execute("DELETE FROM suggested_questions")
+        except Exception:
+            pass
+        conn.commit()
+    finally:
+        conn.close()
+
+    # 2. Extraction dans un thread séparé
+    def run_extraction():
+        return extract_only(db_connection=db_connection, job_id=job_id)
+
+    try:
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, run_extraction)
+
+        # Marquer le job comme complété (géré par WorkflowManager maintenant)
+        update_job_status(job_id, status="completed")
+        update_job_result(job_id, {
+            "tables": result.get("stats", {}).get("tables", 0),
+            "columns": result.get("stats", {}).get("columns", 0),
+            "datasource": result.get("datasource", "DuckDB")
+        })
+    except Exception as e:
+        # Erreur déjà marquée par WorkflowManager, juste propager
+        raise HTTPException(status_code=500, detail=f"Erreur extraction: {e}") from e
+
+    # 3. Rafraîchir le cache du schéma (vide car pas de descriptions)
+    global db_schema_cache
+    db_schema_cache = None
+
+    return {
+        "status": result.get("status", "ok"),
+        "message": result.get("message", "Extraction terminée"),
+        "tables_count": result.get("stats", {}).get("tables", 0),
+        "columns_count": result.get("stats", {}).get("columns", 0),
+        "tables": result.get("tables", []),
+        "run_id": run_id
+    }
+
+
+class EnrichCatalogRequest(BaseModel):
+    """Requête d'enrichissement avec les IDs des tables sélectionnées."""
+    table_ids: list[int] = Field(description="IDs des tables à enrichir")
+
+
+@app.post("/catalog/enrich")
+async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
+    """
+    ÉTAPE 2: Enrichissement LLM des tables sélectionnées.
+
+    Reçoit les IDs des tables sélectionnées par l'utilisateur,
+    met à jour leur état is_enabled, puis enrichit.
+
+    Le full_context est lu depuis SQLite (calculé à l'extraction).
+    L'enrichissement utilise toujours le mode "full".
+
+    Génère:
+    - Descriptions de tables et colonnes
+    - Synonymes pour la recherche NLP
+    - KPIs (basés sur les tables sélectionnées)
+
+    Prérequis: avoir fait /catalog/extract d'abord.
+    """
+    import asyncio
+    from concurrent.futures import ThreadPoolExecutor
+
+    from catalog import create_catalog_job, get_latest_run_id, update_job_result, update_job_status
+    from catalog_engine import enrich_selected_tables
+
+    # Vérifier que le LLM est configuré
+    llm_status = check_llm_status()
+    if llm_status["status"] != "ok":
+        raise HTTPException(status_code=500, detail=llm_status.get("message", "LLM non configuré"))
+
+    if not db_connection:
+        raise HTTPException(status_code=500, detail="Base de données non connectée")
+
+    if not request.table_ids:
+        raise HTTPException(status_code=400, detail="Aucune table sélectionnée")
+
+    # Créer un nouveau run_id pour l'enrichissement (séparé de l'extraction)
+    import uuid
+    run_id = str(uuid.uuid4())
+
+    # Calculer le nombre total de steps (dynamique selon batch size)
+    max_tables_per_batch = int(get_setting("max_tables_per_batch", "15"))
+    num_batches = (len(request.table_ids) + max_tables_per_batch - 1) // max_tables_per_batch
+    # total_steps = save_descriptions + llm_batch_1..N + generate_kpis + generate_questions
+    total_steps = 1 + num_batches + 2
+
+    # Créer le job d'enrichissement
+    job_id = create_catalog_job(
+        job_type="enrichment",
+        run_id=run_id,
+        total_steps=total_steps,
+        details={
+            "table_ids": request.table_ids,
+            "batch_size": max_tables_per_batch,
+            "num_batches": num_batches
+        }
+    )
+
+    # Enrichissement dans un thread séparé (full_context lu depuis SQLite)
+    def run_enrichment():
+        return enrich_selected_tables(
+            table_ids=request.table_ids,
+            db_connection=db_connection,
+            job_id=job_id
+        )
+
+    try:
+        loop = asyncio.get_event_loop()
+        with ThreadPoolExecutor() as executor:
+            result = await loop.run_in_executor(executor, run_enrichment)
+
+        # Retourner l'erreur structurée au lieu de lever une exception
+        if result.get("status") == "error":
+            update_job_status(job_id, status="failed", error_message=result.get("message"))
+            return {
+                "status": "error",
+                "message": result.get("message", "Erreur inconnue"),
+                "error_type": result.get("error_type"),
+                "suggestion": result.get("suggestion"),
+                "tables_count": 0,
+                "columns_count": 0,
+                "synonyms_count": 0,
+                "kpis_count": 0,
+                "run_id": run_id
+            }
+
+        # Marquer le job comme complété (géré par WorkflowManager maintenant)
+        update_job_status(job_id, status="completed")
+        update_job_result(job_id, {
+            "tables": result.get("stats", {}).get("tables", 0),
+            "columns": result.get("stats", {}).get("columns", 0),
+            "synonyms": result.get("stats", {}).get("synonyms", 0),
+            "kpis": result.get("stats", {}).get("kpis", 0),
+            "questions": result.get("stats", {}).get("questions", 0),
+            "datasource": result.get("datasource", "DuckDB")
+        })
+    except Exception as e:
+        # Erreur déjà marquée par WorkflowManager, juste propager
+        raise HTTPException(status_code=500, detail=f"Erreur enrichissement: {e}") from e
+
+    # Rafraîchir le cache du schéma
+    global db_schema_cache
+    db_schema_cache = None
+    db_schema_cache = get_schema_for_llm()
+
+    return {
+        "status": result.get("status", "ok"),
+        "message": result.get("message", "Enrichissement terminé"),
+        "tables_count": result.get("stats", {}).get("tables", 0),
+        "columns_count": result.get("stats", {}).get("columns", 0),
+        "synonyms_count": result.get("stats", {}).get("synonyms", 0),
+        "kpis_count": result.get("stats", {}).get("kpis", 0),
+        "run_id": run_id
+    }
+
+
 @app.post("/catalog/generate")
 async def generate_catalog_endpoint():
     """
-    Génère le catalogue complet avec le nouveau moteur:
-    1. Extraction des métadonnées depuis connexion DuckDB existante
-    2. Pydantic pour les modèles dynamiques (JSON Schema)
-    3. Instructor pour les appels LLM structurés
-    4. Sauvegarde dans SQLite
+    [LEGACY] Génère le catalogue complet en une seule étape.
+
+    Pour le nouveau workflow en 2 étapes, utilisez:
+    1. POST /catalog/extract - Extraction sans LLM
+    2. (Sélection des tables via UI)
+    3. POST /catalog/enrich - Enrichissement LLM
     """
     import asyncio
     from concurrent.futures import ThreadPoolExecutor
@@ -1166,25 +1485,342 @@ async def list_kpis():
 @app.get("/suggested-questions")
 async def list_suggested_questions():
     """
-    Récupère les questions suggérées.
-    Priorité: questions générées par LLM, sinon questions prédéfinies.
+    Récupère les questions suggérées (générées par LLM lors de l'enrichissement).
+    Retourne une liste vide si le catalogue est vide ou si aucune question n'a été générée.
     """
     try:
-        questions = get_suggested_questions(enabled_only=True)
-        if questions:
-            return {"questions": questions}
-        # Fallback: utiliser predefined_questions
         conn = get_connection()
-        rows = conn.execute("""
-            SELECT id, question, category, icon, display_order
-            FROM predefined_questions
-            ORDER BY display_order
-        """).fetchall()
+        # Vérifier si le catalogue existe (au moins une table)
+        table_count = conn.execute("SELECT COUNT(*) FROM tables").fetchone()[0]
         conn.close()
-        return {"questions": [dict(row) for row in rows]}
+
+        if table_count == 0:
+            return {"questions": []}
+
+        # Questions générées par LLM (table suggested_questions)
+        questions = get_suggested_questions(enabled_only=True)
+        return {"questions": questions}
     except Exception as e:
         logging.warning(f"Erreur chargement questions suggérées: {e}")
         return {"questions": []}
+
+
+# ========================================
+# ENDPOINTS PROMPTS
+# ========================================
+
+@app.get("/prompts")
+async def list_prompts():
+    """Liste tous les prompts avec leur version active."""
+    from llm_config import get_all_prompts
+    try:
+        prompts = get_all_prompts()
+        return {"prompts": prompts}
+    except Exception as e:
+        logging.error(f"Erreur récupération prompts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/prompts/{key}")
+async def get_prompt(key: str):
+    """Récupère un prompt spécifique par sa clé."""
+    from llm_config import get_active_prompt
+    try:
+        prompt = get_active_prompt(key)
+        if not prompt:
+            raise HTTPException(status_code=404, detail=f"Prompt '{key}' non trouvé")
+        return prompt
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur récupération prompt {key}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class PromptUpdateRequest(BaseModel):
+    """Requête de mise à jour d'un prompt."""
+    content: str = Field(description="Contenu du prompt")
+
+
+@app.put("/prompts/{key}")
+async def update_prompt(key: str, request: PromptUpdateRequest):
+    """Met à jour le contenu d'un prompt actif."""
+    from llm_config import update_prompt_content
+    try:
+        success = update_prompt_content(key, request.content)
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Prompt '{key}' non trouvé")
+        return {"status": "ok", "message": "Prompt mis à jour"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur mise à jour prompt {key}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# ENDPOINTS CATALOG JOBS
+# ========================================
+
+@app.get("/catalog/jobs")
+async def list_catalog_jobs(limit: int = 50):
+    """Récupère l'historique des jobs (extraction + enrichment)."""
+    from catalog import get_catalog_jobs
+    try:
+        jobs = get_catalog_jobs(limit=limit)
+        return {"jobs": jobs}
+    except Exception as e:
+        logging.error(f"Erreur récupération jobs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/catalog/jobs/{job_id}")
+async def get_catalog_job_by_id(job_id: int):
+    """Récupère un job spécifique par son ID."""
+    from catalog import get_catalog_job
+    try:
+        job = get_catalog_job(job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job non trouvé")
+        return job
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur récupération job {job_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/catalog/run/{run_id}")
+async def get_run(run_id: str):
+    """Récupère tous les jobs d'une run (extraction + enrichments)."""
+    from catalog import get_run_jobs
+    try:
+        jobs = get_run_jobs(run_id)
+        if not jobs:
+            raise HTTPException(status_code=404, detail="Run non trouvée")
+        return {"run": jobs}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur récupération run {run_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/catalog/latest-run")
+async def get_latest_run():
+    """Récupère la dernière run complète (extraction + enrichments)."""
+    from catalog import get_latest_run_id, get_run_jobs
+    try:
+        run_id = get_latest_run_id()
+
+        if not run_id:
+            return {"run": []}
+
+        jobs = get_run_jobs(run_id)
+        return {"run": jobs}
+    except Exception as e:
+        logging.error(f"Erreur récupération dernière run: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================
+# SSE ENDPOINTS - TEMPS RÉEL
+# ========================================
+
+@app.get("/catalog/job-stream/{run_id}")
+async def stream_run_jobs(run_id: str):
+    """
+    Stream SSE des jobs d'un run spécifique (extraction + enrichissement).
+    Se ferme automatiquement quand tous les jobs sont terminés.
+    """
+    from catalog import get_run_jobs
+
+    async def event_generator():
+        try:
+            while True:
+                # Récupérer les jobs du run
+                jobs = get_run_jobs(run_id)
+                jobs_data = [dict(job) for job in jobs]
+
+                # Envoyer les données
+                yield f"data: {json.dumps(jobs_data)}\n\n"
+
+                # Arrêter si tous jobs sont terminés
+                if jobs_data and all(j['status'] in ['completed', 'failed'] for j in jobs_data):
+                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    break
+
+                # Update toutes les 500ms
+                await asyncio.sleep(0.5)
+
+        except Exception as e:
+            logging.error(f"Erreur SSE job-stream: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        }
+    )
+
+
+@app.get("/catalog/status-stream")
+async def stream_catalog_status():
+    """
+    Stream SSE de l'état global du catalogue (running ou pas).
+    Permet de bloquer les boutons Extract/Enrich pendant un run.
+    """
+    from catalog import get_catalog_jobs, get_latest_run_id
+
+    async def event_generator():
+        previous_status = None
+
+        try:
+            while True:
+                # Vérifier si un job tourne
+                recent_jobs = get_catalog_jobs(limit=5)
+                is_running = any(j['status'] == 'running' for j in recent_jobs)
+                current_run_id = get_latest_run_id() if is_running else None
+
+                status = {
+                    'is_running': is_running,
+                    'current_run_id': current_run_id
+                }
+
+                # Envoyer seulement si changement (éviter spam)
+                if status != previous_status:
+                    yield f"data: {json.dumps(status)}\n\n"
+                    previous_status = status
+
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            logging.error(f"Erreur SSE status-stream: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.get("/catalog/runs")
+async def list_all_runs():
+    """
+    Liste tous les jobs individuellement (extraction ET enrichissement séparés).
+    Chaque job = 1 run dans l'historique.
+    """
+    from catalog import get_connection
+
+    try:
+        conn = get_connection()
+        try:
+            cursor = conn.cursor()
+
+            # Récupérer chaque job individuellement
+            cursor.execute("""
+                SELECT
+                    id,
+                    run_id,
+                    job_type,
+                    status,
+                    started_at,
+                    completed_at,
+                    current_step,
+                    progress,
+                    result
+                FROM catalog_jobs
+                ORDER BY started_at DESC
+                LIMIT 100
+            """)
+
+            runs = []
+            for row in cursor.fetchall():
+                # Parser le result JSON si présent
+                result = row['result']
+                if result and isinstance(result, str):
+                    try:
+                        result = json.loads(result)
+                    except (json.JSONDecodeError, TypeError):
+                        result = None
+
+                runs.append({
+                    'id': row['id'],
+                    'run_id': row['run_id'],
+                    'job_type': row['job_type'],
+                    'status': row['status'],
+                    'started_at': row['started_at'],
+                    'completed_at': row['completed_at'],
+                    'current_step': row['current_step'],
+                    'progress': row['progress'],
+                    'result': result
+                })
+
+            return {"runs": runs}
+
+        finally:
+            conn.close()
+
+    except Exception as e:
+        logging.error(f"Erreur list runs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.patch("/catalog/columns/{column_id}/description")
+async def update_column_description(column_id: int, request: dict):
+    """
+    Met à jour la description d'une colonne du catalogue.
+
+    Body:
+        {"description": "Nouvelle description"}
+    """
+    from catalog import get_connection
+
+    description = request.get("description", "").strip()
+
+    if not description:
+        raise HTTPException(status_code=400, detail="Description vide")
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        # Vérifier que la colonne existe
+        cursor.execute("SELECT id, name FROM columns WHERE id = ?", (column_id,))
+        column = cursor.fetchone()
+
+        if not column:
+            raise HTTPException(status_code=404, detail=f"Colonne {column_id} non trouvée")
+
+        # Mettre à jour la description
+        cursor.execute(
+            "UPDATE columns SET description = ? WHERE id = ?",
+            (description, column_id)
+        )
+        conn.commit()
+        conn.close()
+
+        return {
+            "status": "ok",
+            "column_id": column_id,
+            "column_name": column["name"],
+            "description": description
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error(f"Erreur update description colonne {column_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":

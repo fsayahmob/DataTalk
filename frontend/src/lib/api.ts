@@ -341,6 +341,7 @@ export interface CatalogColumn {
   data_type: string;
   description: string | null;
   sample_values: string | null;
+  full_context: string | null;  // Contexte complet avec ENUM, ranges, statistiques
   value_range: string | null;
   synonyms?: string[];
 }
@@ -350,6 +351,7 @@ export interface CatalogTable {
   name: string;
   description: string | null;
   row_count: number | null;
+  is_enabled: boolean;
   columns: CatalogColumn[];
 }
 
@@ -397,6 +399,53 @@ export async function generateCatalog(): Promise<CatalogGenerateResponse | null>
   }
 }
 
+// ÉTAPE 1: Extraction du schéma SANS enrichissement LLM
+export interface CatalogExtractResponse {
+  status: string;
+  message: string;
+  tables_count: number;
+  columns_count: number;
+}
+
+export async function extractCatalog(): Promise<CatalogExtractResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/extract`, { method: "POST" });
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error("Erreur extraction catalogue:", e);
+    return null;
+  }
+}
+
+// ÉTAPE 2: Enrichissement LLM des tables sélectionnées
+export interface CatalogEnrichResponse {
+  status: string;
+  message: string;
+  tables_count?: number;
+  columns_count?: number;
+  synonyms_count?: number;
+  kpis_count?: number;
+  // Champs d'erreur structurée
+  error_type?: "vertex_ai_schema_too_complex" | "llm_error";
+  suggestion?: string;
+}
+
+export async function enrichCatalog(tableIds: number[]): Promise<CatalogEnrichResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/enrich`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table_ids: tableIds }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (e) {
+    console.error("Erreur enrichissement catalogue:", e);
+    return null;
+  }
+}
+
 export async function deleteCatalog(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/catalog`, { method: "DELETE" });
@@ -404,6 +453,29 @@ export async function deleteCatalog(): Promise<boolean> {
   } catch (e) {
     console.error("Erreur suppression catalogue:", e);
     return false;
+  }
+}
+
+// Toggle l'état is_enabled d'une table
+export interface ToggleTableResponse {
+  status: string;
+  table_id: number;
+  is_enabled: boolean;
+  message: string;
+}
+
+export async function toggleTableEnabled(
+  tableId: number
+): Promise<ToggleTableResponse | null> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/tables/${tableId}/toggle`, {
+      method: "PATCH",
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error("Erreur toggle table:", e);
+    return null;
   }
 }
 
@@ -446,6 +518,101 @@ export async function setActivePromptVersion(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ version }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ============ Settings génériques ============
+
+export type CatalogContextMode = "compact" | "full";
+
+export async function fetchCatalogContextMode(): Promise<CatalogContextMode> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/catalog_context_mode`);
+    if (!res.ok) return "full"; // défaut
+    const data = await res.json();
+    return data.value as CatalogContextMode;
+  } catch {
+    return "full";
+  }
+}
+
+export async function setCatalogContextMode(
+  mode: CatalogContextMode
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/catalog_context_mode`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: mode }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// ============ Database Status ============
+
+export interface DatabaseStatus {
+  status: "connected" | "disconnected";
+  path: string | null;
+  configured_path: string;
+  engine: string;
+}
+
+export async function fetchDatabaseStatus(): Promise<DatabaseStatus | null> {
+  try {
+    const res = await fetch(`${API_BASE}/database/status`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error("Erreur chargement statut DB:", e);
+    return null;
+  }
+}
+
+export async function setDuckdbPath(path: string): Promise<{ success: boolean; error?: string; resolved_path?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/duckdb_path`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: path }),
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      return { success: false, error: data.detail || "Erreur" };
+    }
+    const data = await res.json();
+    return { success: true, resolved_path: data.resolved_path };
+  } catch (e) {
+    console.error("Erreur mise à jour chemin DuckDB:", e);
+    return { success: false, error: String(e) };
+  }
+}
+
+// ============ Settings Catalog ============
+
+export async function fetchMaxTablesPerBatch(): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/max_tables_per_batch`);
+    if (!res.ok) return 15;
+    const data = await res.json();
+    return parseInt(data.value, 10) || 15;
+  } catch {
+    return 15;
+  }
+}
+
+export async function setMaxTablesPerBatch(value: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/max_tables_per_batch`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: String(value) }),
     });
     return res.ok;
   } catch {
@@ -519,5 +686,171 @@ export async function fetchKpis(): Promise<KpiCompactData[]> {
   } catch (e) {
     console.error("Erreur chargement KPIs:", e);
     return [];
+  }
+}
+
+// ============ Catalog Jobs / Run ============
+
+export interface CatalogJob {
+  id: number;
+  run_id: string;
+  job_type: "extraction" | "enrichment";
+  status: "pending" | "running" | "completed" | "failed";
+  current_step: string | null;
+  step_index: number | null;
+  total_steps: number | null;
+  progress: number;
+  details: Record<string, any> | null;
+  result: Record<string, any> | null;
+  error_message: string | null;
+  started_at: string;
+  completed_at: string | null;
+}
+
+export interface RunResponse {
+  run: CatalogJob[];
+}
+
+export async function fetchLatestRun(): Promise<RunResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/latest-run`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.log("Aucune run trouvée (404)");
+      } else {
+        console.error(`Erreur serveur (${res.status})`);
+      }
+      return { run: [] };
+    }
+    return await res.json();
+  } catch (e) {
+    console.error("Erreur chargement run:", e);
+    return { run: [] };
+  }
+}
+
+export async function fetchRun(runId: string): Promise<RunResponse> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/run/${runId}`);
+    if (!res.ok) {
+      if (res.status === 404) {
+        console.log(`Run ${runId} non trouvée (404)`);
+      } else {
+        console.error(`Erreur serveur (${res.status})`);
+      }
+      return { run: [] };
+    }
+    return await res.json();
+  } catch (e) {
+    console.error("Erreur chargement run:", e);
+    return { run: [] };
+  }
+}
+
+export async function fetchCatalogJobs(limit: number = 50): Promise<CatalogJob[]> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/jobs?limit=${limit}`);
+    const data = await res.json();
+    return data.jobs || [];
+  } catch (e) {
+    console.error("Erreur chargement jobs:", e);
+    return [];
+  }
+}
+
+// ========================================
+// RUNS API
+// ========================================
+
+export interface Run {
+  id: number;
+  run_id: string;
+  job_type: "extraction" | "enrichment";
+  started_at: string;
+  completed_at: string | null;
+  status: "pending" | "running" | "completed" | "failed";
+  current_step: string | null;
+  progress: number;
+  result: any;
+}
+
+export async function fetchRuns(): Promise<Run[]> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/runs`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.runs || [];
+  } catch (e) {
+    console.error("Erreur chargement runs:", e);
+    return [];
+  }
+}
+
+export async function updateColumnDescription(columnId: number, description: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/catalog/columns/${columnId}/description`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Erreur update description:", e);
+    return false;
+  }
+}
+
+// ========================================
+// PROMPTS API
+// ========================================
+
+export interface Prompt {
+  id: number;
+  key: string;
+  name: string;
+  category: string;
+  content: string;
+  version: string;
+  is_active: boolean;
+  tokens_estimate: number | null;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchPrompts(): Promise<Prompt[]> {
+  try {
+    const res = await fetch(`${API_BASE}/prompts`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.prompts || [];
+  } catch (e) {
+    console.error("Erreur chargement prompts:", e);
+    return [];
+  }
+}
+
+export async function fetchPrompt(key: string): Promise<Prompt | null> {
+  try {
+    const res = await fetch(`${API_BASE}/prompts/${key}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error(`Erreur chargement prompt ${key}:`, e);
+    return null;
+  }
+}
+
+export async function updatePrompt(key: string, content: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/prompts/${key}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error(`Erreur mise à jour prompt ${key}:`, e);
+    return false;
   }
 }

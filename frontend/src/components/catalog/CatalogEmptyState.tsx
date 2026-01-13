@@ -1,14 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { DatabaseIcon, BoltIcon } from "@/components/icons";
+import { DatabaseIcon } from "@/components/icons";
 
 interface CatalogEmptyStateProps {
-  isGenerating: boolean;
-  onGenerate: () => void;
+  isExtracting: boolean;
+  onExtract: () => void;
 }
 
-export function CatalogEmptyState({ isGenerating, onGenerate }: CatalogEmptyStateProps) {
+export function CatalogEmptyState({ isExtracting, onExtract }: CatalogEmptyStateProps) {
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center max-w-md">
@@ -19,20 +19,20 @@ export function CatalogEmptyState({ isGenerating, onGenerate }: CatalogEmptyStat
         <p className="text-sm text-muted-foreground mb-6">
           Le catalogue de données n&apos;a pas encore été créé.
           <br />
-          Cliquez sur le bouton ci-dessous pour extraire la structure de DuckDB
+          <span className="text-primary/80 font-medium">Étape 1:</span> Extraire le schéma depuis DuckDB (rapide, sans LLM)
           <br />
-          et générer les descriptions avec l&apos;IA.
+          <span className="text-primary/80 font-medium">Étape 2:</span> Sélectionner les tables puis enrichir avec l&apos;IA
         </p>
-        <Button onClick={onGenerate} disabled={isGenerating} size="lg">
-          {isGenerating ? (
+        <Button onClick={onExtract} disabled={isExtracting} size="lg">
+          {isExtracting ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Génération...
+              Extraction...
             </span>
           ) : (
             <>
-              <BoltIcon size={16} className="mr-2" />
-              Générer le catalogue
+              <DatabaseIcon size={16} className="mr-2" />
+              Extraire le schéma
             </>
           )}
         </Button>

@@ -11,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CheckIcon } from "@/components/icons";
 import * as api from "@/lib/api";
-import type { LLMPrompt } from "@/lib/api";
+import type { LLMPrompt, CatalogContextMode, Prompt } from "@/lib/api";
 
 // Group prompts by key
 interface PromptGroup {
@@ -45,15 +44,22 @@ function groupPromptsByKey(prompts: LLMPrompt[]): PromptGroup[] {
 }
 
 export function PromptsTab() {
-  const [prompts, setPrompts] = useState<LLMPrompt[]>([]);
+  const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<string>("");
+  const [contextMode, setContextMode] = useState<CatalogContextMode>("full");
 
   const loadPrompts = useCallback(async () => {
     setLoading(true);
-    const data = await api.fetchLLMPrompts();
-    setPrompts(data);
+    const [promptsData, modeData] = await Promise.all([
+      api.fetchPrompts(),
+      api.fetchCatalogContextMode(),
+    ]);
+    setPrompts(promptsData);
+    setContextMode(modeData);
     setLoading(false);
   }, []);
 
@@ -61,28 +67,54 @@ export function PromptsTab() {
     loadPrompts();
   }, [loadPrompts]);
 
-  const handleVersionChange = useCallback(
-    async (key: string, version: string) => {
-      setSaving(key);
-      const success = await api.setActivePromptVersion(key, version);
+  const handleContextModeChange = useCallback(
+    async (mode: CatalogContextMode) => {
+      setSaving("catalog_context_mode");
+      const success = await api.setCatalogContextMode(mode);
       if (success) {
-        toast.success(`Prompt "${key}" mis à jour`);
-        await loadPrompts();
+        setContextMode(mode);
+        toast.success(`Mode de contexte: ${mode}`);
       } else {
         toast.error("Erreur lors de la mise à jour");
       }
       setSaving(null);
     },
-    [loadPrompts]
+    []
   );
 
-  const groups = groupPromptsByKey(prompts);
+  const handleEdit = (prompt: Prompt) => {
+    setEditingKey(prompt.key);
+    setEditedContent(prompt.content);
+    setExpandedKey(prompt.key);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingKey(null);
+    setEditedContent("");
+  };
+
+  const handleSaveEdit = async (key: string) => {
+    setSaving(key);
+    const success = await api.updatePrompt(key, editedContent);
+    if (success) {
+      toast.success("Prompt mis à jour");
+      setEditingKey(null);
+      await loadPrompts();
+    } else {
+      toast.error("Erreur lors de la mise à jour");
+    }
+    setSaving(null);
+  };
+
+  // Grouper les prompts actifs seulement
+  const activePrompts = prompts.filter((p) => p.is_active);
 
   // Category display names and colors
   const categoryInfo: Record<string, { label: string; color: string }> = {
     analytics: { label: "Analytics", color: "text-blue-400" },
     catalog: { label: "Catalogue", color: "text-purple-400" },
     enrichment: { label: "Enrichissement", color: "text-amber-400" },
+    widgets: { label: "Widgets", color: "text-green-400" },
   };
 
   if (loading) {
@@ -96,107 +128,142 @@ export function PromptsTab() {
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground mb-4">
-        Configurez les prompts utilisés par le LLM. Chaque prompt peut avoir
-        plusieurs versions (normal, optimisé).
+        Configurez les prompts utilisés par le LLM pour l'analyse et l'enrichissement du catalogue.
       </div>
 
-      {groups.map((group) => {
-        const info = categoryInfo[group.category] || {
-          label: group.category,
+      {activePrompts.map((prompt) => {
+        const info = categoryInfo[prompt.category] || {
+          label: prompt.category,
           color: "text-gray-400",
         };
-        const activePrompt = group.versions.find((v) => v.is_active);
-        const isExpanded = expandedKey === group.key;
+        const isExpanded = expandedKey === prompt.key;
+        const isEditing = editingKey === prompt.key;
+        const isAnalyticsSystem = prompt.key === "analytics_system";
 
         return (
           <Card
-            key={group.key}
+            key={prompt.key}
             className="bg-[hsl(260_10%_10%)] border-border/30"
           >
             <CardHeader className="py-3 px-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <CardTitle className="text-sm font-mono">
-                    {group.key}
+                    {prompt.name}
                   </CardTitle>
                   <span className={`text-xs ${info.color}`}>{info.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Select
-                    value={group.activeVersion || "normal"}
-                    onValueChange={(v) => handleVersionChange(group.key, v)}
-                    disabled={saving === group.key}
-                  >
-                    <SelectTrigger className="w-32 h-7 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {group.versions.map((v) => (
-                        <SelectItem key={v.version} value={v.version}>
-                          <span className="flex items-center gap-2">
-                            {v.version}
-                            {v.is_active && (
-                              <CheckIcon size={12} className="text-emerald-400" />
-                            )}
-                            {v.tokens_estimate && (
-                              <span className="text-muted-foreground">
-                                ~{v.tokens_estimate}t
-                              </span>
-                            )}
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {/* Sélecteur compact/full pour analytics_system */}
+                  {isAnalyticsSystem && !isEditing && (
+                    <Select
+                      value={contextMode}
+                      onValueChange={(v) => handleContextModeChange(v as CatalogContextMode)}
+                      disabled={saving === "catalog_context_mode"}
+                    >
+                      <SelectTrigger className="w-28 h-7 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="compact">compact ~800t</SelectItem>
+                        <SelectItem value="full">full ~2200t</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {!isEditing && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => handleEdit(prompt)}
+                    >
+                      Éditer
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
                     className="h-7 px-2 text-xs"
-                    onClick={() =>
-                      setExpandedKey(isExpanded ? null : group.key)
-                    }
+                    onClick={() => setExpandedKey(isExpanded ? null : prompt.key)}
                   >
                     {isExpanded ? "Masquer" : "Voir"}
                   </Button>
                 </div>
               </div>
-              {activePrompt?.description && (
+              {prompt.description && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {activePrompt.description}
+                  {prompt.description}
                 </p>
               )}
             </CardHeader>
 
-            {isExpanded && activePrompt && (
+            {isExpanded && (
               <CardContent className="pt-0 px-4 pb-4">
-                <div className="bg-[hsl(260_10%_6%)] rounded-md p-3 max-h-64 overflow-auto">
-                  <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
-                    {activePrompt.content}
-                  </pre>
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
-                  <span>
-                    Tokens estimés: {activePrompt.tokens_estimate || "N/A"}
-                  </span>
-                  <span>Version: {activePrompt.version}</span>
-                  <span>
-                    MAJ:{" "}
-                    {new Date(activePrompt.updated_at).toLocaleDateString(
-                      "fr-FR"
-                    )}
-                  </span>
-                </div>
+                {/* Explication du mode compact/full pour analytics_system */}
+                {isAnalyticsSystem && !isEditing && (
+                  <div className="mb-3 p-2 rounded bg-primary/10 border border-primary/20">
+                    <p className="text-xs text-muted-foreground">
+                      <strong className="text-foreground">Mode {contextMode}:</strong>{" "}
+                      {contextMode === "compact"
+                        ? "Schéma simple (nom, type). Moins de tokens, réponses plus rapides."
+                        : "Schéma enrichi (stats, ENUM, distribution). Plus précis pour les requêtes complexes."}
+                    </p>
+                  </div>
+                )}
+
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <textarea
+                      value={editedContent}
+                      onChange={(e) => setEditedContent(e.target.value)}
+                      className="w-full h-96 px-3 py-2 rounded-md border border-border bg-[hsl(260_10%_6%)] font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleSaveEdit(prompt.key)}
+                        disabled={saving === prompt.key || editedContent === prompt.content}
+                      >
+                        {saving === prompt.key ? "Enregistrement..." : "Enregistrer"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleCancelEdit}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="bg-[hsl(260_10%_6%)] rounded-md p-3 max-h-64 overflow-auto">
+                      <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
+                        {prompt.content}
+                      </pre>
+                    </div>
+                    <div className="flex items-center gap-4 mt-2 text-[10px] text-muted-foreground">
+                      <span>Key: {prompt.key}</span>
+                      {prompt.tokens_estimate && (
+                        <span>Tokens: {prompt.tokens_estimate}</span>
+                      )}
+                      <span>
+                        MAJ: {new Date(prompt.updated_at).toLocaleDateString("fr-FR")}
+                      </span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             )}
           </Card>
         );
       })}
 
-      {groups.length === 0 && (
+      {activePrompts.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
           <p className="text-sm">Aucun prompt configuré</p>
           <p className="text-xs mt-1">
-            Exécutez <code className="bg-muted px-1 rounded">python seed_prompts.py</code> pour
+            Exécutez <code className="bg-muted px-1 rounded">sqlite3 catalog.sqlite {"<"} schema.sql</code> pour
             initialiser les prompts.
           </p>
         </div>

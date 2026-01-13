@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS tables (
     name TEXT NOT NULL,
     description TEXT,
     row_count INTEGER,
+    is_enabled BOOLEAN DEFAULT 1,  -- Si FALSE, la table est exclue du prompt LLM
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (datasource_id) REFERENCES datasources(id),
@@ -45,10 +46,10 @@ CREATE TABLE IF NOT EXISTS columns (
     name TEXT NOT NULL,
     data_type TEXT NOT NULL,
     description TEXT,
-    is_nullable BOOLEAN DEFAULT TRUE,
     is_primary_key BOOLEAN DEFAULT FALSE,
-    sample_values TEXT,  -- JSON array des valeurs d'exemple
+    sample_values TEXT,  -- Valeurs d'exemple séparées par ", "
     value_range TEXT,    -- Ex: "1-5" pour les notes
+    full_context TEXT,   -- Stats complètes pour le LLM (null_rate, distinct, top_values, etc.)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (table_id) REFERENCES tables(id),
@@ -64,14 +65,8 @@ CREATE TABLE IF NOT EXISTS synonyms (
 );
 
 -- Relations entre tables
-CREATE TABLE IF NOT EXISTS relationships (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    from_column_id INTEGER NOT NULL,
-    to_column_id INTEGER NOT NULL,
-    relationship_type TEXT NOT NULL,  -- '1:1', '1:N', 'N:N'
-    FOREIGN KEY (from_column_id) REFERENCES columns(id),
-    FOREIGN KEY (to_column_id) REFERENCES columns(id)
-);
+-- NOTE: Les relations FK sont détectées dynamiquement dans le frontend (layoutUtils.ts)
+-- basé sur les patterns de noms de colonnes (id_*, cod_*, *_id, etc.)
 
 -- =============================================
 -- INTERFACE UTILISATEUR
@@ -153,13 +148,12 @@ CREATE TABLE IF NOT EXISTS widget_cache (
     FOREIGN KEY (widget_id) REFERENCES widgets(widget_id) ON DELETE CASCADE
 );
 
--- Questions suggérées (générées par LLM)
+-- Questions suggérées (générées par LLM lors de l'enrichissement)
 CREATE TABLE IF NOT EXISTS suggested_questions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     question TEXT NOT NULL,
     category TEXT,                   -- "Performance", "Tendances", "Alertes", etc.
     icon TEXT,                       -- Emoji
-    business_value TEXT,             -- Pourquoi poser cette question
     display_order INTEGER DEFAULT 0,
     is_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -356,9 +350,9 @@ INSERT OR IGNORE INTO llm_models (provider_id, model_id, display_name, context_w
 SELECT p.id, 'qwen2.5-coder', 'Qwen 2.5 Coder (Local)', 128000, NULL, NULL, 0
 FROM llm_providers p WHERE p.name = 'ollama';
 
--- Prompts LLM (analytics)
+-- Prompts LLM (analytics) - Version unique
 INSERT OR IGNORE INTO llm_prompts (key, name, category, content, version, is_active, tokens_estimate, description) VALUES
-('analytics_system', 'Analytics System (Normal)', 'analytics', 'Assistant analytique SQL. Réponds en français.
+('analytics_system', 'Analytics System', 'analytics', 'Assistant analytique SQL. Réponds en français.
 
 {schema}
 
@@ -388,21 +382,9 @@ INTERDIT: GROUP BY avec colonne catégorie qui retourne plusieurs lignes par dat
 OBLIGATOIRE: Utiliser FILTER pour PIVOTER les données (une colonne par catégorie).
 
 RÉPONSE: Un seul objet JSON (pas de tableau):
-{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}', 'normal', 1, 600, 'Prompt système pour l''analyse Text-to-SQL. Inclut le schéma DB via {schema}.');
+{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}', 'v1', 1, 600, 'Prompt système pour l''analyse Text-to-SQL. Inclut le schéma DB via {schema}.');
 
-INSERT OR IGNORE INTO llm_prompts (key, name, category, content, version, is_active, tokens_estimate, description) VALUES
-('analytics_system', 'Analytics System (Optimisé)', 'analytics', 'Assistant SQL analytique. Français.
-
-{schema}
-
-CHARTS: bar|line|pie|area|scatter|none
-SQL: DuckDB SELECT, alias FR, ORDER BY, LIMIT défaut 500
-TEMPS: EXTRACT(HOUR FROM col)
-MULTI-SÉRIES: FILTER + chart.y tableau
-
-JSON: {"sql":"...","message":"...","chart":{"type":"...","x":"...","y":"...|[...]","title":"..."}}', 'optimized', 0, 150, 'Version compacte du prompt analytics. Réduit les tokens de ~75%.');
-
--- Prompt catalog enrichment
+-- Prompt catalog enrichment (le contexte {tables_context} est injecté en mode compact ou full)
 INSERT OR IGNORE INTO llm_prompts (key, name, category, content, version, is_active, tokens_estimate, description) VALUES
 ('catalog_enrichment', 'Catalog Enrichment', 'catalog', 'Tu es un expert en data catalog. Analyse cette structure de base de données et génère des descriptions sémantiques.
 
@@ -413,7 +395,7 @@ INSTRUCTIONS:
 - Déduis le contexte métier à partir des noms et des exemples de valeurs
 - Génère des descriptions claires en français
 - Pour chaque colonne, propose 2-3 synonymes (termes alternatifs pour recherche NLP)
-- Descriptions concises mais complètes', 'normal', 1, 200, 'Génération de descriptions sémantiques pour le catalogue. Placeholder {tables_context}.');
+- Descriptions concises mais complètes', 'v1', 1, 200, 'Génération de descriptions sémantiques pour le catalogue. Le placeholder {tables_context} est rempli selon le mode choisi: compact (nom, type, exemples) ou full (stats avancées, ENUM, distribution).');
 
 -- Prompt widgets generation
 INSERT OR IGNORE INTO llm_prompts (key, name, category, content, version, is_active, tokens_estimate, description) VALUES
@@ -464,4 +446,57 @@ CONSIGNES:
 - Adapte les requêtes trend à la période disponible (compare 1ère moitié vs total)
 - Varie les sparkline_type (2 "area" et 2 "bar")
 - footer doit indiquer la période des données
-- IMPORTANT: Mets invert_trend=true pour les KPIs où une baisse est POSITIVE', 'normal', 1, 800, 'Génération des widgets et KPIs. Placeholders {schema}, {data_period}, {kpi_fields}.');
+- IMPORTANT: Mets invert_trend=true pour les KPIs où une baisse est POSITIVE', 'v1', 1, 800, 'Génération des widgets et KPIs. Placeholders {schema}, {data_period}, {kpi_fields}.');
+
+-- =============================================
+-- SETTINGS PAR DÉFAUT
+-- =============================================
+
+-- Mode de contexte pour l'enrichissement du catalogue
+-- "compact": format simple (nom, type, exemples, range) ~800 tokens
+-- "full": format enrichi (stats, ENUM, distribution, patterns) ~2200 tokens
+INSERT OR IGNORE INTO settings (key, value) VALUES
+    ('catalog_context_mode', 'full');
+
+-- Chemin vers la base DuckDB
+INSERT OR IGNORE INTO settings (key, value) VALUES
+    ('duckdb_path', 'data/g7_analytics.duckdb');
+
+-- Nombre max de tables par batch pour l'enrichissement LLM
+-- Réduit cette valeur si erreur "too many states" avec Vertex AI
+INSERT OR IGNORE INTO settings (key, value) VALUES
+    ('max_tables_per_batch', '15');
+
+-- =============================================
+-- PIPELINE TRACKING
+-- =============================================
+
+-- Jobs du catalogue (extraction + enrichissement)
+-- Tous les jobs d'une même run partagent le même run_id (comme Google Cloud Build)
+CREATE TABLE IF NOT EXISTS catalog_jobs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id TEXT NOT NULL,   -- UUID commun pour extraction + enrichment
+    job_type TEXT NOT NULL CHECK(job_type IN ('extraction', 'enrichment')),
+    status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+
+    -- Progression
+    current_step TEXT,      -- Ex: "extract_metadata", "llm_batch_2", "generate_questions"
+    step_index INTEGER,     -- Index actuel (0-based)
+    total_steps INTEGER,    -- Nombre total de steps (calculé dynamiquement)
+    progress INTEGER DEFAULT 0,  -- Pourcentage 0-100
+
+    -- Contexte
+    details TEXT,           -- JSON: {"batch": "2/4", "tables": [...], "mode": "compact"}
+    result TEXT,            -- JSON: {"tables": 12, "columns": 90, "synonyms": 245, "kpis": 4, "questions": 8}
+    error_message TEXT,
+
+    -- Timestamps
+    started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- Index pour les requêtes de suivi de pipeline
+CREATE INDEX IF NOT EXISTS idx_jobs_run_id ON catalog_jobs(run_id);
+CREATE INDEX IF NOT EXISTS idx_jobs_type ON catalog_jobs(job_type);
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON catalog_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_started ON catalog_jobs(started_at DESC);

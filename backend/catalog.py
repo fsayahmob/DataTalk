@@ -45,16 +45,17 @@ def add_column(
     description: str | None = None,
     sample_values: str | None = None,
     value_range: str | None = None,
-    is_primary_key: bool = False
+    is_primary_key: bool = False,
+    full_context: str | None = None
 ) -> int | None:
     """Ajoute une colonne au catalogue."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT OR REPLACE INTO columns
-        (table_id, name, data_type, description, sample_values, value_range, is_primary_key, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (table_id, name, data_type, description, sample_values, value_range, is_primary_key))
+        (table_id, name, data_type, description, sample_values, value_range, is_primary_key, full_context, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (table_id, name, data_type, description, sample_values, value_range, is_primary_key, full_context))
     conn.commit()
     column_id = cursor.lastrowid
     conn.close()
@@ -70,14 +71,21 @@ def add_synonym(column_id: int, term: str):
     conn.close()
 
 
-def get_schema_for_llm(datasource_name: Optional[str] = None, compact: bool = True) -> str:
+def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
     """
-    Génère le schéma formaté pour le contexte LLM.
-    compact=True: schéma optimisé pour réduire les tokens (pas de sample_values)
-    compact=False: schéma complet avec exemples
+    Génère le schéma formaté pour le contexte LLM (text-to-SQL).
+
+    Lit le setting 'catalog_context_mode' pour déterminer le format:
+    - "compact": schéma simple (nom, type, description)
+    - "full": schéma enrichi avec full_context (stats, ENUM, distribution)
     """
     conn = get_connection()
     cursor = conn.cursor()
+
+    # Lire le mode de contexte depuis les settings
+    cursor.execute("SELECT value FROM settings WHERE key = 'catalog_context_mode'")
+    mode_row = cursor.fetchone()
+    use_full = (mode_row and mode_row['value'] == 'full')
 
     # Récupérer les datasources
     if datasource_name:
@@ -90,9 +98,9 @@ def get_schema_for_llm(datasource_name: Optional[str] = None, compact: bool = Tr
     schema_parts = []
 
     for ds in datasources:
-        # Récupérer les tables
+        # Récupérer les tables activées uniquement
         cursor.execute("""
-            SELECT * FROM tables WHERE datasource_id = ?
+            SELECT * FROM tables WHERE datasource_id = ? AND is_enabled = 1
         """, (ds['id'],))
         tables = cursor.fetchall()
 
@@ -110,24 +118,20 @@ def get_schema_for_llm(datasource_name: Optional[str] = None, compact: bool = Tr
             columns = cursor.fetchall()
 
             for col in columns:
-                if compact:
-                    # Format compact: nom (type): description [range]
-                    col_line = f"- {col['name']} ({col['data_type']})"
-                    if col['description']:
-                        # Tronquer description longue
-                        desc = col['description'][:80] + "..." if len(col['description'] or "") > 80 else col['description']
-                        col_line += f": {desc}"
-                    if col['value_range']:
-                        col_line += f" [{col['value_range']}]"
-                else:
-                    # Format complet avec exemples
-                    col_line = f"- {col['name']} ({col['data_type']})"
-                    if col['description']:
-                        col_line += f": {col['description']}"
-                    if col['value_range']:
-                        col_line += f" [Valeurs: {col['value_range']}]"
-                    if col['sample_values']:
-                        col_line += f" [Ex: {col['sample_values']}]"
+                col_line = f"- {col['name']} ({col['data_type']})"
+
+                if col['description']:
+                    # Tronquer description longue
+                    desc = col['description'][:80] + "..." if len(col['description'] or "") > 80 else col['description']
+                    col_line += f": {desc}"
+
+                if use_full and col['full_context']:
+                    # Mode FULL: ajouter le full_context (stats calculées à l'extraction)
+                    col_line += f" | {col['full_context']}"
+                elif col['value_range']:
+                    # Mode COMPACT ou pas de full_context: juste le range
+                    col_line += f" [{col['value_range']}]"
+
                 schema_parts.append(col_line)
 
             schema_parts.append("")  # Ligne vide entre tables
@@ -380,14 +384,16 @@ def toggle_pin_report(report_id: int) -> bool:
 # FONCTIONS CRUD - SETTINGS
 # ========================================
 
-def get_setting(key: str) -> str | None:
+def get_setting(key: str, default: str | None = None) -> str | None:
     """Récupère une valeur de configuration."""
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
-    result = cursor.fetchone()
-    conn.close()
-    return result["value"] if result else None
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        result = cursor.fetchone()
+        return result["value"] if result else default
+    finally:
+        conn.close()
 
 
 def set_setting(key: str, value: str):
@@ -563,5 +569,377 @@ def delete_all_suggested_questions():
     cursor.execute("DELETE FROM suggested_questions")
     conn.commit()
     conn.close()
+
+
+# ========================================
+# FONCTIONS CRUD - TABLES (ENABLE/DISABLE)
+# ========================================
+
+def toggle_table_enabled(table_id: int) -> bool:
+    """Inverse l'état is_enabled d'une table."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE tables
+        SET is_enabled = NOT is_enabled, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (table_id,))
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
+def set_table_enabled(table_id: int, enabled: bool) -> bool:
+    """Définit l'état is_enabled d'une table."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE tables
+        SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    """, (enabled, table_id))
+    conn.commit()
+    updated = cursor.rowcount > 0
+    conn.close()
+    return updated
+
+
+def get_table_by_id(table_id: int) -> dict | None:
+    """Récupère une table par son ID."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM tables WHERE id = ?", (table_id,))
+    result = cursor.fetchone()
+    conn.close()
+    return dict(result) if result else None
+
+
+# ========================================
+# FONCTIONS CRUD - CATALOG JOBS
+# ========================================
+
+def create_catalog_job(
+    job_type: str,
+    run_id: str,
+    total_steps: int,
+    details: Optional[dict[str, Any]] = None
+) -> int:
+    """
+    Crée un nouveau job de catalogue (extraction ou enrichment).
+
+    Args:
+        job_type: 'extraction' ou 'enrichment'
+        run_id: UUID de la run (commun pour extraction + enrichment)
+        total_steps: Nombre total de steps calculé dynamiquement
+        details: Contexte JSON (batch size, mode, etc.)
+
+    Returns:
+        ID du job créé
+    """
+    import json
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        details_json = json.dumps(details) if details else None
+
+        cursor.execute("""
+            INSERT INTO catalog_jobs (job_type, run_id, status, total_steps, details)
+            VALUES (?, ?, 'pending', ?, ?)
+        """, (job_type, run_id, total_steps, details_json))
+
+        conn.commit()
+        job_id = cursor.lastrowid
+        assert job_id is not None
+        return job_id
+    finally:
+        conn.close()
+
+
+def update_job_status(
+    job_id: int,
+    status: str,
+    current_step: Optional[str] = None,
+    step_index: Optional[int] = None,
+    error_message: Optional[str] = None
+):
+    """
+    Met à jour le statut d'un job.
+
+    Args:
+        job_id: ID du job
+        status: 'pending', 'running', 'completed', 'failed'
+        current_step: Nom du step actuel (ex: "llm_batch_2")
+        step_index: Index du step (0-based)
+        error_message: Message d'erreur si status='failed'
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # Calculer le progress si step_index fourni
+        if step_index is not None:
+            cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = ?", (job_id,))
+            row = cursor.fetchone()
+            if row and row['total_steps']:
+                progress = int((step_index + 1) / row['total_steps'] * 100)
+            else:
+                progress = 0
+
+            cursor.execute("""
+                UPDATE catalog_jobs
+                SET status = ?, current_step = ?, step_index = ?, progress = ?,
+                    error_message = ?, completed_at = CASE WHEN ? IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
+                WHERE id = ?
+            """, (status, current_step, step_index, progress, error_message, status, job_id))
+        else:
+            cursor.execute("""
+                UPDATE catalog_jobs
+                SET status = ?, current_step = ?, error_message = ?,
+                    completed_at = CASE WHEN ? IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
+                WHERE id = ?
+            """, (status, current_step, error_message, status, job_id))
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def update_job_result(job_id: int, result: dict[str, Any]):
+    """
+    Met à jour le résultat JSON d'un job complété.
+
+    Args:
+        job_id: ID du job
+        result: Dictionnaire avec les métriques (tables, columns, synonyms, kpis, questions)
+    """
+    import json
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        result_json = json.dumps(result)
+        cursor.execute("UPDATE catalog_jobs SET result = ? WHERE id = ?", (result_json, job_id))
+
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_catalog_job(job_id: int) -> dict | None:
+    """Récupère un job par son ID."""
+    import json
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM catalog_jobs WHERE id = ?", (job_id,))
+        result = cursor.fetchone()
+
+        if not result:
+            return None
+
+        job = dict(result)
+
+        # Parser les champs JSON
+        if job.get('details'):
+            try:
+                job['details'] = json.loads(job['details'])
+            except Exception:
+                pass
+
+        if job.get('result'):
+            try:
+                job['result'] = json.loads(job['result'])
+            except Exception:
+                pass
+
+        return job
+    finally:
+        conn.close()
+
+
+def get_catalog_jobs(limit: int = 50) -> list[dict]:
+    """
+    Récupère l'historique des jobs (plus récents en premier).
+
+    Args:
+        limit: Nombre max de jobs à retourner
+
+    Returns:
+        Liste des jobs avec leurs détails
+    """
+    import json
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT * FROM catalog_jobs
+            ORDER BY started_at DESC
+            LIMIT ?
+        """, (limit,))
+
+        results = [dict(row) for row in cursor.fetchall()]
+
+        # Parser les champs JSON
+        for job in results:
+            if job.get('details'):
+                try:
+                    job['details'] = json.loads(job['details'])
+                except Exception:
+                    pass
+
+            if job.get('result'):
+                try:
+                    job['result'] = json.loads(job['result'])
+                except Exception:
+                    pass
+
+        return results
+    finally:
+        conn.close()
+
+
+def get_run_jobs(run_id: str) -> list[dict]:
+    """
+    Récupère tous les jobs d'une run (extraction + enrichments).
+
+    Args:
+        run_id: UUID de la run
+
+    Returns:
+        Liste ordonnée: [extraction_job, enrichment_job, ...]
+    """
+    import json
+
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # Récupérer tous les jobs de cette run
+        cursor.execute("""
+            SELECT * FROM catalog_jobs
+            WHERE run_id = ?
+            ORDER BY started_at ASC
+        """, (run_id,))
+
+        jobs = [dict(row) for row in cursor.fetchall()]
+
+        # Parser JSON pour tous les jobs
+        for job in jobs:
+            if job.get('details'):
+                try:
+                    job['details'] = json.loads(job['details'])
+                except Exception:
+                    pass
+
+            if job.get('result'):
+                try:
+                    job['result'] = json.loads(job['result'])
+                except Exception:
+                    pass
+
+        return jobs
+    finally:
+        conn.close()
+
+
+def get_latest_run_id() -> str | None:
+    """
+    Récupère le run_id de la dernière extraction.
+
+    Returns:
+        run_id ou None si aucune run
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT run_id FROM catalog_jobs
+            WHERE job_type = 'extraction'
+            ORDER BY id DESC
+            LIMIT 1
+        """)
+
+        row = cursor.fetchone()
+        return row['run_id'] if row else None
+    finally:
+        conn.close()
+
+
+# ========================================
+# WORKFLOW MANAGER - Pattern Pro
+# ========================================
+
+class WorkflowManager:
+    """
+    Gestionnaire de workflow qui garantit la mise à jour du statut avant/après chaque étape.
+
+    Usage:
+        workflow = WorkflowManager(job_id=123, total_steps=5)
+
+        with workflow.step("extract_metadata"):
+            # Faire le travail
+            result = extract_metadata()
+
+        with workflow.step("save_catalog"):
+            # Faire le travail
+            save_catalog(result)
+    """
+
+    def __init__(self, job_id: int, total_steps: int):
+        self.job_id = job_id
+        self.total_steps = total_steps
+        self.current_step_index = 0
+
+    def step(self, name: str):
+        """Retourne un context manager pour une étape du workflow."""
+        return WorkflowStep(self, name)
+
+
+class WorkflowStep:
+    """Context manager pour une étape de workflow."""
+
+    def __init__(self, manager: WorkflowManager, name: str):
+        self.manager = manager
+        self.name = name
+
+    def __enter__(self):
+        """Marque l'étape comme 'running' AVANT son exécution."""
+        update_job_status(
+            job_id=self.manager.job_id,
+            status="running",
+            current_step=self.name,
+            step_index=self.manager.current_step_index
+        )
+        print(f"[WORKFLOW] Step {self.manager.current_step_index + 1}/{self.manager.total_steps}: {self.name}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, _exc_tb):
+        """
+        Gère la fin de l'étape.
+        - Si succès: incrémente le step_index
+        - Si erreur: marque le job comme 'failed'
+        """
+        if exc_type is None:
+            # Succès: passer à l'étape suivante
+            self.manager.current_step_index += 1
+        else:
+            # Erreur: marquer le job comme failed
+            error_msg = f"{exc_type.__name__}: {str(exc_val)[:200]}"
+            update_job_status(
+                job_id=self.manager.job_id,
+                status="failed",
+                error_message=error_msg
+            )
+            print(f"[WORKFLOW] ✗ Step failed: {error_msg}")
+
+        # Ne pas supprimer l'exception (return None = propagate)
+        return False
 
 
