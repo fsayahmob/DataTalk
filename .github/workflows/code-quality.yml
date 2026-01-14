@@ -86,7 +86,7 @@ jobs:
         run: |
           if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
             CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
-            RULE_COUNT=$(grep -E "'error'" "$CONFIG_FILE" | wc -l || echo "0")
+            RULE_COUNT=$(grep -E '"error"' "$CONFIG_FILE" | wc -l || echo "0")
             if [ "$RULE_COUNT" -lt 30 ]; then
               echo "::error::BLOCKED: Only $RULE_COUNT rules (minimum: 30)"
               exit 1
