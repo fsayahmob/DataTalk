@@ -1,0 +1,205 @@
+[project]
+name = "datatalk-backend"
+version = "0.1.0"
+description = "DataTalk Analytics Backend API"
+requires-python = ">=3.11"
+
+# ============================================================
+# RUFF - Python Linter & Formatter
+# ============================================================
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    "dist",
+    "build",
+    "*.egg-info",
+]
+
+[tool.ruff.lint]
+# Rule categories - STRICT selection (40+ categories)
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG",    # flake8-unused-arguments
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (commented code)
+    "PL",     # Pylint
+    "RUF",    # Ruff-specific
+    "S",      # flake8-bandit (SECURITY)
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "EXE",    # flake8-executable
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print (NO PRINT STATEMENTS)
+    "PYI",    # flake8-pyi
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "TID",    # flake8-tidy-imports
+    "INT",    # flake8-gettext
+    "FBT",    # flake8-boolean-trap
+    "LOG",    # flake8-logging
+    "N",      # pep8-naming
+    "ASYNC",  # flake8-async
+    "PERF",   # Perflint
+    "FURB",   # refurb
+]
+
+# Maximum 5 ignored rules - GUARD PROTECTED
+ignore = [
+    "COM812",   # Trailing comma conflicts with formatter
+    "ISC001",   # Single line implicit string concat
+    "S101",     # assert usage (needed for tests)
+    "PLR0913",  # Too many arguments (API endpoints need them)
+    "TCH003",   # AsyncGenerator runtime import
+]
+
+# Per-file exceptions
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004", "ARG001"]
+"**/routes/*" = ["ARG001", "B008"]
+"**/jobs/*" = ["T201"]  # Print allowed in batch jobs for logging
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-branches = 12
+max-returns = 6
+max-statements = 50
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.isort]
+known-first-party = ["datatalk"]
+force-single-line = false
+lines-after-imports = 2
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+# ============================================================
+# MYPY - Static Type Checking (STRICT MODE)
+# ============================================================
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+# All strict flags explicitly enabled
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+strict_optional = true
+strict_equality = true
+
+# Warnings
+warn_return_any = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+
+# Error output
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+
+# Per-module overrides for external libs
+[[tool.mypy.overrides]]
+module = [
+    "uvicorn",
+    "fastapi",
+    "pydantic",
+    "duckdb",
+    "litellm",
+    "instructor",
+]
+ignore_missing_imports = true
+
+# ============================================================
+# BLACK - Code Formatter (backup, Ruff preferred)
+# ============================================================
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | \.mypy_cache
+  | dist
+  | build
+)/
+'''
+
+# ============================================================
+# PYTEST - Testing
+# ============================================================
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+]
+markers = [
+    "slow: marks tests as slow",
+    "integration: marks tests as integration tests",
+]
+
+# ============================================================
+# COVERAGE - Code Coverage
+# ============================================================
+[tool.coverage.run]
+source = ["."]
+branch = true
+omit = [
+    "tests/*",
+    "*/__pycache__/*",
+    ".venv/*",
+    "venv/*",
+]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]

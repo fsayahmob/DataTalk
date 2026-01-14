@@ -1,0 +1,20 @@
+# ============================================================
+# CODEOWNERS - Protection des fichiers de configuration
+# ============================================================
+# Ces fichiers ne peuvent être modifiés que par les owners
+# Toute PR touchant ces fichiers nécessite une review obligatoire
+
+# Workflows CI/CD - CRITIQUE
+.github/workflows/ @fsayahmob
+
+# Configuration linters - PROTÉGÉ
+frontend/eslint.config.js @fsayahmob
+frontend/eslint.config.mjs @fsayahmob
+frontend/tsconfig.json @fsayahmob
+backend/pyproject.toml @fsayahmob
+
+# Ce fichier lui-même
+.github/CODEOWNERS @fsayahmob
+
+# Instructions IA
+CLAUDE.md @fsayahmob

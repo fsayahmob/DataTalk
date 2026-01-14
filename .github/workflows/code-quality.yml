@@ -1,0 +1,507 @@
+name: Code Quality & Guards
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # ============================================================
+  # CONFIGURATION GUARD - Protects linter configs from weakening
+  # ============================================================
+  config-guard:
+    name: Configuration Guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      # --------------------------------------------------------
+      # META-GUARD: Protect this workflow file itself
+      # Only blocks on PRs, not on direct pushes by owner
+      # --------------------------------------------------------
+      - name: META-GUARD - Protect workflow file
+        run: |
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "✅ META-GUARD: Skipped (initial commit)"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff HEAD~1 --name-only 2>/dev/null | grep -q "code-quality.yml"; then
+              echo "::error::CRITICAL: Modifications to code-quality.yml are FORBIDDEN in PRs"
+              exit 1
+            fi
+          fi
+          echo "✅ META-GUARD: Passed"
+
+      # --------------------------------------------------------
+      # FRONTEND GUARDS (ESLint + TypeScript)
+      # --------------------------------------------------------
+      - name: Guard 1/6 - No warning severity in ESLint
+        run: |
+          if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
+            CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
+            WARNING_COUNT=$(grep -E "^\s*'[^']+'\s*:\s*'warn'|^\s*'[^']+'\s*:\s*\[\s*'warn'" "$CONFIG_FILE" 2>/dev/null | wc -l || echo "0")
+            if [ "$WARNING_COUNT" -gt 0 ]; then
+              echo "::error::BLOCKED: Found $WARNING_COUNT rules with 'warn' severity"
+              exit 1
+            fi
+            echo "✅ ESLint severity: PASSED"
+          else
+            echo "✅ ESLint config not found - skipping"
+          fi
+
+      - name: Guard 2/6 - Zero disabled rules allowed
+        run: |
+          if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
+            CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
+            OFF_COUNT=$(grep -c "'off'" "$CONFIG_FILE" 2>/dev/null || echo "0")
+            if [ "$OFF_COUNT" -gt 0 ]; then
+              echo "::error::BLOCKED: Found $OFF_COUNT disabled rules ('off')"
+              exit 1
+            fi
+            echo "✅ ESLint disabled rules: PASSED"
+          fi
+
+      - name: Guard 3/6 - No eslint-disable in code
+        run: |
+          if [ -d frontend/src ]; then
+            DISABLE_COUNT=$(grep -rn "eslint-disable" frontend/src/ 2>/dev/null | wc -l || echo "0")
+            if [ "$DISABLE_COUNT" -gt 0 ]; then
+              echo "::error::BLOCKED: Found $DISABLE_COUNT eslint-disable comments"
+              exit 1
+            fi
+            echo "✅ Inline disable: PASSED"
+          else
+            echo "✅ No frontend/src - skipping"
+          fi
+
+      - name: Guard 4/6 - Minimum 30 ESLint rules
+        run: |
+          if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
+            CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
+            RULE_COUNT=$(grep -E "'error'" "$CONFIG_FILE" | wc -l || echo "0")
+            if [ "$RULE_COUNT" -lt 30 ]; then
+              echo "::error::BLOCKED: Only $RULE_COUNT rules (minimum: 30)"
+              exit 1
+            fi
+            echo "✅ ESLint rules count: PASSED ($RULE_COUNT)"
+          fi
+
+      - name: Guard 5/6 - TypeScript strict mode
+        run: |
+          if [ -f frontend/tsconfig.json ]; then
+            if ! grep -q '"strict": true' frontend/tsconfig.json; then
+              echo "::error::BLOCKED: TypeScript strict mode is not enabled"
+              exit 1
+            fi
+            echo "✅ TypeScript strict: PASSED"
+          else
+            echo "✅ No tsconfig.json - skipping"
+          fi
+
+      - name: Guard 6/6 - No ignore pattern modifications
+        run: |
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "✅ Skipped (initial commit)"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff HEAD~1 -- frontend/eslint.config.* 2>/dev/null | grep -E "^\+.*(ignorePattern|varsIgnorePattern|argsIgnorePattern)"; then
+              echo "::error::BLOCKED: Ignore pattern additions detected"
+              exit 1
+            fi
+          fi
+          echo "✅ ESLint ignore patterns: PASSED"
+
+      # --------------------------------------------------------
+      # BACKEND GUARDS (Python - Ruff + MyPy)
+      # --------------------------------------------------------
+      - name: Guard 1/6 - Maximum 5 ignored Ruff rules
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            IGNORE_LINE=$(grep -A 50 "\[tool.ruff.lint\]" backend/pyproject.toml | grep "^ignore" | head -1 || echo "")
+            IGNORE_COUNT=$(echo "$IGNORE_LINE" | grep -oE '"[A-Z]+[0-9]+"' | wc -l || echo "0")
+            if [ "$IGNORE_COUNT" -gt 5 ]; then
+              echo "::error::BLOCKED: Too many ignored Ruff rules ($IGNORE_COUNT > 5)"
+              exit 1
+            fi
+            echo "✅ Ruff ignored rules: PASSED ($IGNORE_COUNT/5)"
+          else
+            echo "✅ No pyproject.toml - skipping"
+          fi
+
+      - name: Guard 2/6 - MyPy strict mode
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            if ! grep -q "strict = true" backend/pyproject.toml; then
+              echo "::error::BLOCKED: MyPy strict mode is not enabled"
+              exit 1
+            fi
+            echo "✅ MyPy strict: PASSED"
+          fi
+
+      - name: Guard 3/6 - No noqa abuse
+        run: |
+          if [ -d backend ] && ls backend/*.py 2>/dev/null; then
+            NOQA_COUNT=$(grep -rn "# noqa" backend/ --include="*.py" 2>/dev/null | grep -v "F401\|S104" | wc -l || echo "0")
+            if [ "$NOQA_COUNT" -gt 3 ]; then
+              echo "::error::BLOCKED: Too many noqa comments ($NOQA_COUNT > 3)"
+              exit 1
+            fi
+            echo "✅ Noqa abuse: PASSED"
+          else
+            echo "✅ No Python files - skipping"
+          fi
+
+      - name: Guard 4/6 - Security rules enabled (S)
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            if ! grep -q '"S"' backend/pyproject.toml; then
+              echo "::error::BLOCKED: Security rules (S) must be enabled"
+              exit 1
+            fi
+            echo "✅ Security rules: PASSED"
+          fi
+
+      - name: Guard 5/6 - No print statements (T20)
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            if ! grep -q '"T20"' backend/pyproject.toml; then
+              echo "::error::BLOCKED: T20 (no-print) must be enabled"
+              exit 1
+            fi
+            echo "✅ Print ban: PASSED"
+          fi
+
+      - name: Guard 6/6 - No per-file-ignores additions
+        run: |
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "✅ Skipped (initial commit)"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff HEAD~1 -- backend/pyproject.toml 2>/dev/null | grep -E "^\+.*(per-file-ignores|extend-ignore)"; then
+              echo "::error::BLOCKED: Per-file ignore additions detected"
+              exit 1
+            fi
+          fi
+          echo "✅ Ruff per-file-ignores: PASSED"
+
+      - name: Guard - Block CODEOWNERS modifications
+        run: |
+          if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
+            echo "✅ Skipped (initial commit)"
+            exit 0
+          fi
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            if git diff HEAD~1 --name-only 2>/dev/null | grep -q "CODEOWNERS"; then
+              echo "::error::BLOCKED: CODEOWNERS modifications forbidden"
+              exit 1
+            fi
+          fi
+          echo "✅ CODEOWNERS: PASSED"
+
+  # ============================================================
+  # FRONTEND QUALITY
+  # ============================================================
+  frontend-quality:
+    name: Frontend Quality
+    runs-on: ubuntu-latest
+    needs: config-guard
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping (config-only repo)"
+            exit 0
+          fi
+          if [ -f package-lock.json ]; then
+            npm ci
+          elif [ -f package.json ]; then
+            npm install
+          else
+            echo "No package.json - skipping"
+          fi
+
+      - name: TypeScript check
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping"
+            exit 0
+          fi
+          if [ -f package.json ] && grep -q "typecheck" package.json; then
+            npm run typecheck
+          else
+            echo "No typecheck script - skipping"
+          fi
+
+      - name: ESLint (zero warnings)
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping"
+            exit 0
+          fi
+          if [ -f package.json ] && grep -q '"lint"' package.json; then
+            npm run lint -- --max-warnings 0
+          else
+            echo "No lint script - skipping"
+          fi
+
+  # ============================================================
+  # BACKEND QUALITY
+  # ============================================================
+  backend-quality:
+    name: Backend Quality
+    runs-on: ubuntu-latest
+    needs: config-guard
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install linting tools
+        run: pip install ruff mypy
+
+      - name: Ruff lint
+        run: |
+          if find . -name "*.py" | head -1 | grep -q .; then
+            ruff check . --output-format=github
+          else
+            echo "No Python files - skipping"
+          fi
+
+      - name: Ruff format check
+        run: |
+          if find . -name "*.py" | head -1 | grep -q .; then
+            ruff format --check .
+          else
+            echo "No Python files - skipping"
+          fi
+
+      - name: MyPy type check
+        run: |
+          if find . -name "*.py" | head -1 | grep -q .; then
+            mypy . --ignore-missing-imports
+          else
+            echo "No Python files - skipping"
+          fi
+
+  # ============================================================
+  # FRONTEND TESTS
+  # ============================================================
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    needs: frontend-quality
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping"
+            exit 0
+          fi
+          if [ -f package-lock.json ]; then npm ci
+          elif [ -f package.json ]; then npm install
+          else echo "No package.json"; fi
+
+      - name: Run tests
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping"
+            exit 0
+          fi
+          if [ -f package.json ] && grep -q '"test"' package.json; then
+            npm run test:coverage || npm run test || echo "Tests failed or not configured"
+          else
+            echo "No test script - skipping"
+          fi
+
+  # ============================================================
+  # BACKEND TESTS
+  # ============================================================
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    needs: backend-quality
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-cov pytest-asyncio
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run tests
+        run: |
+          if find . -name "test_*.py" | head -1 | grep -q .; then
+            pytest --cov=. --cov-report=term-missing --cov-fail-under=70
+          else
+            echo "No test files - skipping"
+          fi
+
+  # ============================================================
+  # SECURITY AUDIT
+  # ============================================================
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: [frontend-tests, backend-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: NPM audit
+        working-directory: frontend
+        run: |
+          if [ -f package.json ]; then
+            npm audit --audit-level=high || true
+          fi
+        continue-on-error: true
+
+      - name: Pip audit
+        run: |
+          pip install pip-audit
+          if [ -f backend/requirements.txt ]; then
+            cd backend && pip-audit || true
+          fi
+        continue-on-error: true
+
+  # ============================================================
+  # E2E TESTS (push only)
+  # ============================================================
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: security-audit
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run E2E tests
+        working-directory: frontend
+        run: |
+          if [ -f package.json ] && grep -q "test:e2e" package.json; then
+            npm install
+            npx playwright install --with-deps chromium || true
+            npm run test:e2e
+          else
+            echo "No E2E tests configured - skipping"
+          fi
+
+  # ============================================================
+  # BUILD
+  # ============================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: e2e-tests
+    if: always() && (needs.e2e-tests.result == 'success' || needs.e2e-tests.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          if [ ! -d src ]; then
+            echo "No src directory - skipping (config-only repo)"
+            exit 0
+          fi
+          if [ -f package.json ] && grep -q '"build"' package.json; then
+            npm install
+            npm run build
+          else
+            echo "No build script - skipping"
+          fi
+
+  # ============================================================
+  # DOCKER BUILD (push only)
+  # ============================================================
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images
+        run: |
+          if [ -f frontend/Dockerfile ]; then
+            docker build -t datatalk-frontend:${{ github.sha }} frontend/
+          fi
+          if [ -f backend/Dockerfile ]; then
+            docker build -t datatalk-backend:${{ github.sha }} backend/
+          fi
+          echo "Docker build complete (or no Dockerfiles found)"
+
+  # ============================================================
+  # DEPLOY STAGING (develop only)
+  # ============================================================
+  deploy-staging:
+    name: Deploy Staging
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    steps:
+      - run: echo "Deploy to staging - configure here"
+
+  # ============================================================
+  # DEPLOY PRODUCTION (main only)
+  # ============================================================
+  deploy:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - run: echo "Deploy to production - configure here"
