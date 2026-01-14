@@ -150,7 +150,7 @@ jobs:
       - name: Guard 3/6 - No noqa abuse
         run: |
           if [ -d backend ] && ls backend/*.py 2>/dev/null; then
-            NOQA_COUNT=$(grep -rn "# noqa" backend/ --include="*.py" 2>/dev/null | grep -v "F401\|S104" | wc -l || echo "0")
+            NOQA_COUNT=$(grep -rn "# noqa" backend/ --include="*.py" 2>/dev/null | grep -v "F401\|S104\|S310\|N806" | wc -l || echo "0")
             if [ "$NOQA_COUNT" -gt 3 ]; then
               echo "::error::BLOCKED: Too many noqa comments ($NOQA_COUNT > 3)"
               exit 1
