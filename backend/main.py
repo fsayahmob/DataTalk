@@ -33,6 +33,7 @@ from catalog import (
     get_conversations,
     get_latest_run_id,
     get_messages,
+    get_report_by_token,
     get_run_jobs,
     get_saved_reports,
     get_schema_for_llm,
@@ -736,15 +737,15 @@ async def list_reports():
 
 @app.post("/reports")
 async def create_report(request: SaveReportRequest):
-    """Sauvegarde un nouveau rapport."""
-    report_id = save_report(
+    """Sauvegarde un nouveau rapport avec token de partage."""
+    result = save_report(
         title=request.title,
         question=request.question,
         sql_query=request.sql_query,
         chart_config=request.chart_config,
         message_id=request.message_id,
     )
-    return {"id": report_id, "message": t("report.saved")}
+    return {"id": result["id"], "share_token": result["share_token"], "message": t("report.saved")}
 
 
 @app.delete("/reports/{report_id}")
@@ -795,6 +796,39 @@ async def execute_report(report_id: int):
         return {
             "report_id": report_id,
             "title": report.get("title", ""),
+            "sql": sql_query,
+            "chart": chart_config,
+            "data": data,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=t("db.query_error", error=str(e))) from e
+
+
+@app.get("/reports/shared/{share_token}")
+async def get_shared_report(share_token: str):
+    """
+    Accès public à un rapport partagé via son token.
+    Exécute la requête SQL et retourne les données.
+    """
+    report = get_report_by_token(share_token)
+    if not report:
+        raise HTTPException(status_code=404, detail=t("report.not_found"))
+
+    sql_query = report.get("sql_query")
+    if not sql_query:
+        raise HTTPException(status_code=400, detail=t("report.no_sql"))
+
+    try:
+        data = execute_query(sql_query)
+
+        chart_config = {"type": "none", "x": "", "y": "", "title": ""}
+        if report.get("chart_config"):
+            with contextlib.suppress(json.JSONDecodeError):
+                chart_config = json.loads(report["chart_config"])
+
+        return {
+            "title": report.get("title", ""),
+            "question": report.get("question", ""),
             "sql": sql_query,
             "chart": chart_config,
             "data": data,

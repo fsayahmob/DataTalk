@@ -254,6 +254,28 @@ export async function executeReport(
   return data;
 }
 
+// Type pour la réponse d'un rapport partagé
+export interface SharedReportResponse {
+  title: string;
+  question: string;
+  sql: string;
+  chart: ChartConfig;
+  data: Record<string, unknown>[];
+}
+
+export async function fetchSharedReport(
+  shareToken: string
+): Promise<SharedReportResponse> {
+  const res = await fetch(`${API_BASE}/reports/shared/${shareToken}`);
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.detail || "Rapport non trouvé");
+  }
+
+  return data;
+}
+
 // Conversations
 export async function fetchConversations(): Promise<
   import("@/types").Conversation[]

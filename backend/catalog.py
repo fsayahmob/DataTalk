@@ -8,6 +8,7 @@ NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
 
 import contextlib
 import json
+import uuid
 from typing import Any
 
 from db import get_connection
@@ -383,23 +384,24 @@ def save_report(
     chart_config: str | None = None,
     message_id: int | None = None,
     is_pinned: bool = False,
-) -> int:
-    """Sauvegarde un rapport."""
+) -> dict:
+    """Sauvegarde un rapport avec génération automatique du token de partage."""
+    share_token = str(uuid.uuid4())
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
         INSERT INTO saved_reports
-        (title, question, sql_query, chart_config, message_id, is_pinned)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (title, question, sql_query, chart_config, message_id, is_pinned, share_token)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """,
-        (title, question, sql_query, chart_config, message_id, is_pinned),
+        (title, question, sql_query, chart_config, message_id, is_pinned, share_token),
     )
     conn.commit()
     report_id = cursor.lastrowid
     assert report_id is not None, "INSERT should always return a lastrowid"
     conn.close()
-    return report_id
+    return {"id": report_id, "share_token": share_token}
 
 
 def get_saved_reports() -> list[dict]:
@@ -442,6 +444,19 @@ def toggle_pin_report(report_id: int) -> bool:
     updated = cursor.rowcount > 0
     conn.close()
     return updated
+
+
+def get_report_by_token(share_token: str) -> dict | None:
+    """Récupère un rapport par son token de partage (accès public)."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT * FROM saved_reports WHERE share_token = ?",
+        (share_token,),
+    )
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 # ========================================

@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS saved_reports (
     chart_config TEXT,  -- JSON: {"type": "bar", "x": "col", "y": "col", "title": "..."}
     message_id INTEGER,  -- Référence au message d'origine (optionnel)
     is_pinned BOOLEAN DEFAULT FALSE,
+    share_token TEXT UNIQUE,  -- UUID pour partage public (généré à la sauvegarde)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
 );

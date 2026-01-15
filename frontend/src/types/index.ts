@@ -52,6 +52,7 @@ export interface SavedReport {
   sql_query: string;
   chart_config?: string; // JSON de la config du graphique
   is_pinned: boolean;
+  share_token: string; // UUID pour partage public
   created_at: string;
 }
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { SavedReport } from "@/types";
-import { ChartIcon, ChevronRightIcon, SaveIcon } from "@/components/icons";
+import { ChartIcon, ChevronRightIcon, SaveIcon, ShareIcon } from "@/components/icons";
 import { KpiGridCompact } from "@/components/KpiCardCompact";
 import { fetchKpis, KpiCompactData } from "@/lib/api";
 
@@ -119,15 +120,29 @@ export function AnalyticsZone({
                           {report.is_pinned ? <span className="text-primary mr-1">●</span> : null}
                           {report.title}
                         </p>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onReportDelete(report.id);
-                          }}
-                          className="text-[8px] text-destructive opacity-0 group-hover:opacity-100 ml-1"
-                        >
-                          ✕
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const shareUrl = `${window.location.origin}/report/${report.share_token}`;
+                              navigator.clipboard.writeText(shareUrl);
+                              toast.success("Lien copié", { description: shareUrl });
+                            }}
+                            className="text-[8px] text-primary hover:text-primary/80"
+                            title="Copier le lien de partage"
+                          >
+                            <ShareIcon size={10} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onReportDelete(report.id);
+                            }}
+                            className="text-[8px] text-destructive"
+                          >
+                            ✕
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
