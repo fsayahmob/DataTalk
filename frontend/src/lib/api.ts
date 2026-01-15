@@ -620,6 +620,30 @@ export async function setMaxTablesPerBatch(value: number): Promise<boolean> {
   }
 }
 
+export async function fetchMaxChartRows(): Promise<number> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/max_chart_rows`);
+    if (!res.ok) return 5000; // Default value
+    const data = await res.json();
+    return parseInt(data.value, 10) || 5000;
+  } catch {
+    return 5000;
+  }
+}
+
+export async function setMaxChartRows(value: number): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/settings/max_chart_rows`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: String(value) }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 // ============ Widgets dynamiques ============
 
 export interface WidgetChartConfig {

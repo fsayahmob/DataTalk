@@ -13,8 +13,10 @@ import {
 } from "@/components/ui/table";
 import * as api from "@/lib/api";
 import type { DatabaseStatus } from "@/lib/api";
+import { useTranslation } from "@/hooks/useTranslation";
 
 export function DatabaseTab() {
+  const { t } = useTranslation();
   const [status, setStatus] = useState<DatabaseStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -24,12 +26,17 @@ export function DatabaseTab() {
   const [editingBatch, setEditingBatch] = useState(false);
   const [newBatch, setNewBatch] = useState("15");
   const [savingBatch, setSavingBatch] = useState(false);
+  const [maxChartRows, setMaxChartRows] = useState(5000);
+  const [editingChartRows, setEditingChartRows] = useState(false);
+  const [newChartRows, setNewChartRows] = useState("5000");
+  const [savingChartRows, setSavingChartRows] = useState(false);
 
   const loadStatus = useCallback(async () => {
     setLoading(true);
-    const [data, batchValue] = await Promise.all([
+    const [data, batchValue, chartRowsValue] = await Promise.all([
       api.fetchDatabaseStatus(),
       api.fetchMaxTablesPerBatch(),
+      api.fetchMaxChartRows(),
     ]);
     setStatus(data);
     if (data) {
@@ -37,6 +44,8 @@ export function DatabaseTab() {
     }
     setMaxBatch(batchValue);
     setNewBatch(String(batchValue));
+    setMaxChartRows(chartRowsValue);
+    setNewChartRows(String(chartRowsValue));
     setLoading(false);
   }, []);
 
@@ -48,17 +57,17 @@ export function DatabaseTab() {
 
   const handleSave = async () => {
     if (!newPath.trim()) {
-      toast.error("Chemin requis");
+      toast.error(t("settings.path_required"));
       return;
     }
     setSaving(true);
     const result = await api.setDuckdbPath(newPath.trim());
     if (result.success) {
-      toast.success(`Connecté à: ${result.resolved_path}`);
+      toast.success(t("settings.db_connected", { path: result.resolved_path }));
       setEditing(false);
       await loadStatus();
     } else {
-      toast.error(result.error || "Erreur");
+      toast.error(result.error || t("common.error"));
     }
     setSaving(false);
   };
@@ -73,7 +82,7 @@ export function DatabaseTab() {
   const handleSaveBatch = async () => {
     const val = parseInt(newBatch, 10);
     if (isNaN(val) || val < 1 || val > 50) {
-      toast.error("Valeur entre 1 et 50");
+      toast.error(t("validation.range_error", { min: 1, max: 50 }));
       return;
     }
     setSavingBatch(true);
@@ -81,9 +90,9 @@ export function DatabaseTab() {
     if (success) {
       setMaxBatch(val);
       setEditingBatch(false);
-      toast.success(`Batch size: ${val} tables`);
+      toast.success(t("settings.batch_size_updated", { value: val }));
     } else {
-      toast.error("Erreur de sauvegarde");
+      toast.error(t("settings.save_error"));
     }
     setSavingBatch(false);
   };
@@ -91,6 +100,29 @@ export function DatabaseTab() {
   const handleCancelBatch = () => {
     setEditingBatch(false);
     setNewBatch(String(maxBatch));
+  };
+
+  const handleSaveChartRows = async () => {
+    const val = parseInt(newChartRows, 10);
+    if (isNaN(val) || val < 100 || val > 100000) {
+      toast.error(t("validation.range_error", { min: 100, max: "100 000" }));
+      return;
+    }
+    setSavingChartRows(true);
+    const success = await api.setMaxChartRows(val);
+    if (success) {
+      setMaxChartRows(val);
+      setEditingChartRows(false);
+      toast.success(t("settings.chart_rows_updated", { value: val.toLocaleString() }));
+    } else {
+      toast.error(t("settings.save_error"));
+    }
+    setSavingChartRows(false);
+  };
+
+  const handleCancelChartRows = () => {
+    setEditingChartRows(false);
+    setNewChartRows(String(maxChartRows));
   };
 
   if (loading) {
@@ -231,12 +263,66 @@ export function DatabaseTab() {
               )}
             </TableCell>
           </TableRow>
+          <TableRow>
+            <TableCell className="text-xs text-muted-foreground">Max Chart Rows</TableCell>
+            <TableCell>
+              {editingChartRows ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={100}
+                    max={100000}
+                    value={newChartRows}
+                    onChange={(e) => setNewChartRows(e.target.value)}
+                    className="h-7 text-xs font-mono w-24"
+                    disabled={savingChartRows}
+                  />
+                  <span className="text-[10px] text-muted-foreground">lignes</span>
+                  <Button
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => void handleSaveChartRows()}
+                    disabled={savingChartRows}
+                  >
+                    {savingChartRows ? "..." : "OK"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 text-xs"
+                    onClick={handleCancelChartRows}
+                    disabled={savingChartRows}
+                  >
+                    Annuler
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-foreground">
+                    {maxChartRows.toLocaleString()} lignes
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => setEditingChartRows(true)}
+                  >
+                    Modifier
+                  </Button>
+                </div>
+              )}
+            </TableCell>
+          </TableRow>
         </TableBody>
       </Table>
-      <div className="px-3 py-2 border-t border-border/20">
+      <div className="px-3 py-2 border-t border-border/20 space-y-1">
         <p className="text-[10px] text-muted-foreground">
-          Batch Size: nombre de tables envoyées au LLM par requête lors de l&apos;enrichissement.
+          <strong>Batch Size:</strong> nombre de tables envoyées au LLM par requête lors de l&apos;enrichissement.
           Réduire si erreur &quot;too many states&quot; avec Vertex AI.
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          <strong>Max Chart Rows:</strong> au-delà de cette limite, les graphiques sont désactivés.
+          Le tableau paginé reste disponible.
         </p>
       </div>
     </div>

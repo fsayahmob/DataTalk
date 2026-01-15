@@ -15,19 +15,19 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
     switch (data.status) {
       case 'completed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-green-500 border-2 border-[hsl(220_10%_10%)] flex items-center justify-center">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
             <span className="text-white text-xs">✓</span>
           </div>
         );
       case 'running':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-blue-500 border-2 border-[hsl(220_10%_10%)] flex items-center justify-center animate-pulse">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-blue-500 border-2 border-background flex items-center justify-center animate-pulse">
             <span className="text-white text-xs animate-spin">⟳</span>
           </div>
         );
       case 'failed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-[hsl(220_10%_10%)] flex items-center justify-center">
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-background flex items-center justify-center">
             <span className="text-white text-xs">✗</span>
           </div>
         );
@@ -47,7 +47,7 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
 
   return (
     <>
-      <div className={`relative px-4 py-3 rounded-lg border-2 ${getBorderColor()} transition-all min-w-[180px] bg-[hsl(220_10%_10%)] shadow-sm`}>
+      <div className={`relative px-4 py-3 rounded-lg border-2 ${getBorderColor()} transition-all min-w-[180px] bg-background shadow-sm`}>
         {/* Status Badge */}
         {getStatusBadge()}
 

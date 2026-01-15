@@ -6,6 +6,7 @@ import type { CatalogTable } from "@/lib/api";
 import { useEffect, useState } from "react";
 import * as api from "@/lib/api";
 import { toast } from "sonner";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface TableDetailPanelProps {
   table: CatalogTable;
@@ -14,6 +15,7 @@ interface TableDetailPanelProps {
 }
 
 export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailPanelProps) {
+  const { t } = useTranslation();
   // L'état vient directement des props (géré par le parent)
   const isEnabled = table.is_enabled ?? true;
 
@@ -36,13 +38,13 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
   const handleSaveDescription = async (columnId: number) => {
     const trimmed = editingDescription.trim();
     if (!trimmed) {
-      toast.error("La description ne peut pas être vide");
+      toast.error(t("catalog.description_empty"));
       return;
     }
 
     const success = await api.updateColumnDescription(columnId, trimmed);
     if (success) {
-      toast.success("Description mise à jour");
+      toast.success(t("catalog.description_updated"));
       // Mettre à jour localement
       const column = table.columns.find(c => c.id === columnId);
       if (column) {
@@ -50,7 +52,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       }
       setEditingColumnId(null);
     } else {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(t("catalog.update_error"));
     }
   };
 
@@ -70,7 +72,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
   };
 
   return (
-    <div className="w-[400px] border-l border-border/30 bg-[hsl(220_10%_8%)] flex flex-col overflow-hidden">
+    <div className="w-[400px] border-l border-border/30 bg-sidebar flex flex-col overflow-hidden">
       {/* Header */}
       <div className={`px-4 py-3 border-b border-border/30 flex items-center justify-between ${
         !isEnabled
@@ -84,17 +86,17 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
             <h3 className={`font-mono font-bold ${isEnabled ? "text-foreground" : "text-muted-foreground"}`}>{table.name}</h3>
             {!isEnabled && (
               <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted-foreground/20 text-muted-foreground uppercase">
-                Exclue
+                {t("catalog.excluded")}
               </span>
             )}
             {isEnabled && !isEnriched && (
               <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 uppercase">
-                Non enrichie
+                {t("catalog.not_enriched")}
               </span>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {table.row_count?.toLocaleString() || 0} lignes
+            {table.row_count?.toLocaleString() || 0} {t("common.rows")}
           </p>
         </div>
         <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={onClose}>
@@ -105,9 +107,9 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {/* Toggle enable/disable */}
       <div className="px-4 py-3 border-b border-border/20 flex items-center justify-between bg-secondary/20">
         <div>
-          <p className="text-sm font-medium">Inclure dans l&apos;enrichissement</p>
+          <p className="text-sm font-medium">{t("catalog.include_enrichment")}</p>
           <p className="text-xs text-muted-foreground">
-            {isEnabled ? "Sera enrichie au prochain clic sur « Enrichir »" : "Exclue de l&apos;enrichissement LLM"}
+            {isEnabled ? t("catalog.will_be_enriched") : t("catalog.excluded_from_enrichment")}
           </p>
         </div>
         <button
@@ -132,8 +134,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {isEnabled && !isEnriched && (
         <div className="px-4 py-3 border-b border-border/20 bg-amber-500/10">
           <p className="text-xs text-amber-400">
-            Cette table n&apos;a pas encore été enrichie par le LLM.
-            Cliquez sur « Enrichir » pour générer les descriptions.
+            {t("catalog.not_enriched_warning")}
           </p>
         </div>
       )}
@@ -148,11 +149,11 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {/* Tableau des colonnes */}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-[hsl(220_10%_10%)] border-b border-border/30">
+          <thead className="sticky top-0 bg-background border-b border-border/30">
             <tr>
-              <th className="text-left px-3 py-2 font-medium text-muted-foreground">Colonne</th>
-              <th className="text-left px-3 py-2 font-medium text-muted-foreground">Type</th>
-              <th className="text-left px-3 py-2 font-medium text-muted-foreground">Description</th>
+              <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t("catalog.column")}</th>
+              <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t("catalog.type")}</th>
+              <th className="text-left px-3 py-2 font-medium text-muted-foreground">{t("catalog.description")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/10">
@@ -202,9 +203,9 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
                       className={`cursor-pointer hover:bg-primary/10 rounded px-1 -mx-1 py-0.5 ${
                         col.description ? "text-foreground/80" : "text-muted-foreground/50 italic"
                       }`}
-                      title="Cliquer pour éditer"
+                      title={t("catalog.click_to_edit")}
                     >
-                      {col.description || "Ajouter une description..."}
+                      {col.description || t("catalog.add_description")}
                     </span>
                   )}
                 </td>
@@ -215,23 +216,23 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       </div>
 
       {/* Contexte des valeurs (full_context avec statistiques) */}
-      <div className="border-t border-border/30 p-3 bg-[hsl(220_10%_6%)]">
+      <div className="border-t border-border/30 p-3 bg-sidebar">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground">
-            Analyse des valeurs
+            {t("catalog.value_analysis")}
           </h4>
           <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-mono ${
             contextMode === "full"
               ? "bg-primary/20 text-primary"
               : "bg-amber-500/20 text-amber-400"
           }`}>
-            Mode: {contextMode}
+            {t("prompts.mode_label", { mode: contextMode })}
           </span>
         </div>
         <div className="text-[10px] text-muted-foreground/70 mb-2">
           {contextMode === "full"
-            ? "✓ Toutes les statistiques seront envoyées au LLM"
-            : "⚠️ Seuls nom, type, description et range seront envoyés"}
+            ? t("catalog.full_stats_sent")
+            : t("catalog.compact_stats_sent")}
         </div>
         <div className="space-y-1.5 max-h-64 overflow-auto">
           {table.columns

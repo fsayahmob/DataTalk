@@ -27,6 +27,10 @@ export interface Message {
   sql_error?: string;
   chart?: ChartConfig;
   data?: Record<string, unknown>[];
+  // Protection chart pour gros volumes
+  chart_disabled?: boolean;
+  chart_disabled_reason?: string;
+  // Métadonnées de performance
   model_name?: string;
   tokens_input?: number;
   tokens_output?: number;

@@ -25,6 +25,7 @@ import {
   getLayoutedElements,
 } from "@/components/catalog";
 import * as api from "@/lib/api";
+import { t } from "@/hooks/useTranslation";
 
 const nodeTypes = { schemaNode: SchemaNode };
 
@@ -101,19 +102,19 @@ function CatalogPageContent() {
   const handleExtract = useCallback(async () => {
     setIsExtracting(true);
     setSelectedTable(null);
-    toast.info("Extraction du schéma en cours...", {
-      description: "Sans enrichissement LLM",
+    toast.info(t("catalog.extracting"), {
+      description: t("catalog.extraction_no_llm"),
     });
 
     const result = await api.extractCatalog();
 
     if (result) {
-      toast.success("Schéma extrait", {
-        description: `${result.tables_count} tables, ${result.columns_count} colonnes. Sélectionnez les tables à enrichir.`,
+      toast.success(t("catalog.schema_extracted"), {
+        description: t("catalog.extraction_result", { tables: result.tables_count, columns: result.columns_count }),
       });
       await refreshCatalog();
     } else {
-      toast.error("Erreur lors de l'extraction");
+      toast.error(t("catalog.extraction_error"));
     }
 
     setIsExtracting(false);
@@ -123,22 +124,22 @@ function CatalogPageContent() {
   const handleEnrich = useCallback(async () => {
     // Récupérer les IDs des tables activées (sélection locale)
     const selectedTableIds = allCurrentTables
-      .filter((t) => t.is_enabled && t.id)
-      .map((t) => t.id as number);
+      .filter((table) => table.is_enabled && table.id)
+      .map((table) => table.id as number);
 
     if (selectedTableIds.length === 0) {
-      toast.error("Aucune table sélectionnée", {
-        description: "Cochez au moins une table avant d'enrichir",
+      toast.error(t("catalog.no_tables_selected"), {
+        description: t("catalog.select_tables_hint"),
       });
       return;
     }
 
     const llmStatus = await api.fetchLLMStatus();
     if (llmStatus.status === "error") {
-      toast.error("LLM non configuré", {
-        description: "Configurez une clé API dans Paramètres > Modèles LLM",
+      toast.error(t("catalog.llm_not_configured"), {
+        description: t("catalog.llm_configure_hint"),
         action: {
-          label: "Configurer",
+          label: t("catalog.configure"),
           onClick: () => window.location.href = "/settings",
         },
       });
@@ -147,8 +148,8 @@ function CatalogPageContent() {
 
     setIsEnriching(true);
     setSelectedTable(null);
-    toast.info("Enrichissement LLM en cours...", {
-      description: `${selectedTableIds.length} table(s) sélectionnée(s)`,
+    toast.info(t("catalog.enriching"), {
+      description: t("catalog.tables_selected", { count: selectedTableIds.length }),
     });
 
     // Polling pour mises à jour en temps réel
@@ -172,8 +173,8 @@ function CatalogPageContent() {
       }
 
       if (result && result.status === "ok") {
-        toast.success("Catalogue enrichi", {
-          description: `${result.tables_count || 0} tables, ${result.columns_count || 0} colonnes, ${result.kpis_count || 0} KPIs`,
+        toast.success(t("catalog.enrichment_success"), {
+          description: t("catalog.enrichment_result", { tables: result.tables_count || 0, columns: result.columns_count || 0, kpis: result.kpis_count || 0 }),
         });
         await refreshCatalog();
         // Notifier les autres pages/onglets de recharger les questions
@@ -181,29 +182,29 @@ function CatalogPageContent() {
       } else if (result && result.status === "error") {
         // Erreur structurée du backend
         if (result.error_type === "vertex_ai_schema_too_complex") {
-          toast.error("Schéma trop complexe pour Vertex AI", {
-            description: result.suggestion || "Réduisez le Batch Size dans Settings > Database",
+          toast.error(t("catalog.vertex_ai_schema_complex"), {
+            description: result.suggestion || t("catalog.reduce_batch_size"),
             duration: 10000,
             action: {
-              label: "Settings",
+              label: t("settings.title"),
               onClick: () => window.location.href = "/settings",
             },
           });
         } else {
-          toast.error("Erreur LLM", {
+          toast.error(t("catalog.llm_error"), {
             description: result.message,
             duration: 8000,
           });
         }
       } else {
-        toast.error("Erreur lors de l'enrichissement");
+        toast.error(t("catalog.enrichment_error"));
       }
     } catch {
       clearInterval(pollInterval);
       if (pollingRef.current === pollInterval) {
         pollingRef.current = null;
       }
-      toast.error("Erreur lors de l'enrichissement");
+      toast.error(t("catalog.enrichment_error"));
     }
 
     setIsEnriching(false);
@@ -216,14 +217,14 @@ function CatalogPageContent() {
     const success = await api.deleteCatalog();
 
     if (success) {
-      toast.success("Catalogue supprimé");
+      toast.success(t("catalog.deleted"));
       setCurrentCatalog([]);
       setNodes([]);
       setEdges([]);
       // Notifier les autres pages/onglets de recharger les questions
       localStorage.setItem("catalog-updated", Date.now().toString());
     } else {
-      toast.error("Erreur lors de la suppression");
+      toast.error(t("catalog.delete_error"));
     }
 
     setIsDeleting(false);
@@ -318,7 +319,7 @@ function CatalogPageContent() {
         <div className="px-4 py-2 bg-blue-500/20 border-b border-blue-500/30 flex items-center gap-3">
           <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-blue-400">
-            Extraction du schéma en cours...
+            {t("catalog.extracting")}
           </span>
         </div>
       )}
@@ -328,7 +329,7 @@ function CatalogPageContent() {
         <div className="px-4 py-2 bg-primary/20 border-b border-primary/30 flex items-center gap-3">
           <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-sm text-primary">
-            Enrichissement LLM en cours... Les descriptions apparaissent au fur et à mesure
+            {t("catalog.enriching_progress")}
           </span>
         </div>
       )}
@@ -338,7 +339,7 @@ function CatalogPageContent() {
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <span className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block mb-4" />
-            <p className="text-muted-foreground">Chargement du catalogue...</p>
+            <p className="text-muted-foreground">{t("catalog.loading")}</p>
           </div>
         </div>
       ) : !hasContent ? (
@@ -378,7 +379,7 @@ function CatalogPageContent() {
             {/* Hint */}
             {!selectedTable && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[hsl(220_10%_12%)] border border-border/50 rounded-full text-xs text-muted-foreground">
-                Cliquez sur une table pour voir les détails
+                {t("catalog.select_table")}
               </div>
             )}
 
@@ -387,7 +388,7 @@ function CatalogPageContent() {
               <div className="absolute bottom-4 left-4 px-4 py-2 bg-orange-500/20 border border-orange-500/50 rounded-lg backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="animate-spin">⟳</span>
-                  <span className="text-sm text-orange-400">Pipeline en cours...</span>
+                  <span className="text-sm text-orange-400">{t("catalog.pipeline_running")}</span>
                 </div>
               </div>
             )}

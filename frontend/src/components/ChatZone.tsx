@@ -110,7 +110,7 @@ export function ChatZone({
 
   return (
     <div
-      className={`flex flex-col bg-[hsl(220_10%_10%)] ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
+      className={`flex flex-col bg-background ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
       style={collapsed ? undefined : { width: `${width}%` }}
     >
       {collapsed ? (

@@ -60,13 +60,13 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
       return "border-amber-500/60 bg-amber-950/30";
     }
     if (!isEnabled) {
-      return "border-muted-foreground/30 bg-[hsl(220_5%_10%)] opacity-60";
+      return "border-muted-foreground/30 bg-muted opacity-60";
     }
     if (!isEnriched) {
       // Table activée mais non enrichie (en attente d'enrichissement)
       return "border-amber-500/40 bg-[hsl(40_25%_10%)]";
     }
-    return "border-primary/40 bg-[hsl(220_12%_12%)]";
+    return "border-primary/40 bg-card";
   };
 
   return (

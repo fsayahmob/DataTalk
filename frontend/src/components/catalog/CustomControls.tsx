@@ -8,7 +8,7 @@ export function CustomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
 
   return (
-    <div className="absolute bottom-4 left-4 flex flex-col gap-1 bg-[hsl(220_10%_12%)] border border-border/50 rounded-lg p-1 shadow-xl">
+    <div className="absolute bottom-4 left-4 flex flex-col gap-1 bg-card border border-border/50 rounded-lg p-1 shadow-xl">
       <Button
         variant="ghost"
         size="sm"

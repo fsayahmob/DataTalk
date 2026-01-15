@@ -763,7 +763,7 @@ def save_to_catalog(
     # Créer la datasource
     datasource_id = add_datasource(
         name=catalog.datasource.replace(".duckdb", ""),
-        type="duckdb",
+        ds_type="duckdb",
         path=db_path,
         description="Base analytique générée automatiquement"
     )
@@ -1222,7 +1222,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
         # Créer la datasource
         datasource_id = add_datasource(
             name=catalog.datasource.replace(".duckdb", ""),
-            type="duckdb",
+            ds_type="duckdb",
             path=get_duckdb_path(),
             description="Base analytique - En attente d'enrichissement"
         )

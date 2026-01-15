@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
   return (
     <div
-      className={`flex flex-col bg-[hsl(220_10%_8%)] border-r border-border/30 ${
+      className={`flex flex-col bg-sidebar border-r border-border/30 ${
         collapsed ? "w-14" : "w-48"
       } transition-all duration-300 ease-in-out`}
     >

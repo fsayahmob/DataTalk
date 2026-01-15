@@ -11,17 +11,28 @@
     "content_policy": "The request was blocked by the model's content policy.",
     "service_unavailable": "The LLM service is temporarily unavailable. Try again in a few minutes.",
     "invalid_json": "The LLM did not return valid JSON.",
-    "generic_error": "LLM error: {error}"
+    "generic_error": "LLM error: {error}",
+    "no_sql_generated": "The LLM did not generate an SQL query.",
+    "no_default_model": "No default model configured."
   },
   "db": {
     "not_connected": "Database not connected.",
     "query_error": "SQL execution error: {error}",
-    "connection_error": "Unable to connect to the database."
+    "connection_error": "Unable to connect to the database.",
+    "file_not_found": "File not found: {path}",
+    "schema_refreshed": "Schema refreshed."
   },
   "catalog": {
     "empty": "Catalog is empty. Generate it from Settings > Database.",
     "generation_error": "Error generating catalog: {error}",
-    "generation_success": "Catalog generated successfully: {tables} tables, {columns} columns."
+    "generation_success": "Catalog generated successfully: {tables} tables, {columns} columns.",
+    "extraction_error": "Extraction error: {error}",
+    "enrichment_error": "Enrichment error: {error}",
+    "no_tables_selected": "No tables selected.",
+    "table_not_found": "Table not found.",
+    "column_not_found": "Column {id} not found.",
+    "update_error": "Error updating.",
+    "deleted": "Catalog deleted."
   },
   "conversation": {
     "not_found": "Conversation not found.",
@@ -32,15 +43,47 @@
     "not_found": "Report not found.",
     "saved": "Report saved.",
     "deleted": "Report deleted.",
-    "execution_error": "Error executing report: {error}"
+    "pin_toggled": "Pin state toggled.",
+    "execution_error": "Error executing report: {error}",
+    "no_sql": "This report has no SQL query."
   },
   "settings": {
     "saved": "Settings saved.",
     "api_key_saved": "API key saved for {provider}.",
-    "model_set": "Default model updated: {model}."
+    "model_set": "Default model updated: {model}.",
+    "not_found": "Configuration '{key}' not found.",
+    "not_editable": "Key '{key}' not editable via this endpoint.",
+    "no_change": "No changes made."
   },
   "validation": {
     "required_field": "Field '{field}' is required.",
-    "invalid_format": "Invalid format for '{field}'."
+    "invalid_format": "Invalid format for '{field}'.",
+    "numeric_required": "Numeric value required.",
+    "range_error": "Value must be between {min} and {max}.",
+    "allowed_values": "Allowed values: {values}.",
+    "empty_description": "Empty description."
+  },
+  "chart": {
+    "disabled_row_limit": "Chart disabled: {rows} rows (limit: {limit}). See the paginated table below."
+  },
+  "provider": {
+    "not_found": "Provider '{name}' not found.",
+    "no_base_url": "This provider does not accept a base_url."
+  },
+  "model": {
+    "not_found": "Model '{id}' not found."
+  },
+  "prompt": {
+    "not_found": "Prompt '{key}' not found.",
+    "updated": "Prompt updated."
+  },
+  "job": {
+    "not_found": "Job not found."
+  },
+  "run": {
+    "not_found": "Run not found."
+  },
+  "generic": {
+    "error": "Error: {error}"
   }
 }

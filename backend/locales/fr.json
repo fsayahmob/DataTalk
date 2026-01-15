@@ -11,17 +11,28 @@
     "content_policy": "La requête a été bloquée par les politiques de contenu du modèle.",
     "service_unavailable": "Le service LLM est temporairement indisponible. Réessayez dans quelques minutes.",
     "invalid_json": "Le LLM n'a pas retourné un JSON valide.",
-    "generic_error": "Erreur LLM: {error}"
+    "generic_error": "Erreur LLM: {error}",
+    "no_sql_generated": "Le LLM n'a pas généré de requête SQL.",
+    "no_default_model": "Aucun modèle par défaut configuré."
   },
   "db": {
     "not_connected": "Base de données non connectée.",
     "query_error": "Erreur d'exécution SQL: {error}",
-    "connection_error": "Impossible de se connecter à la base de données."
+    "connection_error": "Impossible de se connecter à la base de données.",
+    "file_not_found": "Fichier non trouvé: {path}",
+    "schema_refreshed": "Schéma rafraîchi."
   },
   "catalog": {
     "empty": "Le catalogue est vide. Générez-le depuis Paramètres > Base de données.",
     "generation_error": "Erreur lors de la génération du catalogue: {error}",
-    "generation_success": "Catalogue généré avec succès: {tables} tables, {columns} colonnes."
+    "generation_success": "Catalogue généré avec succès: {tables} tables, {columns} colonnes.",
+    "extraction_error": "Erreur extraction: {error}",
+    "enrichment_error": "Erreur enrichissement: {error}",
+    "no_tables_selected": "Aucune table sélectionnée.",
+    "table_not_found": "Table non trouvée.",
+    "column_not_found": "Colonne {id} non trouvée.",
+    "update_error": "Erreur lors de la mise à jour.",
+    "deleted": "Catalogue supprimé."
   },
   "conversation": {
     "not_found": "Conversation introuvable.",
@@ -32,15 +43,47 @@
     "not_found": "Rapport introuvable.",
     "saved": "Rapport sauvegardé.",
     "deleted": "Rapport supprimé.",
-    "execution_error": "Erreur lors de l'exécution du rapport: {error}"
+    "pin_toggled": "État épinglé modifié.",
+    "execution_error": "Erreur lors de l'exécution du rapport: {error}",
+    "no_sql": "Ce rapport n'a pas de requête SQL."
   },
   "settings": {
     "saved": "Paramètres sauvegardés.",
     "api_key_saved": "Clé API sauvegardée pour {provider}.",
-    "model_set": "Modèle par défaut mis à jour: {model}."
+    "model_set": "Modèle par défaut mis à jour: {model}.",
+    "not_found": "Configuration '{key}' non trouvée.",
+    "not_editable": "Clé '{key}' non modifiable via cet endpoint.",
+    "no_change": "Aucune modification."
   },
   "validation": {
     "required_field": "Le champ '{field}' est requis.",
-    "invalid_format": "Format invalide pour '{field}'."
+    "invalid_format": "Format invalide pour '{field}'.",
+    "numeric_required": "Valeur numérique requise.",
+    "range_error": "Valeur entre {min} et {max}.",
+    "allowed_values": "Valeurs autorisées: {values}.",
+    "empty_description": "Description vide."
+  },
+  "chart": {
+    "disabled_row_limit": "Graphique désactivé: {rows} lignes (limite: {limit}). Consultez le tableau paginé ci-dessous."
+  },
+  "provider": {
+    "not_found": "Provider '{name}' non trouvé.",
+    "no_base_url": "Ce provider n'accepte pas de base_url."
+  },
+  "model": {
+    "not_found": "Modèle '{id}' non trouvé."
+  },
+  "prompt": {
+    "not_found": "Prompt '{key}' non trouvé.",
+    "updated": "Prompt mis à jour."
+  },
+  "job": {
+    "not_found": "Job non trouvé."
+  },
+  "run": {
+    "not_found": "Run non trouvée."
+  },
+  "generic": {
+    "error": "Erreur: {error}"
   }
 }

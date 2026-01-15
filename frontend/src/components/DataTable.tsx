@@ -36,10 +36,34 @@ import {
   SortDescIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  DownloadIcon,
+  ChevronDownIcon,
 } from "@/components/icons";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import * as XLSX from "xlsx";
 
 interface DataTableProps {
   data: Record<string, unknown>[];
+}
+
+// Fonctions d'export extraites pour réduire la complexité du composant
+function exportToCSV(data: Record<string, unknown>[], filename: string): void {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  XLSX.writeFile(workbook, `${filename}.csv`, { bookType: "csv" });
+}
+
+function exportToExcel(data: Record<string, unknown>[], filename: string): void {
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+  XLSX.writeFile(workbook, `${filename}.xlsx`, { bookType: "xlsx" });
 }
 
 function formatValue(value: unknown): string {
@@ -150,6 +174,36 @@ export function DataTable({ data }: DataTableProps) {
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{table.getFilteredRowModel().rows.length} résultats</span>
+
+          {/* Export dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                <DownloadIcon size={14} className="mr-1" />
+                Exporter
+                <ChevronDownIcon size={12} className="ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  const rows = table.getFilteredRowModel().rows.map(r => r.original);
+                  exportToCSV(rows, `export_${Date.now()}`);
+                }}
+              >
+                CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  const rows = table.getFilteredRowModel().rows.map(r => r.original);
+                  exportToExcel(rows, `export_${Date.now()}`);
+                }}
+              >
+                Excel (.xlsx)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           <Select
             value={String(table.getState().pagination.pageSize)}
             onValueChange={(value) => table.setPageSize(Number(value))}

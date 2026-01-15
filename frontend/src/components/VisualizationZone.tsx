@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { Message } from "@/types";
-import { ChartIcon, SaveIcon } from "@/components/icons";
+import { ChartIcon, SaveIcon, AlertIcon } from "@/components/icons";
 import {
   FiltersPanel,
   SQLPanel,
@@ -26,7 +26,7 @@ export function VisualizationZone({
   onFiltersChange,
 }: VisualizationZoneProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(220_10%_10%)]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Zone 2.1: Header + Filtres (fixe) */}
       <div className="border-b border-red-500/30">
         {/* Header Zone 2 - Rouge G7 */}
@@ -69,8 +69,15 @@ export function VisualizationZone({
                 <SQLPanel sql={selectedMessage.sql} />
               )}
 
-              {/* Zone 2.2: Graphique (flexible) */}
-              {selectedMessage.chart && selectedMessage.chart.type !== "none" && selectedMessage.data && (
+              {/* Zone 2.2: Graphique (flexible) ou warning si désactivé */}
+              {selectedMessage.chart_disabled && selectedMessage.chart_disabled_reason ? (
+                <div className="px-4 py-3 bg-yellow-500/10 border-b border-yellow-500/30">
+                  <div className="flex items-start gap-2">
+                    <AlertIcon size={16} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                    <p className="text-sm text-yellow-200">{selectedMessage.chart_disabled_reason}</p>
+                  </div>
+                </div>
+              ) : selectedMessage.chart && selectedMessage.chart.type !== "none" && selectedMessage.data && (
                 <ChartPanel config={selectedMessage.chart} data={selectedMessage.data} />
               )}
 

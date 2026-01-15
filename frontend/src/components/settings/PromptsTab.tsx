@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import * as api from "@/lib/api";
 import type { LLMPrompt, CatalogContextMode, Prompt } from "@/lib/api";
+import { useTranslation } from "@/hooks/useTranslation";
 
 // Group prompts by key
 interface PromptGroup {
@@ -44,6 +45,7 @@ function _groupPromptsByKey(prompts: LLMPrompt[]): PromptGroup[] {
 }
 
 export function PromptsTab() {
+  const { t } = useTranslation();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -75,13 +77,13 @@ export function PromptsTab() {
       const success = await api.setCatalogContextMode(mode);
       if (success) {
         setContextMode(mode);
-        toast.success(`Mode de contexte: ${mode}`);
+        toast.success(t("prompts.context_mode_updated", { mode }));
       } else {
-        toast.error("Erreur lors de la mise à jour");
+        toast.error(t("settings.prompt_error"));
       }
       setSaving(null);
     },
-    []
+    [t]
   );
 
   const handleEdit = (prompt: Prompt) => {
@@ -99,11 +101,11 @@ export function PromptsTab() {
     setSaving(key);
     const success = await api.updatePrompt(key, editedContent);
     if (success) {
-      toast.success("Prompt mis à jour");
+      toast.success(t("settings.prompt_updated"));
       setEditingKey(null);
       await loadPrompts();
     } else {
-      toast.error("Erreur lors de la mise à jour");
+      toast.error(t("settings.prompt_error"));
     }
     setSaving(null);
   };
@@ -130,7 +132,7 @@ export function PromptsTab() {
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground mb-4">
-        Configurez les prompts utilisés par le LLM pour l&apos;analyse et l&apos;enrichissement du catalogue.
+        {t("prompts.description")}
       </div>
 
       {activePrompts.map((prompt) => {
@@ -145,7 +147,7 @@ export function PromptsTab() {
         return (
           <Card
             key={prompt.key}
-            className="bg-[hsl(220_10%_10%)] border-border/30"
+            className="bg-background border-border/30"
           >
             <CardHeader className="py-3 px-4">
               <div className="flex items-center justify-between">
@@ -179,7 +181,7 @@ export function PromptsTab() {
                       className="h-7 px-2 text-xs"
                       onClick={() => handleEdit(prompt)}
                     >
-                      Éditer
+                      {t("common.edit")}
                     </Button>
                   )}
                   <Button
@@ -188,7 +190,7 @@ export function PromptsTab() {
                     className="h-7 px-2 text-xs"
                     onClick={() => setExpandedKey(isExpanded ? null : prompt.key)}
                   >
-                    {isExpanded ? "Masquer" : "Voir"}
+                    {isExpanded ? t("prompts.hide") : t("prompts.show")}
                   </Button>
                 </div>
               </div>
@@ -205,10 +207,10 @@ export function PromptsTab() {
                 {isAnalyticsSystem && !isEditing && (
                   <div className="mb-3 p-2 rounded bg-primary/10 border border-primary/20">
                     <p className="text-xs text-muted-foreground">
-                      <strong className="text-foreground">Mode {contextMode}:</strong>{" "}
+                      <strong className="text-foreground">{t("prompts.mode_label", { mode: contextMode })}:</strong>{" "}
                       {contextMode === "compact"
-                        ? "Schéma simple (nom, type). Moins de tokens, réponses plus rapides."
-                        : "Schéma enrichi (stats, ENUM, distribution). Plus précis pour les requêtes complexes."}
+                        ? t("prompts.mode_compact_desc")
+                        : t("prompts.mode_full_desc")}
                     </p>
                   </div>
                 )}
@@ -218,7 +220,7 @@ export function PromptsTab() {
                     <textarea
                       value={editedContent}
                       onChange={(e) => setEditedContent(e.target.value)}
-                      className="w-full h-96 px-3 py-2 rounded-md border border-border bg-[hsl(220_10%_6%)] font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full h-96 px-3 py-2 rounded-md border border-border bg-sidebar font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <div className="flex gap-2">
                       <Button
@@ -226,20 +228,20 @@ export function PromptsTab() {
                         onClick={() => void handleSaveEdit(prompt.key)}
                         disabled={saving === prompt.key || editedContent === prompt.content}
                       >
-                        {saving === prompt.key ? "Enregistrement..." : "Enregistrer"}
+                        {saving === prompt.key ? t("prompts.saving") : t("common.save")}
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={handleCancelEdit}
                       >
-                        Annuler
+                        {t("common.cancel")}
                       </Button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="bg-[hsl(220_10%_6%)] rounded-md p-3 max-h-64 overflow-auto">
+                    <div className="bg-sidebar rounded-md p-3 max-h-64 overflow-auto">
                       <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
                         {prompt.content}
                       </pre>
@@ -263,10 +265,9 @@ export function PromptsTab() {
 
       {activePrompts.length === 0 && (
         <div className="text-center py-8 text-muted-foreground">
-          <p className="text-sm">Aucun prompt configuré</p>
+          <p className="text-sm">{t("settings.no_prompts")}</p>
           <p className="text-xs mt-1">
-            Exécutez <code className="bg-muted px-1 rounded">sqlite3 catalog.sqlite {"<"} schema.sql</code> pour
-            initialiser les prompts.
+            {t("prompts.init_help")}
           </p>
         </div>
       )}
