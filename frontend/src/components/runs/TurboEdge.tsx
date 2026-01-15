@@ -1,8 +1,7 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { BaseEdge, EdgeLabelRenderer, EdgeProps, getBezierPath } from '@xyflow/react';
 
 export default function TurboEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -12,7 +11,7 @@ export default function TurboEdge({
   style = {},
   markerEnd,
   data,
-}: EdgeProps) {
+}: EdgeProps): ReactNode {
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -22,11 +21,13 @@ export default function TurboEdge({
     targetPosition,
   });
 
+  const label = data?.label as ReactNode | undefined;
+
   return (
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
       <EdgeLabelRenderer>
-        {data?.label && (
+        {label != null ? (
           <div
             style={{
               position: 'absolute',
@@ -36,9 +37,9 @@ export default function TurboEdge({
             }}
             className="nodrag nopan bg-[hsl(260_10%_10%)] px-2 py-1 rounded border border-border/30 text-muted-foreground"
           >
-            {data.label}
+            {label}
           </div>
-        )}
+        ) : null}
       </EdgeLabelRenderer>
     </>
   );
