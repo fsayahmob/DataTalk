@@ -11,7 +11,6 @@ Architecture:
 5. generate_kpis() - Génération des 4 KPIs
 """
 
-import json
 import re
 from contextlib import contextmanager, suppress
 from pathlib import Path
@@ -32,6 +31,13 @@ from catalog import (
 )
 from llm_config import get_active_prompt
 from llm_service import call_llm, call_llm_structured
+from llm_utils import (
+    EnrichmentError,
+    KpiGenerationError,
+    QuestionGenerationError,
+    call_with_retry,
+    parse_llm_json,
+)
 
 if TYPE_CHECKING:
     pass
@@ -697,14 +703,17 @@ Colonnes:
     return chr(10).join(tables_context)
 
 
-def enrich_with_llm(catalog: ExtractedCatalog, tables_context: str | None = None) -> dict[str, Any]:
+def enrich_with_llm(
+    catalog: ExtractedCatalog, tables_context: str | None = None, max_retries: int = 2
+) -> dict[str, Any]:
     """
-    Appelle le LLM via llm_service pour obtenir les descriptions.
+    Appelle le LLM via llm_service pour obtenir les descriptions avec retry.
 
     Args:
         catalog: Catalogue extrait à enrichir (pour construire le modèle de réponse)
         tables_context: Contexte pré-construit depuis SQLite (full_context).
                         Si None, utilise _build_full_context() (fallback).
+        max_retries: Nombre de tentatives supplémentaires en cas d'échec
 
     Utilise call_llm_structured() qui gère:
     - Multi-provider (Gemini, OpenAI, Anthropic, etc.)
@@ -713,6 +722,7 @@ def enrich_with_llm(catalog: ExtractedCatalog, tables_context: str | None = None
 
     Raises:
         PromptNotConfiguredError: Si le prompt catalog_enrichment n'est pas en base.
+        EnrichmentError: Si l'enrichissement échoue après tous les retries.
     """
     # Construire le modèle de réponse dynamique
     ResponseModel = build_response_model(catalog)  # noqa: N806
@@ -735,32 +745,30 @@ def enrich_with_llm(catalog: ExtractedCatalog, tables_context: str | None = None
     is_ok, token_count, token_msg = check_token_limit(prompt)
     print(f"    → Tokens input: {token_msg}")
     if not is_ok:
-        raise ValueError(f"Prompt trop volumineux pour le LLM: {token_count:,} tokens")
+        raise EnrichmentError(f"Prompt trop volumineux pour le LLM: {token_count:,} tokens")
 
-    # Appel avec llm_service (Instructor intégré)
-    try:
+    def _call_enrichment_llm():
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=ResponseModel,
             source="catalog_engine",
-            max_tokens=8192,  # Assez pour les descriptions de toutes les colonnes
+            max_tokens=8192,
         )
+        result_dict = result.model_dump()
+        # Vérifier qu'on a au moins une table avec des données
+        if not result_dict or all(
+            not table_data.get("description") and not table_data.get("columns")
+            for table_data in result_dict.values()
+        ):
+            raise EnrichmentError("Enrichissement vide - aucune description générée")
+        return result_dict
 
-        # Convertir en dict
-        return result.model_dump()
-
-    except Exception as e:
-        print(f"Erreur LLM: {e}")
-        # Fallback: retourner un dict vide structuré
-        fallback: dict[str, Any] = {}
-        for table in catalog.tables:
-            fallback[table.name] = {
-                "description": None,
-                "columns": {
-                    col.name: {"description": None, "synonyms": []} for col in table.columns
-                },
-            }
-        return fallback
+    return call_with_retry(
+        _call_enrichment_llm,
+        max_retries=max_retries,
+        error_class=EnrichmentError,
+        context="Enrichissement",
+    )
 
 
 # =============================================================================
@@ -1020,19 +1028,21 @@ def get_data_period(conn: Any) -> str:
     return "Période non déterminée"
 
 
-def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerationResult | None:
+def generate_kpis(catalog: ExtractedCatalog, db_connection: Any, max_retries: int = 2) -> KpisGenerationResult:
     """
-    Génère les 4 KPIs via LLM.
+    Génère les 4 KPIs via LLM avec retry.
 
     Utilise le prompt 'widgets_generation' de la base de données.
+
+    Raises:
+        KpiGenerationError: Si la génération échoue après tous les retries
     """
     # Récupérer le prompt depuis la DB
     prompt_data = get_active_prompt("widgets_generation")
     if not prompt_data or not prompt_data.get("content"):
-        print(
-            "  [WARN] Prompt 'widgets_generation' non configuré. Exécutez: python seed_prompts.py --force"
+        raise KpiGenerationError(
+            "Prompt 'widgets_generation' non configuré. Exécutez: python seed_prompts.py --force"
         )
-        return None
 
     # Construire le schéma pour le prompt
     schema_lines = []
@@ -1061,20 +1071,25 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
     is_ok, token_count, token_msg = check_token_limit(prompt)
     print(f"    → Tokens input: {token_msg}")
     if not is_ok:
-        print(f"  [ERROR] Prompt trop volumineux: {token_count:,} tokens")
-        return None
+        raise KpiGenerationError(f"Prompt trop volumineux: {token_count:,} tokens")
 
-    try:
+    def _call_kpi_llm():
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=KpisGenerationResult,
             source="kpi_generation",
-            max_tokens=8192,  # 4 KPIs avec 3 SQL chacun = réponse longue
+            max_tokens=8192,
         )
+        if not result.kpis:
+            raise KpiGenerationError("Aucun KPI généré dans la réponse")
         return result
-    except Exception as e:
-        print(f"  [ERROR] Erreur génération KPIs: {e}")
-        return None
+
+    return call_with_retry(
+        _call_kpi_llm,
+        max_retries=max_retries,
+        error_class=KpiGenerationError,
+        context="KPIs",
+    )
 
 
 def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
@@ -1120,7 +1135,7 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
     return stats
 
 
-def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, str]]:
+def generate_suggested_questions(catalog: ExtractedCatalog, max_retries: int = 2) -> list[dict[str, str]]:
     """
     Génère des questions suggérées basées sur le catalogue enrichi.
 
@@ -1129,9 +1144,13 @@ def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, st
 
     Args:
         catalog: Catalogue enrichi avec descriptions
+        max_retries: Nombre de tentatives en cas d'échec
 
     Returns:
         Liste de questions avec catégorie et icône
+
+    Raises:
+        QuestionGenerationError: Si la génération échoue après tous les retries
     """
     print("    Génération des questions suggérées...")
 
@@ -1141,40 +1160,37 @@ def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, st
     # Récupérer le prompt depuis la DB
     prompt_data = get_active_prompt("catalog_questions")
     if not prompt_data or not prompt_data.get("content"):
-        print("    [WARN] Prompt 'catalog_questions' non trouvé, skip")
-        return []
+        raise QuestionGenerationError("Prompt 'catalog_questions' non trouvé")
 
     # Injecter le schéma dans le prompt
     prompt = prompt_data["content"].format(schema=schema)
 
-    try:
+    def _call_questions_llm():
         # Appeler le LLM
         response = call_llm(
             prompt=prompt,
-            system_prompt="Tu es un expert en analyse de données.",
+            system_prompt="Tu es un expert en analyse de données. Réponds UNIQUEMENT en JSON valide.",
             source="catalog",
             temperature=0.7,  # Un peu de créativité pour varier les questions
         )
 
-        # Parser la réponse JSON
-        content = response.content.strip()
-        if content.startswith("```"):
-            lines = content.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
-
-        result = json.loads(content)
+        # Parser avec le parser centralisé
+        result = parse_llm_json(response.content, context="questions")
         questions = result.get("questions", [])
+
+        # Vérifier qu'on a des questions
+        if not questions:
+            raise QuestionGenerationError("Aucune question dans la réponse JSON")
 
         print(f"    → {len(questions)} questions générées")
         return questions
 
-    except Exception as e:
-        print(f"    [ERROR] Génération questions: {e}")
-        return []
+    return call_with_retry(
+        _call_questions_llm,
+        max_retries=max_retries,
+        error_class=QuestionGenerationError,
+        context="Questions",
+    )
 
 
 def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
@@ -1640,26 +1656,28 @@ Colonnes:
     # Step: Génération des KPIs
     with workflow.step("generate_kpis") if workflow else _dummy_context():
         print("Génération des KPIs...")
-        kpis_result = generate_kpis(full_catalog, db_connection)
-        if kpis_result:
+        try:
+            kpis_result = generate_kpis(full_catalog, db_connection)
             kpis_stats = save_kpis(kpis_result)
             stats["kpis"] = kpis_stats["kpis"]
             print(f"    → {kpis_stats['kpis']} KPIs générés")
-        else:
+        except KpiGenerationError as e:
             stats["kpis"] = 0
-            print("    → KPIs non générés")
+            stats["kpis_error"] = str(e)
+            print(f"    [ERROR] KPIs non générés: {e}")
 
     # Step: Génération des questions suggérées
     with workflow.step("generate_questions") if workflow else _dummy_context():
         print("Génération des questions suggérées...")
-        questions = generate_suggested_questions(full_catalog)
-        if questions:
+        try:
+            questions = generate_suggested_questions(full_catalog)
             questions_stats = save_suggested_questions(questions)
             stats["questions"] = questions_stats["questions"]
             print(f"    → {questions_stats['questions']} questions générées")
-        else:
+        except QuestionGenerationError as e:
             stats["questions"] = 0
-            print("    → Questions non générées")
+            stats["questions_error"] = str(e)
+            print(f"    [ERROR] Questions non générées: {e}")
 
     # Fusionner les validations pour le retour
     combined_validation = CatalogValidationResult()
@@ -1759,17 +1777,15 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
 # =============================================================================
 
 
-def generate_catalog_from_connection(
-    db_connection: Any, prompt_mode: PromptMode = "full"
-) -> dict[str, Any]:
+def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
     """
     Génère le catalogue complet depuis une connexion DuckDB existante.
 
     Utilise le LLM configuré par défaut via llm_service.
+    LEGACY: Gardée pour compatibilité, utiliser enrich_enabled_tables() à la place.
 
     Args:
         db_connection: Connexion DuckDB native (duckdb.DuckDBPyConnection)
-        prompt_mode: Mode de prompt ("compact" ou "full")
 
     Retourne les statistiques, validations et le catalogue.
     """
@@ -1787,7 +1803,7 @@ def generate_catalog_from_connection(
 
     # 3. Enrichissement LLM (utilise llm_service)
     print("3/5 - Enrichissement avec LLM Service...")
-    enrichment = enrich_with_llm(catalog, prompt_mode=prompt_mode)
+    enrichment = enrich_with_llm(catalog)
 
     # 3bis. Validation de l'enrichissement
     catalog_validation = validate_catalog_enrichment(catalog, enrichment)
@@ -1812,8 +1828,8 @@ def generate_catalog_from_connection(
 
     # 5. Génération des KPIs
     print("5/5 - Génération des 4 KPIs...")
-    kpis_result = generate_kpis(catalog, db_connection)
-    if kpis_result:
+    try:
+        kpis_result = generate_kpis(catalog, db_connection)
         # Validation des KPIs
         kpis_validation = validate_all_kpis(kpis_result)
         validation_results["kpis"] = kpis_validation
@@ -1830,10 +1846,10 @@ def generate_catalog_from_connection(
             for detail in kpis_validation["details"]:
                 if detail.status == "WARNING":
                     print(f"      - {detail.kpi_id}: {', '.join(detail.issues)}")
-    else:
+    except KpiGenerationError as e:
         stats["kpis"] = 0
         validation_results["kpis"] = {"total": 0, "ok": 0, "warnings": 0, "details": []}
-        print("    → [ERROR] KPIs non générés (prompt manquant ou erreur)")
+        print(f"    → [ERROR] KPIs non générés: {e}")
 
     # Rapport final
     print("\n" + "=" * 50)

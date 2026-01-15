@@ -7,7 +7,9 @@ Pour initialiser/recréer la base: sqlite3 catalog.sqlite < schema.sql
 
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
+from typing import Generator
 
 CATALOG_PATH = str(Path(__file__).parent / "catalog.sqlite")
 
@@ -17,6 +19,30 @@ def get_connection() -> sqlite3.Connection:
     conn = sqlite3.connect(CATALOG_PATH)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+@contextmanager
+def get_db() -> Generator[sqlite3.Connection, None, None]:
+    """
+    Context manager pour les connexions SQLite.
+
+    Gère automatiquement le commit/rollback et la fermeture de connexion.
+
+    Usage:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM ...")
+            # commit automatique si pas d'exception
+    """
+    conn = get_connection()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def run_migrations() -> None:
@@ -94,7 +120,7 @@ INTERDIT: GROUP BY avec colonne catégorie qui retourne plusieurs lignes par dat
 OBLIGATOIRE: Utiliser FILTER pour PIVOTER les données (une colonne par catégorie).
 
 RÉPONSE: Un seul objet JSON (pas de tableau):
-{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}"""
+{{"sql":"SELECT...","message":"Explication...","chart":{{"type":"...","x":"col","y":"col|[cols]","title":"..."}}}}"""
         cursor.execute(
             """UPDATE llm_prompts
                SET content = ?, version = 'v3', tokens_estimate = 750,

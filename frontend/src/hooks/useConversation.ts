@@ -157,6 +157,8 @@ export function useConversation(): UseConversationReturn {
         sql_error: data.sql_error,
         chart: data.chart,
         data: data.data,
+        chart_disabled: data.chart_disabled,
+        chart_disabled_reason: data.chart_disabled_reason,
         model_name: data.model_name,
         tokens_input: data.tokens_input,
         tokens_output: data.tokens_output,

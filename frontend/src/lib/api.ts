@@ -20,6 +20,8 @@ export interface AnalysisResponse {
   sql_error?: string;
   data: Record<string, unknown>[];
   chart: ChartConfig;
+  chart_disabled?: boolean;
+  chart_disabled_reason?: string;
   model_name?: string;
   tokens_input?: number;
   tokens_output?: number;
