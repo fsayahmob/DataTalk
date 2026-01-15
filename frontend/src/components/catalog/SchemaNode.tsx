@@ -64,7 +64,7 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
     }
     if (!isEnriched) {
       // Table activée mais non enrichie (en attente d'enrichissement)
-      return "border-amber-500/40 bg-[hsl(40_25%_10%)]";
+      return "border-amber-500/40 bg-amber-950/30";
     }
     return "border-primary/40 bg-card";
   };
