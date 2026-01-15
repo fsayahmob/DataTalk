@@ -70,14 +70,14 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
   };
 
   return (
-    <div className="w-[400px] border-l border-border/30 bg-[hsl(260_10%_8%)] flex flex-col overflow-hidden">
+    <div className="w-[400px] border-l border-border/30 bg-[hsl(220_10%_8%)] flex flex-col overflow-hidden">
       {/* Header */}
       <div className={`px-4 py-3 border-b border-border/30 flex items-center justify-between ${
         !isEnabled
-          ? "bg-gradient-to-r from-muted-foreground/10 to-transparent"
+          ? "bg-muted-foreground/10"
           : !isEnriched
-            ? "bg-gradient-to-r from-amber-500/10 to-transparent"
-            : "bg-gradient-to-r from-primary/10 to-transparent"
+            ? "bg-amber-500/10"
+            : "bg-primary/10"
       }`}>
         <div>
           <div className="flex items-center gap-2">
@@ -148,7 +148,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {/* Tableau des colonnes */}
       <div className="flex-1 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-[hsl(260_10%_10%)] border-b border-border/30">
+          <thead className="sticky top-0 bg-[hsl(220_10%_10%)] border-b border-border/30">
             <tr>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Colonne</th>
               <th className="text-left px-3 py-2 font-medium text-muted-foreground">Type</th>
@@ -215,7 +215,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       </div>
 
       {/* Contexte des valeurs (full_context avec statistiques) */}
-      <div className="border-t border-border/30 p-3 bg-[hsl(260_10%_6%)]">
+      <div className="border-t border-border/30 p-3 bg-[hsl(220_10%_6%)]">
         <div className="flex items-center justify-between mb-2">
           <h4 className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Analyse des valeurs

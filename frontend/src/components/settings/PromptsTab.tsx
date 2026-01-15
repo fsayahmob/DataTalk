@@ -145,7 +145,7 @@ export function PromptsTab() {
         return (
           <Card
             key={prompt.key}
-            className="bg-[hsl(260_10%_10%)] border-border/30"
+            className="bg-[hsl(220_10%_10%)] border-border/30"
           >
             <CardHeader className="py-3 px-4">
               <div className="flex items-center justify-between">
@@ -218,7 +218,7 @@ export function PromptsTab() {
                     <textarea
                       value={editedContent}
                       onChange={(e) => setEditedContent(e.target.value)}
-                      className="w-full h-96 px-3 py-2 rounded-md border border-border bg-[hsl(260_10%_6%)] font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full h-96 px-3 py-2 rounded-md border border-border bg-[hsl(220_10%_6%)] font-mono text-xs resize-none focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                     <div className="flex gap-2">
                       <Button
@@ -239,7 +239,7 @@ export function PromptsTab() {
                   </div>
                 ) : (
                   <>
-                    <div className="bg-[hsl(260_10%_6%)] rounded-md p-3 max-h-64 overflow-auto">
+                    <div className="bg-[hsl(220_10%_6%)] rounded-md p-3 max-h-64 overflow-auto">
                       <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono">
                         {prompt.content}
                       </pre>

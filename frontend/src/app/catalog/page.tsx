@@ -312,7 +312,7 @@ function CatalogPageContent() {
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(260_10%_6%)]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(220_10%_6%)]">
       {/* Indicateur d'extraction */}
       {isExtracting && (
         <div className="px-4 py-2 bg-blue-500/20 border-b border-blue-500/30 flex items-center gap-3">
@@ -358,26 +358,26 @@ function CatalogPageContent() {
               fitViewOptions={{ padding: 0.2 }}
               minZoom={0.1}
               maxZoom={2}
-              className="bg-[hsl(260_10%_4%)]"
+              className="bg-[hsl(220_10%_4%)]"
               proOptions={{ hideAttribution: true }}
             >
               <Background
                 variant={BackgroundVariant.Dots}
                 gap={20}
                 size={1}
-                color="hsl(260 10% 20%)"
+                color="hsl(220 10% 20%)"
               />
               <CustomControls />
               <MiniMap
-                className="!bg-[hsl(260_10%_8%)] !border-border/50"
-                nodeColor={() => "hsl(260 100% 65%)"}
-                maskColor="hsl(260 10% 5% / 0.8)"
+                className="!bg-[hsl(220_10%_8%)] !border-border/50"
+                nodeColor={() => "hsl(220 100% 65%)"}
+                maskColor="hsl(220 10% 5% / 0.8)"
               />
             </ReactFlow>
 
             {/* Hint */}
             {!selectedTable && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[hsl(260_10%_12%)] border border-border/50 rounded-full text-xs text-muted-foreground">
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-[hsl(220_10%_12%)] border border-border/50 rounded-full text-xs text-muted-foreground">
                 Cliquez sur une table pour voir les détails
               </div>
             )}

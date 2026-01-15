@@ -57,16 +57,16 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
   // Déterminer les classes de style selon l'état
   const getContainerClasses = () => {
     if (isPreview) {
-      return "border-amber-500/60 bg-gradient-to-b from-amber-950/40 to-amber-950/20";
+      return "border-amber-500/60 bg-amber-950/30";
     }
     if (!isEnabled) {
-      return "border-muted-foreground/30 bg-gradient-to-b from-[hsl(260_5%_12%)] to-[hsl(260_5%_8%)] opacity-60";
+      return "border-muted-foreground/30 bg-[hsl(220_5%_10%)] opacity-60";
     }
     if (!isEnriched) {
       // Table activée mais non enrichie (en attente d'enrichissement)
-      return "border-amber-500/40 bg-gradient-to-b from-[hsl(40_30%_12%)] to-[hsl(40_20%_8%)]";
+      return "border-amber-500/40 bg-[hsl(40_25%_10%)]";
     }
-    return "border-primary/40 bg-gradient-to-b from-[hsl(260_15%_15%)] to-[hsl(260_10%_10%)]";
+    return "border-primary/40 bg-[hsl(220_12%_12%)]";
   };
 
   return (
@@ -88,12 +88,12 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
         className={`
           px-4 py-3 flex items-center justify-between
           ${isPreview
-            ? "bg-gradient-to-r from-amber-500/30 to-amber-600/20"
+            ? "bg-amber-500/25"
             : !isEnabled
-              ? "bg-gradient-to-r from-muted-foreground/20 to-muted-foreground/5"
+              ? "bg-muted-foreground/15"
               : !isEnriched
-                ? "bg-gradient-to-r from-amber-500/20 to-amber-600/5"
-                : "bg-gradient-to-r from-primary/30 to-primary/10"
+                ? "bg-amber-500/15"
+                : "bg-primary/20"
           }
         `}
       >

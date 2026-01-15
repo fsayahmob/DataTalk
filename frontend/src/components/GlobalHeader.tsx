@@ -19,7 +19,7 @@ export function GlobalHeader({ actions }: GlobalHeaderProps) {
   const config = PAGE_CONFIG[pathname] || PAGE_CONFIG["/"];
 
   return (
-    <header className="h-14 border-b border-border/50 px-4 flex items-center justify-between bg-[hsl(260_10%_10%)]">
+    <header className="h-14 border-b border-border/50 px-4 flex items-center justify-between bg-[hsl(220_10%_10%)]">
       <div>
         <h1 className="font-semibold text-foreground">{config.title}</h1>
         <p className="text-xs text-muted-foreground">{config.subtitle}</p>

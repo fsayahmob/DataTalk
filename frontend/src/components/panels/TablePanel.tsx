@@ -48,7 +48,7 @@ export function TablePanel({ data }: TablePanelProps) {
 
   return (
     <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      <div className="p-3 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-secondary/20 to-transparent">
+      <div className="p-3 border-b border-border/50 flex items-center justify-between bg-secondary/20">
         <span className="text-sm font-medium flex items-center gap-2">
           <TableIcon size={14} className="text-primary" />
           Données ({data?.length || 0} lignes)

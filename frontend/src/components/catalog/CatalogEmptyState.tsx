@@ -12,7 +12,7 @@ export function CatalogEmptyState({ isExtracting, onExtract }: CatalogEmptyState
   return (
     <div className="flex-1 flex items-center justify-center">
       <div className="text-center max-w-md">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+        <div className="w-20 h-20 mx-auto mb-6 rounded-lg bg-secondary/30 flex items-center justify-center">
           <DatabaseIcon size={40} className="text-primary/60" />
         </div>
         <h3 className="text-xl font-semibold mb-2">Aucun catalogue</h3>

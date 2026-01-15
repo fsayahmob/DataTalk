@@ -100,7 +100,7 @@ export default function SettingsPage() {
   }, []);
 
   return (
-    <div className="flex-1 overflow-auto bg-[hsl(260_10%_6%)]">
+    <div className="flex-1 overflow-auto bg-[hsl(220_10%_6%)]">
       <div className="max-w-6xl mx-auto px-6 py-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/30">

@@ -47,7 +47,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.375rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -82,58 +82,58 @@
 }
 
 .dark {
-  /* Fond principal - gris très foncé avec légère teinte bleue */
-  --background: oklch(0.12 0.01 260);
-  --foreground: oklch(0.95 0 0);
+  /* Fond - gris bleuté corporate (hue 220) */
+  --background: oklch(0.12 0.01 220);
+  --foreground: oklch(0.9 0 0);
 
-  /* Cards - légèrement plus claire que le fond */
-  --card: oklch(0.16 0.01 260);
-  --card-foreground: oklch(0.95 0 0);
+  /* Cards - gris bleuté */
+  --card: oklch(0.14 0.008 220);
+  --card-foreground: oklch(0.9 0 0);
 
   /* Popovers */
-  --popover: oklch(0.18 0.01 260);
-  --popover-foreground: oklch(0.95 0 0);
+  --popover: oklch(0.16 0.008 220);
+  --popover-foreground: oklch(0.9 0 0);
 
-  /* Primary - G7 violet/purple accent */
-  --primary: oklch(0.65 0.2 280);
+  /* Primary - bleu corporate */
+  --primary: oklch(0.6 0.18 250);
   --primary-foreground: oklch(1 0 0);
 
-  /* Secondary - fond éléments interactifs */
-  --secondary: oklch(0.22 0.015 260);
-  --secondary-foreground: oklch(0.9 0 0);
+  /* Secondary - gris bleuté */
+  --secondary: oklch(0.18 0.008 220);
+  --secondary-foreground: oklch(0.85 0 0);
 
-  /* Muted - texte secondaire */
-  --muted: oklch(0.25 0.015 260);
-  --muted-foreground: oklch(0.65 0 0);
+  /* Muted - gris bleuté */
+  --muted: oklch(0.20 0.008 220);
+  --muted-foreground: oklch(0.6 0 0);
 
-  /* Accent - hover states */
-  --accent: oklch(0.28 0.02 260);
-  --accent-foreground: oklch(0.95 0 0);
+  /* Accent - vert pour positif */
+  --accent: oklch(0.65 0.17 160);
+  --accent-foreground: oklch(1 0 0);
 
   /* Destructive */
   --destructive: oklch(0.6 0.2 25);
 
   /* Borders */
-  --border: oklch(1 0 0 / 8%);
-  --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.65 0.2 280);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.6 0.18 250);
 
-  /* Chart colors - palette professionnelle dataviz */
-  --chart-1: oklch(0.7 0.18 280);  /* Violet G7 */
-  --chart-2: oklch(0.75 0.15 165); /* Cyan */
-  --chart-3: oklch(0.8 0.16 85);   /* Or/Jaune */
-  --chart-4: oklch(0.65 0.2 340);  /* Magenta */
-  --chart-5: oklch(0.7 0.15 145);  /* Vert */
+  /* Charts - palette pro */
+  --chart-1: oklch(0.6 0.18 250);
+  --chart-2: oklch(0.7 0.16 160);
+  --chart-3: oklch(0.75 0.15 85);
+  --chart-4: oklch(0.65 0.18 200);
+  --chart-5: oklch(0.6 0.15 25);
 
-  /* Sidebar */
-  --sidebar: oklch(0.14 0.01 260);
-  --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.65 0.2 280);
+  /* Sidebar - gris bleuté */
+  --sidebar: oklch(0.11 0.01 220);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-primary: oklch(0.6 0.18 250);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.22 0.015 260);
-  --sidebar-accent-foreground: oklch(0.95 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.65 0.2 280);
+  --sidebar-accent: oklch(0.18 0.008 220);
+  --sidebar-accent-foreground: oklch(0.9 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.6 0.18 250);
 }
 
 @layer base {

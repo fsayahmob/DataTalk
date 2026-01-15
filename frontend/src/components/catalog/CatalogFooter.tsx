@@ -14,7 +14,7 @@ export function CatalogFooter({
   totalRows,
 }: CatalogFooterProps) {
   return (
-    <div className="px-4 py-2 border-t border-border/30 bg-[hsl(260_10%_8%)] flex items-center gap-6 text-xs text-muted-foreground">
+    <div className="px-4 py-2 border-t border-border/30 bg-[hsl(220_10%_8%)] flex items-center gap-6 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
         <span className="font-medium text-foreground">{tableCount}</span>
         <span>tables</span>

@@ -47,11 +47,11 @@ interface KpiCardProps {
 
 // Couleurs pour les sparklines
 const SPARKLINE_COLORS = {
-  primary: "#a78bfa",
-  success: "#34d399",
-  warning: "#fbbf24",
-  danger: "#f87171",
-  info: "#22d3ee",
+  primary: "#3b82f6",
+  success: "#10b981",
+  warning: "#f59e0b",
+  danger: "#ef4444",
+  info: "#06b6d4",
 };
 
 // Mini sparkline component

@@ -232,11 +232,11 @@ export default function Home() {
         {/* Resize Handle Zone 1 */}
         {!zone1Collapsed && (
           <div
-            className="w-1 hover:w-1.5 bg-primary/20 hover:bg-primary/50 cursor-col-resize transition-all flex-shrink-0 group"
+            className="w-1 hover:w-1.5 bg-border/30 hover:bg-border/60 cursor-col-resize transition-all flex-shrink-0 group"
             onMouseDown={() => setIsResizing("zone1")}
           >
             <div className="h-full w-full flex items-center justify-center">
-              <div className="w-0.5 h-8 bg-primary/30 group-hover:bg-primary/60 rounded-full" />
+              <div className="w-0.5 h-8 bg-border/50 group-hover:bg-border rounded-full" />
             </div>
           </div>
         )}
@@ -252,11 +252,11 @@ export default function Home() {
         {/* Resize Handle Zone 3 */}
         {!zone3Collapsed && (
           <div
-            className="w-1 hover:w-1.5 bg-amber-500/20 hover:bg-amber-500/50 cursor-col-resize transition-all flex-shrink-0 group"
+            className="w-1 hover:w-1.5 bg-border/30 hover:bg-border/60 cursor-col-resize transition-all flex-shrink-0 group"
             onMouseDown={() => setIsResizing("zone3")}
           >
             <div className="h-full w-full flex items-center justify-center">
-              <div className="w-0.5 h-8 bg-amber-500/30 group-hover:bg-amber-500/60 rounded-full" />
+              <div className="w-0.5 h-8 bg-border/50 group-hover:bg-border rounded-full" />
             </div>
           </div>
         )}

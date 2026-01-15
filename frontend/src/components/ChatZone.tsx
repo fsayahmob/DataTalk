@@ -110,7 +110,7 @@ export function ChatZone({
 
   return (
     <div
-      className={`flex flex-col bg-[hsl(260_10%_10%)] ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
+      className={`flex flex-col bg-[hsl(220_10%_10%)] ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
       style={collapsed ? undefined : { width: `${width}%` }}
     >
       {collapsed ? (
@@ -126,7 +126,7 @@ export function ChatZone({
       ) : (
         <>
           {/* Header Zone 1 */}
-          <div className="h-12 px-3 border-b border-primary/20 bg-gradient-to-r from-primary/10 to-transparent flex items-center justify-between">
+          <div className="h-12 px-3 border-b border-border/50 bg-secondary/30 flex items-center justify-between">
             <h3 className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-2">
               <ChatIcon size={14} />
               Chat
@@ -209,7 +209,7 @@ export function ChatZone({
             {messages.length === 0 && (
               <div className="space-y-2">
                 <div className="text-center py-3">
-                  <div className="w-10 h-10 mx-auto mb-2 bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl flex items-center justify-center">
+                  <div className="w-10 h-10 mx-auto mb-2 bg-secondary/30 rounded-lg flex items-center justify-center">
                     <SearchIcon size={20} className="text-primary" />
                   </div>
                   <p className="text-xs text-muted-foreground">

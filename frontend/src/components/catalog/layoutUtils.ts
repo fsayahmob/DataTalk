@@ -152,9 +152,9 @@ export function getLayoutedElements(
       source: sourceId,
       target: targetId,
       label: rel.column,
-      labelStyle: { fontSize: 10, fill: "hsl(260 10% 60%)" },
-      labelBgStyle: { fill: "hsl(260 10% 10%)", fillOpacity: 0.8 },
-      style: { stroke: "hsl(260 100% 65%)", strokeWidth: 2 },
+      labelStyle: { fontSize: 10, fill: "hsl(220 10% 60%)" },
+      labelBgStyle: { fill: "hsl(220 10% 10%)", fillOpacity: 0.8 },
+      style: { stroke: "hsl(220 100% 65%)", strokeWidth: 2 },
       type: "smoothstep",
     });
   });

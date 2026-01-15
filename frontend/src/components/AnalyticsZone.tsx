@@ -66,7 +66,7 @@ export function AnalyticsZone({
 
   return (
     <div
-      className={`flex flex-col bg-[hsl(260_10%_10%)] ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
+      className={`flex flex-col bg-[hsl(220_10%_10%)] ${collapsed ? "w-14" : ""} ${isResizing ? "" : "transition-all duration-300 ease-in-out"}`}
       style={collapsed ? undefined : { width: `${width}%` }}
     >
       {collapsed ? (
@@ -82,7 +82,7 @@ export function AnalyticsZone({
       ) : (
         <>
           {/* Header */}
-          <div className="h-12 px-3 border-b border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between flex-shrink-0">
+          <div className="h-12 px-3 border-b border-border/50 bg-secondary/30 flex items-center justify-between flex-shrink-0">
             <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
               <ChartIcon size={14} />
               Analyse IA

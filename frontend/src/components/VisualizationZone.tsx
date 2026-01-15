@@ -26,11 +26,11 @@ export function VisualizationZone({
   onFiltersChange,
 }: VisualizationZoneProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(260_10%_10%)]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-[hsl(220_10%_10%)]">
       {/* Zone 2.1: Header + Filtres (fixe) */}
       <div className="border-b border-red-500/30">
         {/* Header Zone 2 - Rouge G7 */}
-        <div className="h-10 px-3 flex items-center justify-between bg-gradient-to-r from-red-500/10 to-transparent">
+        <div className="h-10 px-3 flex items-center justify-between bg-secondary/30">
           <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider flex items-center gap-2">
             <ChartIcon size={14} />
             Visualisation
@@ -82,7 +82,7 @@ export function VisualizationZone({
       ) : (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           <div className="text-center">
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-primary/10 to-transparent rounded-2xl flex items-center justify-center">
+            <div className="w-20 h-20 mx-auto mb-4 bg-secondary/30 rounded-lg flex items-center justify-center">
               <ChartIcon size={40} className="text-primary/50" />
             </div>
             <p className="text-foreground/80 font-medium">G7 Analytics</p>

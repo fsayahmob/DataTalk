@@ -47,7 +47,7 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
   }
 
   return (
-    <div className="flex-1 min-h-[250px] max-h-[50vh] border-b border-border/50 p-4 overflow-hidden bg-gradient-to-b from-transparent to-secondary/10 flex flex-col">
+    <div className="flex-1 min-h-[250px] max-h-[50vh] border-b border-border/50 p-4 overflow-hidden bg-secondary/5 flex flex-col">
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <span className="text-sm font-medium flex items-center gap-2">
           <ChartIcon size={14} className="text-primary" />

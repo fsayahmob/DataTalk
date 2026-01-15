@@ -51,7 +51,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
   return (
     <div
-      className={`flex flex-col bg-[hsl(260_10%_8%)] border-r border-border/30 ${
+      className={`flex flex-col bg-[hsl(220_10%_8%)] border-r border-border/30 ${
         collapsed ? "w-14" : "w-48"
       } transition-all duration-300 ease-in-out`}
     >
@@ -59,7 +59,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
       <div className="h-14 flex items-center justify-center border-b border-border/30">
         <button
           onClick={() => onCollapse(!collapsed)}
-          className="w-10 h-10 bg-gradient-to-br from-primary to-primary/60 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-shadow cursor-pointer"
+          className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors"
           title={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
         >
           <span className="text-primary-foreground font-bold text-lg">G7</span>

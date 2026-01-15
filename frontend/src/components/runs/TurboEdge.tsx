@@ -35,7 +35,7 @@ export default function TurboEdge({
               fontSize: 10,
               pointerEvents: 'all',
             }}
-            className="nodrag nopan bg-[hsl(260_10%_10%)] px-2 py-1 rounded border border-border/30 text-muted-foreground"
+            className="nodrag nopan bg-[hsl(220_10%_10%)] px-2 py-1 rounded border border-border/30 text-muted-foreground"
           >
             {label}
           </div>

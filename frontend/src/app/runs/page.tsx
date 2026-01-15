@@ -261,7 +261,7 @@ function RunsPageContent() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[hsl(260_10%_6%)]">
+      <div className="h-screen flex items-center justify-center bg-[hsl(220_10%_6%)]">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Chargement des runs...</p>
@@ -271,9 +271,9 @@ function RunsPageContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[hsl(260_10%_6%)]">
+    <div className="h-screen flex flex-col bg-[hsl(220_10%_6%)]">
       {/* ReactFlow: Visualisation du job */}
-      <div className="h-[40vh] bg-[hsl(260_10%_4%)]">
+      <div className="h-[40vh] bg-[hsl(220_10%_4%)]">
         {selectedJobId ? (
           <ReactFlow
             nodes={nodes}
@@ -317,7 +317,7 @@ function RunsPageContent() {
       </div>
 
       {/* Historique des runs (style GitHub) */}
-      <div className="border-t border-border bg-[hsl(260_10%_8%)] overflow-hidden">
+      <div className="border-t border-border bg-[hsl(220_10%_8%)] overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border/30">
           <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Historique</h2>
         </div>
