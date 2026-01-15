@@ -32,7 +32,7 @@ export function SQLPanel({ sql }: SQLPanelProps) {
           {isOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
         </button>
         <button
-          onClick={handleCopy}
+          onClick={() => void handleCopy()}
           className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
         >
           <CopyIcon size={12} />

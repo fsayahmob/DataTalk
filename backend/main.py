@@ -94,9 +94,16 @@ load_dotenv()
 # Configuration par défaut (fallback si settings non initialisé)
 DEFAULT_DB_PATH = str(Path(__file__).parent / ".." / "data" / "g7_analytics.duckdb")
 
-# Connexion DuckDB persistante
-db_connection: duckdb.DuckDBPyConnection | None = None
-current_db_path: str | None = None  # Chemin actuellement utilisé
+
+# Module-level state using a mutable container to avoid global statements
+class _AppState:
+    """Container for mutable application state."""
+    db_connection: duckdb.DuckDBPyConnection | None = None
+    current_db_path: str | None = None
+    db_schema_cache: str | None = None
+
+
+_app_state = _AppState()
 
 
 def get_duckdb_path() -> str:
@@ -108,10 +115,6 @@ def get_duckdb_path() -> str:
             path = str(Path(__file__).parent / ".." / path)
         return str(Path(path).resolve())
     return DEFAULT_DB_PATH
-
-# Schéma chargé dynamiquement depuis le catalogue
-db_schema_cache: str | None = None
-
 
 class PromptNotConfiguredError(Exception):
     """Erreur levée quand un prompt n'est pas configuré en base."""
@@ -127,10 +130,8 @@ def get_system_instruction() -> str:
     Charge le prompt depuis la base de données (llm_prompts).
     Lève PromptNotConfiguredError si non trouvé.
     """
-    global db_schema_cache
-
-    if db_schema_cache is None:
-        db_schema_cache = get_schema_for_llm()
+    if _app_state.db_schema_cache is None:
+        _app_state.db_schema_cache = get_schema_for_llm()
 
     # Récupérer le prompt actif depuis la DB
     prompt_data = get_active_prompt("analytics_system")
@@ -139,7 +140,7 @@ def get_system_instruction() -> str:
         raise PromptNotConfiguredError("analytics_system")
 
     # Injecter le schéma dans le template
-    return prompt_data["content"].format(schema=db_schema_cache)
+    return prompt_data["content"].format(schema=_app_state.db_schema_cache)
 
 
 # Modèles Pydantic
@@ -203,12 +204,10 @@ class SettingsUpdateRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Gestion du cycle de vie de l'application"""
-    global db_connection, current_db_path
-
     # Startup: ouvrir la connexion DuckDB
-    current_db_path = get_duckdb_path()
-    print(f"Connexion à DuckDB: {current_db_path}")
-    db_connection = duckdb.connect(current_db_path, read_only=True)
+    _app_state.current_db_path = get_duckdb_path()
+    print(f"Connexion à DuckDB: {_app_state.current_db_path}")
+    _app_state.db_connection = duckdb.connect(_app_state.current_db_path, read_only=True)
     print("DuckDB connecté")
 
     # Vérifier le statut LLM
@@ -219,15 +218,14 @@ async def lifespan(app: FastAPI):
         print(f"ATTENTION: {llm_status.get('message')}")
 
     # Pré-charger le schéma du catalogue au démarrage
-    global db_schema_cache
-    db_schema_cache = get_schema_for_llm()
-    print(f"Schéma chargé ({len(db_schema_cache)} caractères)")
+    _app_state.db_schema_cache = get_schema_for_llm()
+    print(f"Schéma chargé ({len(_app_state.db_schema_cache)} caractères)")
 
     yield
 
     # Shutdown: fermer la connexion
-    if db_connection:
-        db_connection.close()
+    if _app_state.db_connection:
+        _app_state.db_connection.close()
         print("DuckDB déconnecté")
 
 
@@ -250,10 +248,10 @@ app.add_middleware(
 
 def execute_query(sql: str) -> list[dict[str, Any]]:
     """Exécute une requête SQL sur DuckDB"""
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
-    result = db_connection.execute(sql).fetchdf()
+    result = _app_state.db_connection.execute(sql).fetchdf()
     data = result.to_dict(orient="records")
 
     # Convertir les types non sérialisables en JSON
@@ -390,8 +388,8 @@ def call_llm_for_analytics(
         try:
             result = json.loads(content)
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON parse failed: {e}")
-            logger.warning(f"Raw LLM response ({len(content)} chars): {content[:500]}...")
+            logger.warning("JSON parse failed: %s", e)
+            logger.warning("Raw LLM response (%d chars): %s...", len(content), content[:500])
 
             # Tenter d'extraire le JSON du contenu
             json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', content, re.DOTALL)
@@ -399,11 +397,11 @@ def call_llm_for_analytics(
                 # Essayer avec une regex plus permissive pour JSON imbriqué
                 json_match = re.search(r'\{.*"sql"\s*:\s*".*?".*\}', content, re.DOTALL)
             if json_match:
-                logger.info(f"Found JSON via regex: {json_match.group()[:200]}...")
+                logger.info("Found JSON via regex: %s...", json_match.group()[:200])
                 try:
                     result = json.loads(json_match.group())
                 except json.JSONDecodeError as e2:
-                    logger.error(f"Regex JSON also invalid: {e2}")
+                    logger.error("Regex JSON also invalid: %s", e2)
                     # Retourner le texte brut comme message (pas d'erreur)
                     result = {
                         "sql": "",
@@ -431,7 +429,7 @@ def call_llm_for_analytics(
 
     except PromptNotConfiguredError as e:
         # Prompt non configuré en base
-        logger.error(f"Prompt non configuré: {e.prompt_key}")
+        logger.error("Prompt non configuré: %s", e.prompt_key)
         raise HTTPException(
             status_code=503,
             detail=f"Prompt '{e.prompt_key}' non configuré. Exécutez: python seed_prompts.py"
@@ -439,7 +437,7 @@ def call_llm_for_analytics(
 
     except LLMError as e:
         # Erreur typée du service LLM - mapper via i18n
-        logger.error(f"LLM Error: {e.code.value} - {e.details}")
+        logger.error("LLM Error: %s - %s", e.code.value, e.details)
         detail = t(e.code.value, provider=e.provider, error=e.details)
         raise HTTPException(status_code=500, detail=detail) from e
 
@@ -450,7 +448,7 @@ async def health_check():
     llm_status = check_llm_status()
     return {
         "status": "ok",
-        "database": "connected" if db_connection else "disconnected",
+        "database": "connected" if _app_state.db_connection else "disconnected",
         "llm": llm_status
     }
 
@@ -459,8 +457,8 @@ async def health_check():
 async def get_database_status():
     """Retourne le statut et la configuration de la base DuckDB."""
     return {
-        "status": "connected" if db_connection else "disconnected",
-        "path": current_db_path,
+        "status": "connected" if _app_state.db_connection else "disconnected",
+        "path": _app_state.current_db_path,
         "configured_path": get_setting("duckdb_path") or "data/g7_analytics.duckdb",
         "engine": "DuckDB"
     }
@@ -469,10 +467,8 @@ async def get_database_status():
 @app.post("/refresh-schema")
 async def refresh_schema():
     """Rafraîchit le cache du schéma depuis le catalogue SQLite."""
-    global db_schema_cache
-    db_schema_cache = None  # Force le rechargement
-    db_schema_cache = get_schema_for_llm()
-    return {"status": "ok", "message": "Schéma rafraîchi", "schema_preview": db_schema_cache[:500] + "..."}
+    _app_state.db_schema_cache = get_schema_for_llm()
+    return {"status": "ok", "message": "Schéma rafraîchi", "schema_preview": _app_state.db_schema_cache[:500] + "..."}
 
 
 @app.get("/schema")
@@ -743,10 +739,8 @@ async def execute_report(report_id: int):
         # Parser la config du graphique
         chart_config = {"type": "none", "x": "", "y": "", "title": ""}
         if report.get("chart_config"):
-            try:
+            with contextlib.suppress(json.JSONDecodeError):
                 chart_config = json.loads(report["chart_config"])
-            except json.JSONDecodeError:
-                pass
 
         return {
             "report_id": report_id,
@@ -841,25 +835,22 @@ class UpdateSettingRequest(BaseModel):
 @app.put("/settings/{key}")
 async def update_single_setting(key: str, request: UpdateSettingRequest):
     """Met à jour une configuration spécifique."""
-    global db_connection, current_db_path, db_schema_cache
-
     # Liste des clés autorisées
     allowed_keys = ["catalog_context_mode", "duckdb_path", "max_tables_per_batch"]
     if key not in allowed_keys:
         raise HTTPException(status_code=400, detail=f"Clé '{key}' non modifiable via cet endpoint")
 
     # Validation spécifique par clé
-    if key == "catalog_context_mode":
-        if request.value not in ("compact", "full"):
-            raise HTTPException(status_code=400, detail="Valeurs autorisées: 'compact' ou 'full'")
+    if key == "catalog_context_mode" and request.value not in ("compact", "full"):
+        raise HTTPException(status_code=400, detail="Valeurs autorisées: 'compact' ou 'full'")
 
     if key == "max_tables_per_batch":
         try:
             val = int(request.value)
             if val < 1 or val > 50:
                 raise HTTPException(status_code=400, detail="Valeur entre 1 et 50")
-        except ValueError:
-            raise HTTPException(status_code=400, detail="Valeur numérique requise")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail="Valeur numérique requise") from e
 
     if key == "duckdb_path":
         # Valider que le fichier existe
@@ -875,15 +866,15 @@ async def update_single_setting(key: str, request: UpdateSettingRequest):
         set_setting(key, request.value)
 
         # Reconnecter à la nouvelle base
-        if db_connection:
-            db_connection.close()
-        current_db_path = new_path
-        db_connection = duckdb.connect(new_path, read_only=True)
+        if _app_state.db_connection:
+            _app_state.db_connection.close()
+        _app_state.current_db_path = new_path
+        _app_state.db_connection = duckdb.connect(new_path, read_only=True)
 
         # Invalider le cache du schéma
-        db_schema_cache = None
+        _app_state.db_schema_cache = None
 
-        logger.info(f"DuckDB reconnecté à: {new_path}")
+        logger.info("DuckDB reconnecté à: %s", new_path)
         return {"status": "ok", "key": key, "value": request.value, "resolved_path": new_path}
 
     set_setting(key, request.value)
@@ -958,20 +949,17 @@ async def delete_catalog():
     cursor.execute("DELETE FROM datasources")
 
     # Supprimer les widgets, questions et KPIs générés
-    try:
+    with contextlib.suppress(Exception):
         cursor.execute("DELETE FROM widget_cache")
         cursor.execute("DELETE FROM widgets")
         cursor.execute("DELETE FROM suggested_questions")
         cursor.execute("DELETE FROM kpis")
-    except Exception:
-        pass  # Tables n'existent peut-être pas encore
 
     conn.commit()
     conn.close()
 
     # Rafraîchir le cache du schéma
-    global db_schema_cache
-    db_schema_cache = None
+    _app_state.db_schema_cache = None
 
     return {"status": "ok", "message": "Catalogue supprimé"}
 
@@ -993,9 +981,7 @@ async def toggle_table_enabled_endpoint(table_id: int):
         raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour")
 
     # Rafraîchir le cache du schéma
-    global db_schema_cache
-    db_schema_cache = None
-    db_schema_cache = get_schema_for_llm()
+    _app_state.db_schema_cache = get_schema_for_llm()
 
     # Récupérer le nouvel état
     table = get_table_by_id(table_id)
@@ -1016,7 +1002,7 @@ async def extract_catalog_endpoint():
     L'utilisateur peut ensuite désactiver les tables non souhaitées
     avant de lancer l'enrichissement.
     """
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     # 0. Créer un nouveau run_id et un job d'extraction
@@ -1038,18 +1024,16 @@ async def extract_catalog_endpoint():
         cursor.execute("DELETE FROM tables")
         cursor.execute("DELETE FROM datasources")
         # Vider aussi KPIs et questions
-        try:
+        with contextlib.suppress(Exception):
             cursor.execute("DELETE FROM kpis")
             cursor.execute("DELETE FROM suggested_questions")
-        except Exception:
-            pass
         conn.commit()
     finally:
         conn.close()
 
     # 2. Extraction dans un thread séparé
     def run_extraction():
-        return extract_only(db_connection=db_connection, job_id=job_id)
+        return extract_only(db_connection=_app_state.db_connection, job_id=job_id)
 
     try:
         loop = asyncio.get_event_loop()
@@ -1068,8 +1052,7 @@ async def extract_catalog_endpoint():
         raise HTTPException(status_code=500, detail=f"Erreur extraction: {e}") from e
 
     # 3. Rafraîchir le cache du schéma (vide car pas de descriptions)
-    global db_schema_cache
-    db_schema_cache = None
+    _app_state.db_schema_cache = None
 
     return {
         "status": result.get("status", "ok"),
@@ -1109,7 +1092,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
     if llm_status["status"] != "ok":
         raise HTTPException(status_code=500, detail=llm_status.get("message", "LLM non configuré"))
 
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     if not request.table_ids:
@@ -1140,7 +1123,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
     def run_enrichment():
         return enrich_selected_tables(
             table_ids=request.table_ids,
-            db_connection=db_connection,
+            db_connection=_app_state.db_connection,
             job_id=job_id
         )
 
@@ -1179,9 +1162,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
         raise HTTPException(status_code=500, detail=f"Erreur enrichissement: {e}") from e
 
     # Rafraîchir le cache du schéma
-    global db_schema_cache
-    db_schema_cache = None
-    db_schema_cache = get_schema_for_llm()
+    _app_state.db_schema_cache = get_schema_for_llm()
 
     return {
         "status": result.get("status", "ok"),
@@ -1209,7 +1190,7 @@ async def generate_catalog_endpoint():
     if llm_status["status"] != "ok":
         raise HTTPException(status_code=500, detail=llm_status.get("message", "LLM non configuré"))
 
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     # 1. Vider le catalogue existant
@@ -1224,7 +1205,7 @@ async def generate_catalog_endpoint():
 
     # 2. Générer le catalogue dans un thread séparé pour ne pas bloquer les autres requêtes
     def run_generation():
-        return generate_catalog_from_connection(db_connection=db_connection)
+        return generate_catalog_from_connection(db_connection=_app_state.db_connection)
 
     try:
         loop = asyncio.get_event_loop()
@@ -1234,9 +1215,7 @@ async def generate_catalog_endpoint():
         raise HTTPException(status_code=500, detail=f"Erreur génération catalogue: {e}") from e
 
     # 3. Rafraîchir le cache du schéma
-    global db_schema_cache
-    db_schema_cache = None
-    db_schema_cache = get_schema_for_llm()
+    _app_state.db_schema_cache = get_schema_for_llm()
 
     return {
         "status": result.get("status", "ok"),
@@ -1410,11 +1389,11 @@ async def list_widgets(use_cache: bool = True):
     Query params:
         use_cache: Si False, force le recalcul (défaut: True)
     """
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     try:
-        widgets = get_all_widgets_with_data(db_connection, use_cache=use_cache)
+        widgets = get_all_widgets_with_data(_app_state.db_connection, use_cache=use_cache)
         return {"widgets": widgets}
     except Exception as e:
         # Table n'existe pas encore ou autre erreur -> retourner liste vide
@@ -1428,11 +1407,10 @@ async def refresh_widgets():
     Force le recalcul du cache de tous les widgets.
     Utile après une mise à jour des données ou du catalogue.
     """
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
-    result = refresh_all_widgets_cache(db_connection)
-    return result
+    return refresh_all_widgets_cache(_app_state.db_connection)
 
 
 @app.post("/widgets/{widget_id}/refresh")
@@ -1440,10 +1418,10 @@ async def refresh_widget(widget_id: str):
     """
     Force le recalcul du cache d'un widget spécifique.
     """
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
-    result = refresh_single_widget_cache(widget_id, db_connection)
+    result = refresh_single_widget_cache(widget_id, _app_state.db_connection)
     if "error" in result and not result.get("success", True):
         raise HTTPException(status_code=404, detail=result["error"])
     return result
@@ -1459,11 +1437,11 @@ async def list_kpis():
     Récupère les 4 KPIs avec leurs données calculées.
     Exécute les 3 requêtes SQL par KPI (value, trend, sparkline).
     """
-    if not db_connection:
+    if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail="Base de données non connectée")
 
     try:
-        kpis = get_all_kpis_with_data(db_connection)
+        kpis = get_all_kpis_with_data(_app_state.db_connection)
         return {"kpis": kpis}
     except Exception as e:
         logger.warning("Erreur chargement KPIs: %s", e)
@@ -1797,7 +1775,7 @@ async def update_column_description(column_id: int, request: dict):
         raise
     except Exception as e:
         logger.error("Erreur update description colonne %s: %s", column_id, e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 if __name__ == "__main__":

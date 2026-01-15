@@ -25,7 +25,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
   const [editingDescription, setEditingDescription] = useState("");
 
   useEffect(() => {
-    api.fetchCatalogContextMode().then(setContextMode);
+    void api.fetchCatalogContextMode().then(setContextMode);
   }, []);
 
   const handleStartEdit = (columnId: number, currentDescription: string) => {
@@ -105,9 +105,9 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {/* Toggle enable/disable */}
       <div className="px-4 py-3 border-b border-border/20 flex items-center justify-between bg-secondary/20">
         <div>
-          <p className="text-sm font-medium">Inclure dans l'enrichissement</p>
+          <p className="text-sm font-medium">Inclure dans l&apos;enrichissement</p>
           <p className="text-xs text-muted-foreground">
-            {isEnabled ? "Sera enrichie au prochain clic sur \"Enrichir\"" : "Exclue de l'enrichissement LLM"}
+            {isEnabled ? "Sera enrichie au prochain clic sur « Enrichir »" : "Exclue de l&apos;enrichissement LLM"}
           </p>
         </div>
         <button
@@ -132,8 +132,8 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
       {isEnabled && !isEnriched && (
         <div className="px-4 py-3 border-b border-border/20 bg-amber-500/10">
           <p className="text-xs text-amber-400">
-            Cette table n'a pas encore été enrichie par le LLM.
-            Cliquez sur "Enrichir" pour générer les descriptions.
+            Cette table n&apos;a pas encore été enrichie par le LLM.
+            Cliquez sur « Enrichir » pour générer les descriptions.
           </p>
         </div>
       )}
@@ -177,14 +177,14 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
                         value={editingDescription}
                         onChange={(e) => setEditingDescription(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleSaveDescription(col.id!);
+                          if (e.key === "Enter") void handleSaveDescription(col.id!);
                           if (e.key === "Escape") handleCancelEdit();
                         }}
                         className="flex-1 px-2 py-1 text-xs bg-background border border-primary rounded focus:outline-none focus:ring-1 focus:ring-primary"
                         autoFocus
                       />
                       <button
-                        onClick={() => handleSaveDescription(col.id!)}
+                        onClick={() => void handleSaveDescription(col.id!)}
                         className="px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
                       >
                         ✓

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,7 +22,7 @@ interface PromptGroup {
   activeVersion: string | null;
 }
 
-function groupPromptsByKey(prompts: LLMPrompt[]): PromptGroup[] {
+function _groupPromptsByKey(prompts: LLMPrompt[]): PromptGroup[] {
   const groups: Record<string, PromptGroup> = {};
 
   for (const prompt of prompts) {
@@ -64,7 +64,9 @@ export function PromptsTab() {
   }, []);
 
   useEffect(() => {
-    loadPrompts();
+    startTransition(() => {
+      void loadPrompts();
+    });
   }, [loadPrompts]);
 
   const handleContextModeChange = useCallback(
@@ -128,7 +130,7 @@ export function PromptsTab() {
   return (
     <div className="space-y-4">
       <div className="text-xs text-muted-foreground mb-4">
-        Configurez les prompts utilisés par le LLM pour l'analyse et l'enrichissement du catalogue.
+        Configurez les prompts utilisés par le LLM pour l&apos;analyse et l&apos;enrichissement du catalogue.
       </div>
 
       {activePrompts.map((prompt) => {
@@ -158,7 +160,7 @@ export function PromptsTab() {
                   {isAnalyticsSystem && !isEditing && (
                     <Select
                       value={contextMode}
-                      onValueChange={(v) => handleContextModeChange(v as CatalogContextMode)}
+                      onValueChange={(v) => void handleContextModeChange(v as CatalogContextMode)}
                       disabled={saving === "catalog_context_mode"}
                     >
                       <SelectTrigger className="w-28 h-7 text-xs">
@@ -221,7 +223,7 @@ export function PromptsTab() {
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        onClick={() => handleSaveEdit(prompt.key)}
+                        onClick={() => void handleSaveEdit(prompt.key)}
                         disabled={saving === prompt.key || editedContent === prompt.content}
                       >
                         {saving === prompt.key ? "Enregistrement..." : "Enregistrer"}

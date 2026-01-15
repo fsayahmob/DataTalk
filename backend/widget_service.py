@@ -4,7 +4,7 @@ Gère l'exécution SQL sur DuckDB et le cache des résultats.
 """
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import Any
 
 import duckdb
@@ -80,7 +80,7 @@ def get_widget_with_data(
                     "from_cache": True
                 }
             except json.JSONDecodeError:
-                logger.warning(f"Cache invalide pour widget {widget_id}")
+                logger.warning("Cache invalide pour widget %s", widget_id)
 
     # Exécuter la requête SQL
     try:
@@ -96,11 +96,11 @@ def get_widget_with_data(
         return {
             **widget,
             "data": data,
-            "cached_at": datetime.now().isoformat(),
+            "cached_at": datetime.now(tz=UTC).isoformat(),
             "from_cache": False
         }
     except Exception as e:
-        logger.error(f"Erreur SQL widget {widget_id}: {e}")
+        logger.error("Erreur SQL widget %s: %s", widget_id, e)
         return {
             **widget,
             "data": [],
@@ -165,13 +165,13 @@ def refresh_all_widgets_cache(
                 "widget_id": widget["widget_id"],
                 "error": str(e)
             })
-            logger.error(f"Erreur refresh widget {widget['widget_id']}: {e}")
+            logger.error("Erreur refresh widget %s: %s", widget["widget_id"], e)
 
     return {
         "total": len(widgets),
         "success": success,
         "errors": errors,
-        "refreshed_at": datetime.now().isoformat()
+        "refreshed_at": datetime.now(tz=UTC).isoformat()
     }
 
 
@@ -200,7 +200,7 @@ def refresh_single_widget_cache(
             "widget_id": widget_id,
             "success": True,
             "rows": len(data),
-            "refreshed_at": datetime.now().isoformat()
+            "refreshed_at": datetime.now(tz=UTC).isoformat()
         }
     except Exception as e:
         return {

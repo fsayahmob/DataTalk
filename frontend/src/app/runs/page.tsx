@@ -34,12 +34,7 @@ function RunsPageContent() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
 
-  // Charger liste des runs
-  useEffect(() => {
-    loadRuns();
-  }, []);
-
-  const loadRuns = async () => {
+  const loadRuns = useCallback(async () => {
     try {
       const data = await api.fetchRuns();
       setRuns(data);
@@ -53,10 +48,15 @@ function RunsPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedJobId]);
+
+  // Charger liste des runs
+  useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
 
   // Fonction pour construire le flow depuis un job
-  const buildFlowFromJob = useCallback((jobType: "extraction" | "enrichment", jobs: any[]) => {
+  const buildFlowFromJob = useCallback((jobType: "extraction" | "enrichment", jobs: api.CatalogJob[]) => {
     const newNodes: Node<TurboNodeData>[] = [];
     const newEdges: Edge[] = [];
 
@@ -238,7 +238,7 @@ function RunsPageContent() {
 
       if (data.done) {
         eventSource.close();
-        loadRuns(); // Refresh liste
+        void loadRuns(); // Refresh liste
         return;
       }
 
@@ -257,7 +257,7 @@ function RunsPageContent() {
     };
 
     return () => eventSource.close();
-  }, [selectedJobId, runs, buildFlowFromJob]);
+  }, [selectedJobId, runs, buildFlowFromJob, loadRuns]);
 
   if (loading) {
     return (

@@ -176,7 +176,7 @@ export async function setDefaultModel(modelId: string): Promise<boolean> {
   }
 }
 
-export async function fetchLLMCosts(days: number = 30): Promise<LLMCosts | null> {
+export async function fetchLLMCosts(days = 30): Promise<LLMCosts | null> {
   try {
     const res = await fetch(`${API_BASE}/llm/costs?days=${days}`);
     return await res.json();
@@ -316,7 +316,7 @@ export async function analyzeInConversation(
   conversationId: number,
   question: string,
   filters?: AnalysisFilters,
-  useContext: boolean = false
+  useContext = false
 ): Promise<AnalysisResponse> {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/analyze`, {
     method: "POST",
@@ -700,8 +700,8 @@ export interface CatalogJob {
   step_index: number | null;
   total_steps: number | null;
   progress: number;
-  details: Record<string, any> | null;
-  result: Record<string, any> | null;
+  details: Record<string, unknown> | null;
+  result: Record<string, unknown> | null;
   error_message: string | null;
   started_at: string;
   completed_at: string | null;
@@ -747,7 +747,7 @@ export async function fetchRun(runId: string): Promise<RunResponse> {
   }
 }
 
-export async function fetchCatalogJobs(limit: number = 50): Promise<CatalogJob[]> {
+export async function fetchCatalogJobs(limit = 50): Promise<CatalogJob[]> {
   try {
     const res = await fetch(`${API_BASE}/catalog/jobs?limit=${limit}`);
     const data = await res.json();
@@ -771,7 +771,7 @@ export interface Run {
   status: "pending" | "running" | "completed" | "failed";
   current_step: string | null;
   progress: number;
-  result: any;
+  result: Record<string, unknown> | null;
 }
 
 export async function fetchRuns(): Promise<Run[]> {

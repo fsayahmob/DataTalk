@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 import {
   AreaChart,
   Area,
@@ -66,7 +66,7 @@ function Sparkline({
 }) {
   const chartData = data.map((value, index) => ({ value, index }));
   const strokeColor = SPARKLINE_COLORS[color as keyof typeof SPARKLINE_COLORS] || color;
-  const chartId = useMemo(() => `sparkline-${Math.random().toString(36).slice(2, 9)}`, []);
+  const chartId = useId();
 
   const commonProps = {
     data: chartData,

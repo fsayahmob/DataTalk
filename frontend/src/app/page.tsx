@@ -68,7 +68,7 @@ export default function Home() {
 
   // Charger les questions suggérées (générées par LLM lors de la création du catalogue)
   const loadQuestions = useCallback(() => {
-    api.fetchSuggestedQuestions().then(suggested => {
+    void api.fetchSuggestedQuestions().then(suggested => {
       const converted: PredefinedQuestion[] = suggested.map(q => ({
         id: q.id,
         question: q.question,
@@ -82,9 +82,9 @@ export default function Home() {
   // Charger les données au démarrage et restaurer la session
   useEffect(() => {
     loadQuestions();
-    loadReports();
-    loadConversations();
-    restoreSession();
+    void loadReports();
+    void loadConversations();
+    void restoreSession();
   }, [loadQuestions, loadReports, loadConversations, restoreSession]);
 
   // Recharger les questions quand la fenêtre reprend le focus
@@ -108,7 +108,7 @@ export default function Home() {
 
   // Wrapper pour handleSubmit avec les filtres
   const handleSubmit = useCallback((e: React.FormEvent) => {
-    submitConversation(e, filters);
+    void submitConversation(e, filters);
   }, [submitConversation, filters]);
 
   const handleQuestionClick = useCallback((q: string) => {
@@ -140,7 +140,7 @@ export default function Home() {
         JSON.stringify(selectedMessage.chart),
         selectedMessage.id
       );
-      loadReports();
+      void loadReports();
       toast.success("Rapport sauvegardé", { description: title });
     } catch (e) {
       console.error("Erreur sauvegarde:", e);
@@ -151,7 +151,7 @@ export default function Home() {
   const handleDeleteReport = async (id: number) => {
     try {
       await api.deleteReport(id);
-      loadReports();
+      void loadReports();
       toast.success("Rapport supprimé");
     } catch (e) {
       console.error("Erreur suppression:", e);
@@ -192,7 +192,7 @@ export default function Home() {
     if (count > 0) {
       toast.success(`${count} conversation(s) supprimée(s)`);
       handleNewConversation();
-      loadConversations();
+      void loadConversations();
     }
   };
 
@@ -219,14 +219,14 @@ export default function Home() {
           currentConversationId={currentConversationId}
           showHistory={showHistory}
           onShowHistoryChange={setShowHistory}
-          onLoadConversation={handleLoadConversation}
+          onLoadConversation={(conv) => void handleLoadConversation(conv)}
           onNewConversation={handleNewConversation}
           predefinedQuestions={predefinedQuestions}
           onQuestionClick={handleQuestionClick}
-          onReplayMessage={handleReplayMessage}
+          onReplayMessage={(msg) => void handleReplayMessage(msg)}
           useContext={useContext}
           onUseContextChange={setUseContext}
-          onDeleteAllConversations={handleDeleteAllConversations}
+          onDeleteAllConversations={() => void handleDeleteAllConversations()}
         />
 
         {/* Resize Handle Zone 1 */}
@@ -244,7 +244,7 @@ export default function Home() {
         {/* Zone 2: Visualisation */}
         <VisualizationZone
           selectedMessage={selectedMessage}
-          onSaveReport={handleSaveReport}
+          onSaveReport={() => void handleSaveReport()}
           filters={filters}
           onFiltersChange={setFilters}
         />
@@ -268,8 +268,8 @@ export default function Home() {
           width={zone3Width}
           isResizing={isResizing !== null}
           savedReports={savedReports}
-          onReportClick={handleReportClick}
-          onReportDelete={handleDeleteReport}
+          onReportClick={(report) => void handleReportClick(report)}
+          onReportDelete={(id) => void handleDeleteReport(id)}
         />
       </div>
 

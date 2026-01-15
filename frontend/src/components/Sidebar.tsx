@@ -46,7 +46,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const [llmStatus, setLlmStatus] = useState<LLMStatus | null>(null);
 
   useEffect(() => {
-    api.fetchLLMStatus().then(setLlmStatus);
+    void api.fetchLLMStatus().then(setLlmStatus);
   }, [pathname]);
 
   return (

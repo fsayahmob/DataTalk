@@ -7,7 +7,7 @@ import logging
 import os
 import time
 from enum import Enum
-from typing import Optional, Type, TypeVar
+from typing import TypeVar
 
 import instructor
 import litellm
@@ -66,22 +66,26 @@ class LLMError(Exception):
 
 def _handle_litellm_exception(e: Exception, provider: str) -> LLMError:
     """Convertit une exception LiteLLM en LLMError typé."""
-    if isinstance(e, AuthenticationError):
-        return LLMError(LLMErrorCode.API_KEY_INVALID, provider)
-    if isinstance(e, RateLimitError):
-        return LLMError(LLMErrorCode.QUOTA_EXCEEDED, provider)
+    # Mapping type -> code d'erreur
+    error_mapping: dict[type, LLMErrorCode] = {
+        AuthenticationError: LLMErrorCode.API_KEY_INVALID,
+        RateLimitError: LLMErrorCode.QUOTA_EXCEEDED,
+        ContextWindowExceededError: LLMErrorCode.CONTEXT_TOO_LONG,
+        ContentPolicyViolationError: LLMErrorCode.CONTENT_POLICY,
+        ServiceUnavailableError: LLMErrorCode.SERVICE_UNAVAILABLE,
+    }
+
+    # Cas spécial: APIConnectionError peut être timeout ou connexion
     if isinstance(e, APIConnectionError):
-        if "timeout" in str(e).lower():
-            return LLMError(LLMErrorCode.TIMEOUT, provider)
-        return LLMError(LLMErrorCode.CONNECTION_ERROR, provider)
-    if isinstance(e, ContextWindowExceededError):
-        return LLMError(LLMErrorCode.CONTEXT_TOO_LONG, provider)
-    if isinstance(e, ContentPolicyViolationError):
-        return LLMError(LLMErrorCode.CONTENT_POLICY, provider)
-    if isinstance(e, ServiceUnavailableError):
-        return LLMError(LLMErrorCode.SERVICE_UNAVAILABLE, provider)
-    if isinstance(e, BadRequestError) or isinstance(e, APIError):
-        return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
+        code = LLMErrorCode.TIMEOUT if "timeout" in str(e).lower() else LLMErrorCode.CONNECTION_ERROR
+        return LLMError(code, provider)
+
+    # Chercher dans le mapping
+    for exc_type, error_code in error_mapping.items():
+        if isinstance(e, exc_type):
+            return LLMError(error_code, provider)
+
+    # Fallback: erreur générique avec détails
     return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
 
 
@@ -162,9 +166,7 @@ def _configure_api_key(model: dict) -> bool:
     api_key = get_api_key(provider_id)
     if not api_key:
         # Pas de clé requise (ex: Ollama)
-        if not model.get("requires_api_key", True):
-            return True
-        return False
+        return not model.get("requires_api_key", True)
 
     # Configurer la clé pour LiteLLM
     provider_name = model.get("provider_name", "")
@@ -208,10 +210,7 @@ def call_llm(
         LLMError: Erreur typée avec code i18n
     """
     # Récupérer le modèle
-    if model_id:
-        model = get_model(model_id)
-    else:
-        model = get_default_model()
+    model = get_model(model_id) if model_id else get_default_model()
 
     if not model:
         raise LLMError(LLMErrorCode.NOT_CONFIGURED)
@@ -341,10 +340,7 @@ def call_llm_structured(
         LLMError: Erreur typée avec code i18n
     """
     # Récupérer le modèle
-    if model_id:
-        model = get_model(model_id)
-    else:
-        model = get_default_model()
+    model = get_model(model_id) if model_id else get_default_model()
 
     if not model:
         raise LLMError(LLMErrorCode.NOT_CONFIGURED)

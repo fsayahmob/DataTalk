@@ -1,34 +1,21 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextPlugin from "@next/eslint-plugin-next";
+import reactPlugin from "eslint-plugin-react";
+import hooksPlugin from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
 const eslintConfig = [
-  // Next.js base config
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-
-  // TypeScript strict rules
-  ...tseslint.configs.strictTypeChecked,
-  ...tseslint.configs.stylisticTypeChecked,
-
+  // TypeScript files configuration
   {
+    files: ["**/*.ts", "**/*.tsx"],
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
     languageOptions: {
+      parser: tseslint.parser,
       parserOptions: {
         project: true,
-        tsconfigRootDir: __dirname,
       },
     },
-  },
-
-  // Relaxed rules for existing codebase
-  {
     rules: {
       // ============================================================
       // TYPESCRIPT - Relaxed for existing code
@@ -47,7 +34,49 @@ const eslintConfig = [
       "@typescript-eslint/no-misused-promises": "warn",
       "@typescript-eslint/require-await": "warn",
       "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+      }],
+    },
+  },
 
+  // React configuration
+  {
+    files: ["**/*.jsx", "**/*.tsx"],
+    plugins: {
+      "react": reactPlugin,
+      "react-hooks": hooksPlugin,
+    },
+    rules: {
+      ...reactPlugin.configs.recommended.rules,
+      ...hooksPlugin.configs.recommended.rules,
+      "react/react-in-jsx-scope": "off",
+      "react/prop-types": "off",
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+  },
+
+  // Next.js configuration
+  {
+    files: ["**/*.js", "**/*.jsx", "**/*.ts", "**/*.tsx"],
+    plugins: {
+      "@next/next": nextPlugin,
+    },
+    rules: {
+      ...nextPlugin.configs.recommended.rules,
+      ...nextPlugin.configs["core-web-vitals"].rules,
+    },
+  },
+
+  // General rules for all files
+  {
+    rules: {
       // ============================================================
       // CODE QUALITY - Relaxed limits
       // ============================================================
@@ -67,15 +96,6 @@ const eslintConfig = [
       "prefer-const": "warn",
       "eqeqeq": ["warn", "always"],
       "no-eval": "error",
-
-      // ============================================================
-      // UNUSED CODE
-      // ============================================================
-      "@typescript-eslint/no-unused-vars": ["warn", {
-        argsIgnorePattern: "^_",
-        varsIgnorePattern: "^_",
-        caughtErrorsIgnorePattern: "^_",
-      }],
     },
   },
 

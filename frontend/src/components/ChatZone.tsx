@@ -181,7 +181,7 @@ export function ChatZone({
                       className="w-full text-left text-[10px] p-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors flex items-center gap-2 mb-2"
                     >
                       <TrashIcon size={12} className="flex-shrink-0" />
-                      <span>Supprimer tout l'historique</span>
+                      <span>Supprimer tout l&apos;historique</span>
                     </button>
                     {conversations.slice(0, 15).map((conv) => (
                     <button

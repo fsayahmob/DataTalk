@@ -1,7 +1,7 @@
 {
   "hookType": "pre-edit",
   "toolName": "Edit",
-  "filePath": "/Users/sayahfarid/datalakeG7/frontend/src/app/runs/page.tsx",
+  "filePath": "/Users/sayahfarid/datalakeG7/frontend/src/components/Sidebar.tsx",
   "fileType": "frontend",
-  "timestamp": "2026-01-13T16:53:35Z"
+  "timestamp": "2026-01-15T10:15:08Z"
 }

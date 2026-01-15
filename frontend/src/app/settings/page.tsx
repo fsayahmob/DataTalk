@@ -20,7 +20,7 @@ export default function SettingsPage() {
 
   // Load data
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const [providersData, defaultModelData, statusData, modelsData] = await Promise.all([
         api.fetchLLMProviders(),
         api.fetchDefaultModel(),
@@ -35,7 +35,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
-    api.fetchLLMCosts(costsPeriod).then(setCosts);
+    void api.fetchLLMCosts(costsPeriod).then(setCosts);
   }, [costsPeriod]);
 
   // Refresh providers and status
@@ -145,7 +145,7 @@ export default function SettingsPage() {
               searchQuery={searchQuery}
               onProviderChange={setSelectedProvider}
               onSearchChange={setSearchQuery}
-              onSetDefaultModel={handleSetDefaultModel}
+              onSetDefaultModel={(modelId) => void handleSetDefaultModel(modelId)}
             />
           </TabsContent>
 

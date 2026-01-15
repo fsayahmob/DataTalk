@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 import { AreaChart, Area, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { TrendUpIcon, TrendDownIcon } from "@/components/icons";
@@ -20,7 +20,7 @@ interface KpiCardCompactProps {
 
 function Sparkline({ data, type }: { data: number[]; type: "area" | "bar" }) {
   const chartData = data.map((value, i) => ({ value, i }));
-  const id = useMemo(() => `sp-${Math.random().toString(36).slice(2, 7)}`, []);
+  const id = useId();
 
   if (type === "bar") {
     return (

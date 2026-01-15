@@ -13,7 +13,7 @@ export function CustomControls() {
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
-        onClick={() => zoomIn()}
+        onClick={() => void zoomIn()}
         title="Zoom +"
       >
         <ZoomInIcon size={16} />
@@ -22,7 +22,7 @@ export function CustomControls() {
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
-        onClick={() => zoomOut()}
+        onClick={() => void zoomOut()}
         title="Zoom -"
       >
         <ZoomOutIcon size={16} />
@@ -32,7 +32,7 @@ export function CustomControls() {
         variant="ghost"
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
-        onClick={() => fitView({ padding: 0.2 })}
+        onClick={() => void fitView({ padding: 0.2 })}
         title="Ajuster la vue"
       >
         <FitViewIcon size={16} />

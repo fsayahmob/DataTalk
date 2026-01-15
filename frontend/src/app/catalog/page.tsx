@@ -22,7 +22,6 @@ import {
   CatalogEmptyState,
   CatalogFooter,
   CatalogActions,
-  PipelineLog,
   getLayoutedElements,
 } from "@/components/catalog";
 import * as api from "@/lib/api";
@@ -63,7 +62,7 @@ function CatalogPageContent() {
 
   // Charger le catalogue au montage
   useEffect(() => {
-    (async () => {
+    void (async () => {
       const result = await api.fetchCatalog();
       if (result) {
         setCurrentCatalog(result.catalog);
@@ -153,11 +152,12 @@ function CatalogPageContent() {
     });
 
     // Polling pour mises à jour en temps réel
-    const pollInterval = setInterval(async () => {
-      const catalogResult = await api.fetchCatalog();
-      if (catalogResult) {
-        setCurrentCatalog(catalogResult.catalog);
-      }
+    const pollInterval = setInterval(() => {
+      void api.fetchCatalog().then((catalogResult) => {
+        if (catalogResult) {
+          setCurrentCatalog(catalogResult.catalog);
+        }
+      });
     }, 3000);
     pollingRef.current = pollInterval;
 
@@ -275,9 +275,9 @@ function CatalogPageContent() {
         isExtracting={isExtracting}
         isEnriching={isEnriching}
         isDeleting={isDeleting}
-        onExtract={handleExtract}
-        onEnrich={handleEnrich}
-        onDelete={handleDelete}
+        onExtract={() => void handleExtract()}
+        onEnrich={() => void handleEnrich()}
+        onDelete={() => void handleDelete()}
         enabledTablesCount={enabledTablesCount}
       />
     );
@@ -342,7 +342,7 @@ function CatalogPageContent() {
           </div>
         </div>
       ) : !hasContent ? (
-        <CatalogEmptyState isExtracting={isExtracting} onExtract={handleExtract} />
+        <CatalogEmptyState isExtracting={isExtracting} onExtract={() => void handleExtract()} />
       ) : (
         <div className="flex-1 flex overflow-hidden">
           {/* ERD Canvas */}

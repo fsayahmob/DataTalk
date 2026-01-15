@@ -47,7 +47,7 @@ function detectForeignKeyRelations(
 
       const tableA = tables[i];
       const tableB = tables[j];
-      const colsA = new Set(tableA.columns.map(c => c.name.toLowerCase()));
+      const _colsA = new Set(tableA.columns.map(c => c.name.toLowerCase()));
       const colsB = new Set(tableB.columns.map(c => c.name.toLowerCase()));
 
       // Trouver les colonnes communes

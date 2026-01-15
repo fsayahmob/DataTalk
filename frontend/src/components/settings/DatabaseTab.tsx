@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -41,7 +41,9 @@ export function DatabaseTab() {
   }, []);
 
   useEffect(() => {
-    loadStatus();
+    startTransition(() => {
+      void loadStatus();
+    });
   }, [loadStatus]);
 
   const handleSave = async () => {
@@ -124,7 +126,7 @@ export function DatabaseTab() {
                   <Button
                     size="sm"
                     className="h-7 text-xs"
-                    onClick={handleSave}
+                    onClick={() => void handleSave()}
                     disabled={saving}
                   >
                     {saving ? "..." : "OK"}
@@ -197,7 +199,7 @@ export function DatabaseTab() {
                   <Button
                     size="sm"
                     className="h-7 text-xs"
-                    onClick={handleSaveBatch}
+                    onClick={() => void handleSaveBatch()}
                     disabled={savingBatch}
                   >
                     {savingBatch ? "..." : "OK"}

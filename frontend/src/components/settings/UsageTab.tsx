@@ -49,13 +49,13 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
       value: m.model_name,
       label: `${m.model_name} (${m.provider_name})`,
     }));
-  }, [costs?.by_model]);
+  }, [costs]);
 
   // Données du graphe (triées par heure croissante)
   const chartData = useMemo(() => {
     if (!costs?.by_hour) return [];
     return [...costs.by_hour].sort((a, b) => a.hour.localeCompare(b.hour));
-  }, [costs?.by_hour]);
+  }, [costs]);
 
   // Formatter pour le tooltip
   const formatValue = (value: number, metric: ChartMetric) => {
@@ -70,7 +70,7 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
     if (!costs?.by_model) return [];
     if (selectedModel === "all") return costs.by_model;
     return costs.by_model.filter((m) => m.model_name === selectedModel);
-  }, [costs?.by_model, selectedModel]);
+  }, [costs, selectedModel]);
 
   // Totaux filtrés
   const filteredTotals = useMemo(() => {

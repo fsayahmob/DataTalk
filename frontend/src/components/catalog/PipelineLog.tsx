@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import type { CatalogJob } from "@/lib/api";
 
 interface PipelineLogProps {
@@ -13,7 +13,7 @@ export function PipelineLog({ runId }: PipelineLogProps) {
 
   useEffect(() => {
     if (!runId) {
-      setLoading(false);
+      startTransition(() => setLoading(false));
       return;
     }
 
@@ -25,26 +25,28 @@ export function PipelineLog({ runId }: PipelineLogProps) {
 
       if (data.done) {
         eventSource.close();
-        setLoading(false);
+        startTransition(() => setLoading(false));
         return;
       }
 
       if (data.error) {
         console.error("SSE error:", data.error);
         eventSource.close();
-        setLoading(false);
+        startTransition(() => setLoading(false));
         return;
       }
 
       // Update jobs
-      setPipeline(data);
-      setLoading(false);
+      startTransition(() => {
+        setPipeline(data);
+        setLoading(false);
+      });
     };
 
     eventSource.onerror = () => {
       console.log("SSE disconnected");
       eventSource.close();
-      setLoading(false);
+      startTransition(() => setLoading(false));
     };
 
     return () => eventSource.close();

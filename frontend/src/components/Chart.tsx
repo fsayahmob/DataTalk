@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 import {
   BarChart,
   Bar,
@@ -62,6 +62,9 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 export function Chart({ config, data, height = "100%" }: ChartProps) {
+  // ID unique pour les gradients de ce chart (doit être appelé avant tout return conditionnel)
+  const chartId = useId();
+
   // Debug log
   console.log("Chart render:", { type: config.type, x: config.x, y: config.y, dataKeys: data?.[0] ? Object.keys(data[0]) : [], dataLength: data?.length });
 
@@ -107,9 +110,6 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
   const gridStyle = { stroke: "#3f3f46", strokeDasharray: "3 3" }; // zinc-700
   const axisLineStyle = { stroke: "#52525b" }; // zinc-600
   const legendStyle = { paddingTop: 20, color: "#a1a1aa" }; // zinc-400
-
-  // ID unique pour les gradients de ce chart
-  const chartId = useMemo(() => `chart-${Math.random().toString(36).slice(2, 9)}`, []);
 
   switch (config.type) {
     case "bar":

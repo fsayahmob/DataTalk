@@ -10,7 +10,7 @@ interface ErrorDisplayProps {
 export function ErrorDisplay({ error, sql }: ErrorDisplayProps) {
   const copyError = () => {
     const text = sql ? `SQL:\n${sql}\n\nErreur:\n${error}` : error;
-    navigator.clipboard.writeText(text);
+    void navigator.clipboard.writeText(text);
   };
 
   return (

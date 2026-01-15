@@ -12,25 +12,31 @@ Usage:
     t("llm.api_key_missing", provider="Google")
 """
 import json
-import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
+
 # Configuration
-LOCALES_DIR = os.path.join(os.path.dirname(__file__), "locales")
+LOCALES_DIR = Path(__file__).parent / "locales"
 DEFAULT_LOCALE = "fr"
 FALLBACK_LOCALE = "en"
 
-# Locale courante (peut être changée dynamiquement)
-_current_locale = DEFAULT_LOCALE
+
+# Module-level state using a mutable container to avoid global statements
+class _LocaleState:
+    current: str = DEFAULT_LOCALE
+
+
+_locale_state = _LocaleState()
 
 
 @lru_cache(maxsize=10)
 def _load_locale(locale: str) -> dict[str, Any]:
     """Charge un fichier de locale JSON."""
-    filepath = os.path.join(LOCALES_DIR, f"{locale}.json")
+    filepath = LOCALES_DIR / f"{locale}.json"
     try:
-        with open(filepath, encoding="utf-8") as f:
+        with filepath.open(encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
         return {}
@@ -60,7 +66,7 @@ def t(key: str, locale: str | None = None, **kwargs: Any) -> str:
     Returns:
         Message traduit avec variables interpolées
     """
-    locale = locale or _current_locale
+    locale = locale or _locale_state.current
 
     # Essayer la locale demandée
     messages = _load_locale(locale)
@@ -84,19 +90,14 @@ def t(key: str, locale: str | None = None, **kwargs: Any) -> str:
 
 def set_locale(locale: str) -> None:
     """Change la locale courante."""
-    global _current_locale
-    _current_locale = locale
+    _locale_state.current = locale
 
 
 def get_locale() -> str:
     """Retourne la locale courante."""
-    return _current_locale
+    return _locale_state.current
 
 
 def get_available_locales() -> list[str]:
     """Liste les locales disponibles."""
-    locales = []
-    for filename in os.listdir(LOCALES_DIR):
-        if filename.endswith(".json"):
-            locales.append(filename[:-5])
-    return sorted(locales)
+    return sorted([f.stem for f in LOCALES_DIR.iterdir() if f.suffix == ".json"])

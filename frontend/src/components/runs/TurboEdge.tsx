@@ -27,7 +27,7 @@ export default function TurboEdge({
     <>
       <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
       <EdgeLabelRenderer>
-        {label != null ? (
+        {label !== null ? (
           <div
             style={{
               position: 'absolute',

@@ -79,7 +79,7 @@ def get_kpi_with_data(
             else:
                 result["value"] = value
     except Exception as e:
-        logger.error(f"Erreur sql_value KPI {kpi_id}: {e}")
+        logger.error("Erreur sql_value KPI %s: %s", kpi_id, e)
 
     # 2. Exécuter sql_trend (pour calculer le %)
     try:
@@ -104,7 +104,7 @@ def get_kpi_with_data(
                 if kpi.get("trend_label"):
                     result["trend"]["label"] = kpi["trend_label"]
     except Exception as e:
-        logger.error(f"Erreur sql_trend KPI {kpi_id}: {e}")
+        logger.error("Erreur sql_trend KPI %s: %s", kpi_id, e)
 
     # 3. Exécuter sql_sparkline
     try:
@@ -115,7 +115,7 @@ def get_kpi_with_data(
                 "type": kpi.get("sparkline_type", "area")
             }
     except Exception as e:
-        logger.error(f"Erreur sql_sparkline KPI {kpi_id}: {e}")
+        logger.error("Erreur sql_sparkline KPI %s: %s", kpi_id, e)
 
     # 4. Footer
     if kpi.get("footer"):

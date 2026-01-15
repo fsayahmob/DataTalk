@@ -57,7 +57,7 @@ export function AnalyticsZone({
   const [kpis, setKpis] = useState<KpiCompactData[]>(fallbackKpis);
 
   useEffect(() => {
-    fetchKpis().then((data) => {
+    void fetchKpis().then((data) => {
       if (data.length > 0) {
         setKpis(data);
       }

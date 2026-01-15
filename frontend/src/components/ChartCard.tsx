@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId } from "react";
 import {
   AreaChart,
   Area,
@@ -92,7 +92,7 @@ const CustomTooltip = ({
 export function ChartCard({ data, height = 300, className }: ChartCardProps) {
   const { title, description, type, data: chartData, xKey, yKeys, colors } = data;
   const chartColors = colors || DEFAULT_COLORS;
-  const chartId = useMemo(() => `chart-${Math.random().toString(36).slice(2, 9)}`, []);
+  const chartId = useId();
 
   const commonProps = {
     data: chartData,

@@ -7,7 +7,7 @@ export type TurboNodeData = {
   subtitle?: string;
   status?: 'pending' | 'running' | 'completed' | 'failed';
   progress?: number;
-  result?: any;
+  result?: Record<string, unknown>;
 };
 
 const TurboNode = memo(({ data }: { data: TurboNodeData }) => {

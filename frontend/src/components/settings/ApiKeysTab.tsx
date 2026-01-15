@@ -84,7 +84,7 @@ export function ApiKeysTab({
                           className="h-6 text-[10px] w-44"
                           autoFocus
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveBaseUrl(provider.name);
+                            if (e.key === "Enter") void handleSaveBaseUrl(provider.name);
                             if (e.key === "Escape") {
                               setEditingBaseUrl(null);
                               setBaseUrl("");
@@ -94,7 +94,7 @@ export function ApiKeysTab({
                         <Button
                           size="sm"
                           className="h-6 text-[10px] px-2"
-                          onClick={() => handleSaveBaseUrl(provider.name)}
+                          onClick={() => void handleSaveBaseUrl(provider.name)}
                           disabled={isSaving}
                         >
                           Save
@@ -136,7 +136,7 @@ export function ApiKeysTab({
                       className="h-7 text-xs w-48"
                       autoFocus
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveApiKey(provider.name);
+                        if (e.key === "Enter") void handleSaveApiKey(provider.name);
                         if (e.key === "Escape") {
                           setEditingProvider(null);
                           setApiKey("");
@@ -146,7 +146,7 @@ export function ApiKeysTab({
                     <Button
                       size="sm"
                       className="h-7 text-xs px-2"
-                      onClick={() => handleSaveApiKey(provider.name)}
+                      onClick={() => void handleSaveApiKey(provider.name)}
                       disabled={isSaving || !apiKey.trim()}
                     >
                       Save
@@ -203,7 +203,7 @@ export function ApiKeysTab({
                         variant="ghost"
                         size="sm"
                         className="h-6 text-xs px-2 text-red-400 hover:text-red-300"
-                        onClick={() => onDeleteApiKey(provider.name)}
+                        onClick={() => void onDeleteApiKey(provider.name)}
                       >
                         Delete
                       </Button>
