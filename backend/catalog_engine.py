@@ -12,7 +12,7 @@ Architecture:
 """
 import json
 import re
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -370,7 +370,7 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
 
         # 4. Statistiques numériques
         if is_numeric:
-            try:
+            with suppress(Exception):
                 num_stats = conn.execute(f"""
                     SELECT
                         MIN("{col_name}"),
@@ -385,12 +385,10 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
                     stats["value_range"] = f"{num_stats[0]} - {num_stats[1]}"
                     stats["mean"] = round(float(num_stats[2]), 4) if num_stats[2] else None
                     stats["median"] = round(float(num_stats[3]), 4) if num_stats[3] else None
-            except Exception:  # noqa: S110
-                pass
 
         # 5. Statistiques texte (longueurs)
         if is_text:
-            try:
+            with suppress(Exception):
                 text_stats = conn.execute(f"""
                     SELECT
                         MIN(LENGTH("{col_name}")),
@@ -404,12 +402,10 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
                     stats["min_length"] = text_stats[0]
                     stats["max_length"] = text_stats[1]
                     stats["avg_length"] = round(float(text_stats[2]), 2) if text_stats[2] else None
-            except Exception:  # noqa: S110
-                pass
 
         # 6. Détection de patterns (sur échantillon pour performance)
         if is_text and distinct_count > 10:
-            try:
+            with suppress(Exception):
                 pattern_samples = conn.execute(f"""
                     SELECT CAST("{col_name}" AS VARCHAR)
                     FROM "{table_name}"
@@ -422,8 +418,6 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
                 if pattern:
                     stats["detected_pattern"] = pattern
                     stats["pattern_match_rate"] = round(rate, 4) if rate else None
-            except Exception:  # noqa: S110
-                pass
 
     except Exception as e:
         print(f"    [WARN] Erreur extraction stats {table_name}.{col_name}: {e}")
@@ -851,11 +845,9 @@ def save_to_catalog(
 
                     # Ajouter les synonymes
                     for synonym in synonyms:
-                        try:
+                        with suppress(Exception):  # Ignorer les doublons
                             add_synonym(column_id, synonym)
                             stats["synonyms"] += 1
-                        except Exception:  # noqa: S110
-                            pass  # Ignorer les doublons
 
     return stats
 
@@ -984,7 +976,7 @@ def get_data_period(conn: Any) -> str:
     """
     Récupère la période des données depuis la colonne de date principale.
     """
-    try:
+    with suppress(Exception):
         # Essayer avec dat_course (table evaluations)
         result = conn.execute("""
             SELECT
@@ -999,8 +991,6 @@ def get_data_period(conn: Any) -> str:
             max_date = result[1]
             nb_jours = result[2]
             return f"Du {min_date} au {max_date} ({nb_jours} jours de données)"
-    except Exception:  # noqa: S110
-        pass
 
     return "Période non déterminée"
 
@@ -1708,14 +1698,12 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                 if col_row:
                     column_id = col_row["id"]
                     for synonym in synonyms:
-                        try:
+                        with suppress(Exception):
                             cursor.execute(
                                 "INSERT INTO synonyms (column_id, term) VALUES (?, ?)",
                                 (column_id, synonym)
                             )
                             stats["synonyms"] += 1
-                        except Exception:  # noqa: S110
-                            pass
 
     conn.commit()
     conn.close()
