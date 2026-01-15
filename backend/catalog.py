@@ -91,7 +91,7 @@ def add_column(
     return column_id
 
 
-def add_synonym(column_id: int, term: str):
+def add_synonym(column_id: int, term: str) -> None:
     """Ajoute un synonyme pour une colonne."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -214,7 +214,7 @@ def create_conversation(title: str | None = None) -> int:
     return conversation_id
 
 
-def get_conversations(limit: int = 20) -> list[dict]:
+def get_conversations(limit: int = 20) -> list[dict[str, Any]]:
     """Récupère les conversations récentes."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -319,7 +319,7 @@ def add_message(
     return message_id
 
 
-def get_messages(conversation_id: int) -> list[dict]:
+def get_messages(conversation_id: int) -> list[dict[str, Any]]:
     """Récupère tous les messages d'une conversation.
 
     Renomme les champs pour correspondre au format attendu par le frontend:
@@ -384,7 +384,7 @@ def save_report(
     chart_config: str | None = None,
     message_id: int | None = None,
     is_pinned: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Sauvegarde un rapport avec génération automatique du token de partage."""
     share_token = str(uuid.uuid4())
     conn = get_connection()
@@ -404,7 +404,7 @@ def save_report(
     return {"id": report_id, "share_token": share_token}
 
 
-def get_saved_reports() -> list[dict]:
+def get_saved_reports() -> list[dict[str, Any]]:
     """Récupère tous les rapports sauvegardés."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -446,7 +446,7 @@ def toggle_pin_report(report_id: int) -> bool:
     return updated
 
 
-def get_report_by_token(share_token: str) -> dict | None:
+def get_report_by_token(share_token: str) -> dict[str, Any] | None:
     """Récupère un rapport par son token de partage (accès public)."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -476,7 +476,7 @@ def get_setting(key: str, default: str | None = None) -> str | None:
         conn.close()
 
 
-def set_setting(key: str, value: str):
+def set_setting(key: str, value: str) -> None:
     """Définit une valeur de configuration."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -491,7 +491,7 @@ def set_setting(key: str, value: str):
     conn.close()
 
 
-def get_all_settings() -> dict:
+def get_all_settings() -> dict[str, Any]:
     """Récupère toutes les configurations."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -545,7 +545,7 @@ def add_widget(
     return row_id
 
 
-def get_widgets(enabled_only: bool = True) -> list[dict]:
+def get_widgets(enabled_only: bool = True) -> list[dict[str, Any]]:
     """Récupère tous les widgets."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -562,7 +562,7 @@ def get_widgets(enabled_only: bool = True) -> list[dict]:
     return results
 
 
-def delete_all_widgets():
+def delete_all_widgets() -> None:
     """Supprime tous les widgets (avant régénération)."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -577,7 +577,7 @@ def delete_all_widgets():
 # ========================================
 
 
-def get_widget_cache(widget_id: str) -> dict | None:
+def get_widget_cache(widget_id: str) -> dict[str, Any] | None:
     """Récupère le cache d'un widget."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -594,7 +594,7 @@ def get_widget_cache(widget_id: str) -> dict | None:
     return dict(result) if result else None
 
 
-def set_widget_cache(widget_id: str, data: str, ttl_minutes: int | None = None):
+def set_widget_cache(widget_id: str, data: str, ttl_minutes: int | None = None) -> None:
     """Met en cache le résultat d'un widget."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -618,7 +618,7 @@ def set_widget_cache(widget_id: str, data: str, ttl_minutes: int | None = None):
     conn.close()
 
 
-def clear_widget_cache():
+def clear_widget_cache() -> None:
     """Vide tout le cache des widgets."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -656,7 +656,7 @@ def add_suggested_question(
     return question_id
 
 
-def get_suggested_questions(enabled_only: bool = True) -> list[dict]:
+def get_suggested_questions(enabled_only: bool = True) -> list[dict[str, Any]]:
     """Récupère les questions suggérées."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -673,7 +673,7 @@ def get_suggested_questions(enabled_only: bool = True) -> list[dict]:
     return results
 
 
-def delete_all_suggested_questions():
+def delete_all_suggested_questions() -> None:
     """Supprime toutes les questions suggérées (avant régénération)."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -723,7 +723,7 @@ def set_table_enabled(table_id: int, enabled: bool) -> bool:
     return updated
 
 
-def get_table_by_id(table_id: int) -> dict | None:
+def get_table_by_id(table_id: int) -> dict[str, Any] | None:
     """Récupère une table par son ID."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -782,7 +782,7 @@ def update_job_status(
     current_step: str | None = None,
     step_index: int | None = None,
     error_message: str | None = None,
-):
+) -> None:
     """
     Met à jour le statut d'un job.
 
@@ -831,7 +831,7 @@ def update_job_status(
         conn.close()
 
 
-def update_job_result(job_id: int, result: dict[str, Any]):
+def update_job_result(job_id: int, result: dict[str, Any]) -> None:
     """
     Met à jour le résultat JSON d'un job complété.
 
@@ -852,7 +852,7 @@ def update_job_result(job_id: int, result: dict[str, Any]):
         conn.close()
 
 
-def get_catalog_job(job_id: int) -> dict | None:
+def get_catalog_job(job_id: int) -> dict[str, Any] | None:
     """Récupère un job par son ID."""
 
     conn = get_connection()
@@ -880,7 +880,7 @@ def get_catalog_job(job_id: int) -> dict | None:
         conn.close()
 
 
-def get_catalog_jobs(limit: int = 50) -> list[dict]:
+def get_catalog_jobs(limit: int = 50) -> list[dict[str, Any]]:
     """
     Récupère l'historique des jobs (plus récents en premier).
 
@@ -920,7 +920,7 @@ def get_catalog_jobs(limit: int = 50) -> list[dict]:
         conn.close()
 
 
-def get_run_jobs(run_id: str) -> list[dict]:
+def get_run_jobs(run_id: str) -> list[dict[str, Any]]:
     """
     Récupère tous les jobs d'une run (extraction + enrichments).
 
@@ -1012,7 +1012,7 @@ class WorkflowManager:
         self.total_steps = total_steps
         self.current_step_index = 0
 
-    def step(self, name: str):
+    def step(self, name: str) -> "WorkflowStep":
         """Retourne un context manager pour une étape du workflow."""
         return WorkflowStep(self, name)
 
@@ -1024,7 +1024,7 @@ class WorkflowStep:
         self.manager = manager
         self.name = name
 
-    def __enter__(self):
+    def __enter__(self) -> "WorkflowStep":
         """Marque l'étape comme 'running' AVANT son exécution."""
         update_job_status(
             job_id=self.manager.job_id,
@@ -1037,7 +1037,12 @@ class WorkflowStep:
         )
         return self
 
-    def __exit__(self, exc_type, exc_val, _exc_tb):
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        _exc_tb: object,
+    ) -> None:
         """
         Gère la fin de l'étape.
         - Si succès: incrémente le step_index
@@ -1053,4 +1058,3 @@ class WorkflowStep:
             print(f"[WORKFLOW] ✗ Step failed: {error_msg}")
 
         # Ne pas supprimer l'exception (return None = propagate)
-        return False

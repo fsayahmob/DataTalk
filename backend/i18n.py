@@ -38,15 +38,16 @@ def _load_locale(locale: str) -> dict[str, Any]:
     filepath = LOCALES_DIR / f"{locale}.json"
     try:
         with filepath.open(encoding="utf-8") as f:
-            return json.load(f)
+            result: dict[str, Any] = json.load(f)
+            return result
     except FileNotFoundError:
         return {}
 
 
-def _get_nested(data: dict, key: str) -> str | None:
+def _get_nested(data: dict[str, Any], key: str) -> str | None:
     """Récupère une valeur imbriquée par clé pointée (ex: 'llm.empty_response')."""
     keys = key.split(".")
-    value = data
+    value: Any = data
     for k in keys:
         if isinstance(value, dict) and k in value:
             value = value[k]

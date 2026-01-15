@@ -8,7 +8,7 @@ NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
 
 import urllib.error
 import urllib.request
-from typing import Optional
+from typing import Any
 
 from crypto import decrypt, encrypt
 from db import get_connection
@@ -50,7 +50,7 @@ def check_local_provider_available(provider_name: str) -> bool:
         return False
 
 
-def get_providers(enabled_only: bool = True) -> list[dict]:
+def get_providers(enabled_only: bool = True) -> list[dict[str, Any]]:
     """Récupère la liste des providers."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -63,7 +63,7 @@ def get_providers(enabled_only: bool = True) -> list[dict]:
     return results
 
 
-def get_provider(provider_id: int) -> dict | None:
+def get_provider(provider_id: int) -> dict[str, Any] | None:
     """Récupère un provider par ID."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -73,7 +73,7 @@ def get_provider(provider_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_provider_by_name(name: str) -> dict | None:
+def get_provider_by_name(name: str) -> dict[str, Any] | None:
     """Récupère un provider par nom."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -104,7 +104,7 @@ def update_provider_base_url(provider_id: int, base_url: str | None) -> bool:
 # ========================================
 
 
-def get_models(provider_id: int | None = None, enabled_only: bool = True) -> list[dict]:
+def get_models(provider_id: int | None = None, enabled_only: bool = True) -> list[dict[str, Any]]:
     """Récupère la liste des modèles."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -131,7 +131,7 @@ def get_models(provider_id: int | None = None, enabled_only: bool = True) -> lis
     return results
 
 
-def get_model(model_id: int) -> dict | None:
+def get_model(model_id: int) -> dict[str, Any] | None:
     """Récupère un modèle par ID."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -150,7 +150,7 @@ def get_model(model_id: int) -> dict | None:
     return dict(row) if row else None
 
 
-def get_default_model() -> dict | None:
+def get_default_model() -> dict[str, Any] | None:
     """Récupère le modèle par défaut."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -166,7 +166,7 @@ def get_default_model() -> dict | None:
     return dict(row) if row else None
 
 
-def get_model_by_model_id(model_id: str) -> dict | None:
+def get_model_by_model_id(model_id: str) -> dict[str, Any] | None:
     """Récupère un modèle par son model_id (ex: 'gemini-2.0-flash')."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -336,7 +336,9 @@ def log_cost(
     return cost_id
 
 
-def get_total_costs(days: int = 30, model_id: int | None = None, source: str | None = None) -> dict:
+def get_total_costs(
+    days: int = 30, model_id: int | None = None, source: str | None = None
+) -> dict[str, Any]:
     """Récupère les coûts totaux pour les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -371,7 +373,7 @@ def get_total_costs(days: int = 30, model_id: int | None = None, source: str | N
     }
 
 
-def get_costs_by_period(days: int = 30) -> list[dict]:
+def get_costs_by_period(days: int = 30) -> list[dict[str, Any]]:
     """Récupère les coûts par jour sur les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -396,7 +398,7 @@ def get_costs_by_period(days: int = 30) -> list[dict]:
     return results
 
 
-def get_costs_by_hour(days: int = 7) -> list[dict]:
+def get_costs_by_hour(days: int = 7) -> list[dict[str, Any]]:
     """Récupère les coûts par heure sur les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -421,7 +423,7 @@ def get_costs_by_hour(days: int = 7) -> list[dict]:
     return results
 
 
-def get_costs_by_model(days: int = 30) -> list[dict]:
+def get_costs_by_model(days: int = 30) -> list[dict[str, Any]]:
     """Récupère les coûts groupés par modèle pour les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -455,7 +457,7 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
 # ========================================
 
 
-def get_prompts(category: str | None = None, active_only: bool = False) -> list[dict]:
+def get_prompts(category: str | None = None, active_only: bool = False) -> list[dict[str, Any]]:
     """Récupère la liste des prompts."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -477,7 +479,7 @@ def get_prompts(category: str | None = None, active_only: bool = False) -> list[
     return results
 
 
-def get_prompt(key: str, version: str = "normal") -> dict | None:
+def get_prompt(key: str, version: str = "normal") -> dict[str, Any] | None:
     """Récupère un prompt par clé et version."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -487,7 +489,7 @@ def get_prompt(key: str, version: str = "normal") -> dict | None:
     return dict(row) if row else None
 
 
-def get_active_prompt(key: str) -> dict | None:
+def get_active_prompt(key: str) -> dict[str, Any] | None:
     """Récupère le prompt actif pour une clé donnée."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -601,7 +603,7 @@ def delete_prompt(prompt_id: int) -> bool:
     return affected > 0
 
 
-def get_all_prompts() -> list[dict]:
+def get_all_prompts() -> list[dict[str, Any]]:
     """Récupère tous les prompts avec leur statut actif."""
     conn = get_connection()
     try:
