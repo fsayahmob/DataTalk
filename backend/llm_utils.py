@@ -7,12 +7,11 @@ Utilitaires pour les appels LLM.
 """
 
 import json
-import re
-from typing import Any, Callable, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from tenacity import (
     retry,
-    retry_if_exception_type,
     stop_after_attempt,
     wait_exponential,
 )
@@ -26,31 +25,21 @@ from tenacity import (
 class LLMGenerationError(Exception):
     """Erreur lors d'un appel LLM (après tous les retries)."""
 
-    pass
-
 
 class QuestionGenerationError(LLMGenerationError):
     """Erreur lors de la génération des questions."""
-
-    pass
 
 
 class KpiGenerationError(LLMGenerationError):
     """Erreur lors de la génération des KPIs."""
 
-    pass
-
 
 class EnrichmentError(LLMGenerationError):
     """Erreur lors de l'enrichissement du catalogue."""
 
-    pass
-
 
 class LLMJsonParseError(LLMGenerationError):
     """Erreur lors du parsing JSON d'une réponse LLM."""
-
-    pass
 
 
 # =============================================================================
@@ -171,32 +160,6 @@ def extract_json_from_llm(content: str, key: str | None = None, context: str = "
 # =============================================================================
 
 T = TypeVar("T")
-
-
-def create_retry_decorator(
-    max_retries: int = 2,
-    min_wait: int = 1,
-    max_wait: int = 10,
-    error_class: type[Exception] = LLMGenerationError,
-):
-    """
-    Crée un décorateur de retry configuré.
-
-    Args:
-        max_retries: Nombre de tentatives (total = max_retries + 1)
-        min_wait: Attente minimale en secondes
-        max_wait: Attente maximale en secondes
-        error_class: Type d'exception pour retry
-
-    Returns:
-        Décorateur tenacity configuré
-    """
-    return retry(
-        stop=stop_after_attempt(max_retries + 1),
-        wait=wait_exponential(multiplier=1, min=min_wait, max=max_wait),
-        retry=retry_if_exception_type((Exception,)),  # Retry sur toute exception
-        reraise=True,  # Re-lever l'exception finale
-    )
 
 
 def call_with_retry(

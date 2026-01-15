@@ -9,7 +9,7 @@ import sqlite3
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
+from collections.abc import Generator
 
 CATALOG_PATH = str(Path(__file__).parent / "catalog.sqlite")
 
