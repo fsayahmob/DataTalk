@@ -4,6 +4,7 @@ Connexion SQLite centralisée pour G7 Analytics.
 La structure de la base est définie dans schema.sql (source unique de vérité).
 Pour initialiser/recréer la base: sqlite3 catalog.sqlite < schema.sql
 """
+
 import sqlite3
 from pathlib import Path
 

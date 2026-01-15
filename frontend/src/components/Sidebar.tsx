@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon } from "@/components/icons";
 import * as api from "@/lib/api";
@@ -55,14 +56,20 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         collapsed ? "w-14" : "w-48"
       } transition-all duration-300 ease-in-out`}
     >
-      {/* Logo G7 + Toggle */}
+      {/* Logo TalkData + Toggle */}
       <div className="h-14 flex items-center justify-center border-b border-border/30">
         <button
           onClick={() => onCollapse(!collapsed)}
-          className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center cursor-pointer hover:bg-primary/90 transition-colors"
+          className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity overflow-hidden"
           title={collapsed ? "Ouvrir le menu" : "Réduire le menu"}
         >
-          <span className="text-primary-foreground font-bold text-lg">G7</span>
+          <Image
+            src="/logo.png"
+            alt="TalkData"
+            width={40}
+            height={40}
+            className="object-contain"
+          />
         </button>
       </div>
 

@@ -2,6 +2,7 @@
 Service pour les KPIs dynamiques.
 Gère l'exécution des 3 requêtes SQL par KPI et la construction des données.
 """
+
 import json
 import logging
 from datetime import datetime, timezone
@@ -49,10 +50,7 @@ def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) ->
     return val
 
 
-def get_kpi_with_data(
-    kpi: dict,
-    db_connection: duckdb.DuckDBPyConnection
-) -> dict[str, Any]:
+def get_kpi_with_data(kpi: dict, db_connection: duckdb.DuckDBPyConnection) -> dict[str, Any]:
     """
     Exécute les 3 requêtes SQL d'un KPI et construit le KpiCompactData.
 
@@ -85,7 +83,9 @@ def get_kpi_with_data(
     try:
         trend_value = execute_kpi_sql(db_connection, kpi["sql_trend"])
         if trend_value is not None and result["value"] != "—":
-            current = float(result["value"]) if isinstance(result["value"], (int, float, str)) else 0
+            current = (
+                float(result["value"]) if isinstance(result["value"], (int, float, str)) else 0
+            )
             previous = float(trend_value) if trend_value else 0
 
             if previous != 0:
@@ -112,7 +112,7 @@ def get_kpi_with_data(
         if sparkline_data and isinstance(sparkline_data, list) and len(sparkline_data) > 2:
             result["sparkline"] = {
                 "data": sparkline_data,
-                "type": kpi.get("sparkline_type", "area")
+                "type": kpi.get("sparkline_type", "area"),
             }
     except Exception as e:
         logger.error("Erreur sql_sparkline KPI %s: %s", kpi_id, e)
@@ -124,9 +124,7 @@ def get_kpi_with_data(
     return result
 
 
-def get_all_kpis_with_data(
-    db_connection: duckdb.DuckDBPyConnection
-) -> list[dict[str, Any]]:
+def get_all_kpis_with_data(db_connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     """
     Récupère tous les KPIs depuis SQLite et exécute leurs requêtes.
     """
@@ -168,22 +166,25 @@ def save_kpis(kpis: list[dict]) -> int:
 
     count = 0
     for i, kpi in enumerate(kpis):
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO kpis (
                 kpi_id, title, sql_value, sql_trend, sql_sparkline,
                 sparkline_type, footer, trend_label, display_order, is_enabled
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-        """, (
-            kpi.get("id"),
-            kpi.get("title"),
-            kpi.get("sql_value"),
-            kpi.get("sql_trend"),
-            kpi.get("sql_sparkline"),
-            kpi.get("sparkline_type", "area"),
-            kpi.get("footer"),
-            kpi.get("trend_label"),
-            i
-        ))
+        """,
+            (
+                kpi.get("id"),
+                kpi.get("title"),
+                kpi.get("sql_value"),
+                kpi.get("sql_trend"),
+                kpi.get("sql_sparkline"),
+                kpi.get("sparkline_type", "area"),
+                kpi.get("footer"),
+                kpi.get("trend_label"),
+                i,
+            ),
+        )
         count += 1
 
     conn.commit()

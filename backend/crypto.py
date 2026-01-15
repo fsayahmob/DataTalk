@@ -2,6 +2,7 @@
 Chiffrement AES-256 pour les secrets (clés API).
 Utilise la bibliothèque cryptography.
 """
+
 import base64
 import hashlib
 import os
@@ -10,6 +11,7 @@ from typing import Optional
 
 try:
     from cryptography.fernet import Fernet
+
     CRYPTO_AVAILABLE = True
 except ImportError:
     CRYPTO_AVAILABLE = False

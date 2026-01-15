@@ -10,6 +10,7 @@ Architecture:
 4. save_to_catalog() - SQLite update
 5. generate_kpis() - Génération des 4 KPIs
 """
+
 import json
 import re
 from contextlib import contextmanager, suppress
@@ -40,10 +41,12 @@ if TYPE_CHECKING:
 # UTILITAIRES: ESTIMATION TOKENS & VALIDATION
 # =============================================================================
 
+
 @contextmanager
 def _dummy_context():
     """Context manager vide pour compatibilité quand job_id est None."""
     yield
+
 
 def estimate_tokens(text: str) -> int:
     """
@@ -67,7 +70,11 @@ def check_token_limit(prompt: str, max_input_tokens: int = 100000) -> tuple[bool
     token_count = estimate_tokens(prompt)
 
     if token_count > max_input_tokens:
-        return (False, token_count, f"Prompt trop long: {token_count:,} tokens (max: {max_input_tokens:,})")
+        return (
+            False,
+            token_count,
+            f"Prompt trop long: {token_count:,} tokens (max: {max_input_tokens:,})",
+        )
     if token_count > max_input_tokens * 0.8:
         return (True, token_count, f"Prompt volumineux: {token_count:,} tokens (80% de la limite)")
     return (True, token_count, f"OK: {token_count:,} tokens")
@@ -97,13 +104,12 @@ class CatalogValidationResult:
             "tables": {"ok": self.tables_ok, "warning": self.tables_warning},
             "columns": {"ok": self.columns_ok, "warning": self.columns_warning},
             "synonyms": self.synonyms_total,
-            "issues": self.issues
+            "issues": self.issues,
         }
 
 
 def validate_catalog_enrichment(
-    catalog: "ExtractedCatalog",
-    enrichment: dict[str, Any]
+    catalog: "ExtractedCatalog", enrichment: dict[str, Any]
 ) -> CatalogValidationResult:
     """
     Valide que l'enrichissement LLM a bien rempli tous les champs.
@@ -146,6 +152,7 @@ def validate_catalog_enrichment(
 
     return result
 
+
 # Configuration par défaut (fallback si settings non initialisé)
 DEFAULT_DB_PATH = str(Path(__file__).parent / ".." / "data" / "g7_analytics.duckdb")
 
@@ -165,8 +172,10 @@ def get_duckdb_path() -> str:
 # ÉTAPE 1: EXTRACTION DES MÉTADONNÉES (SQLAlchemy)
 # =============================================================================
 
+
 class ValueFrequency(BaseModel):
     """Valeur avec sa fréquence d'apparition."""
+
     value: str
     count: int
     percentage: float
@@ -182,6 +191,7 @@ class ColumnMetadata(BaseModel):
     - Patterns détectés (email, UUID, etc.)
     - Statistiques sur les longueurs (pour VARCHAR)
     """
+
     name: str
     data_type: str
     nullable: bool = True
@@ -219,6 +229,7 @@ class ColumnMetadata(BaseModel):
 
 class TableMetadata(BaseModel):
     """Métadonnées d'une table extraites de la DB."""
+
     name: str
     row_count: int
     columns: list[ColumnMetadata]
@@ -226,6 +237,7 @@ class TableMetadata(BaseModel):
 
 class ExtractedCatalog(BaseModel):
     """Catalogue complet extrait de la DB."""
+
     datasource: str
     tables: list[TableMetadata]
 
@@ -274,7 +286,9 @@ def detect_pattern(values: list[str]) -> tuple[str | None, float | None]:
     return (best_pattern, best_rate) if best_pattern else (None, None)
 
 
-def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: str, row_count: int) -> ColumnMetadata:
+def extract_column_stats(
+    conn: Any, table_name: str, col_name: str, col_type: str, row_count: int
+) -> ColumnMetadata:
     """
     Extrait les statistiques complètes d'une colonne.
 
@@ -282,7 +296,9 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
     """
     categorical_threshold = 50
     col_type_lower = col_type.lower()
-    is_numeric = any(t in col_type_lower for t in ["int", "float", "decimal", "double", "numeric", "real"])
+    is_numeric = any(
+        t in col_type_lower for t in ["int", "float", "decimal", "double", "numeric", "real"]
+    )
     is_text = any(t in col_type_lower for t in ["varchar", "text", "char", "string"])
 
     # Initialiser les valeurs par défaut
@@ -363,7 +379,7 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
             ValueFrequency(
                 value=str(v[0])[:50] if v[0] else "NULL",
                 count=v[1],
-                percentage=round(v[1] / row_count * 100, 2) if row_count > 0 else 0.0
+                percentage=round(v[1] / row_count * 100, 2) if row_count > 0 else 0.0,
             )
             for v in top_values_result
         ]
@@ -473,21 +489,17 @@ def extract_metadata_from_connection(conn: Any) -> ExtractedCatalog:
             col_metadata = extract_column_stats(conn, table_name, col_name, col_type, row_count)
             columns_result.append(col_metadata)
 
-        tables_result.append(TableMetadata(
-            name=table_name,
-            row_count=row_count,
-            columns=columns_result
-        ))
+        tables_result.append(
+            TableMetadata(name=table_name, row_count=row_count, columns=columns_result)
+        )
 
-    return ExtractedCatalog(
-        datasource="g7_analytics.duckdb",
-        tables=tables_result
-    )
+    return ExtractedCatalog(datasource="g7_analytics.duckdb", tables=tables_result)
 
 
 # =============================================================================
 # ÉTAPE 2: CRÉATION DYNAMIQUE DU MODÈLE PYDANTIC
 # =============================================================================
+
 
 def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
     """
@@ -504,6 +516,7 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         }
     }
     """
+
     # Modèle pour une colonne enrichie
     class ColumnEnrichment(BaseModel):
         description: str = Field(description="Description métier de la colonne")
@@ -518,27 +531,30 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         for col in table.columns:
             column_fields[col.name] = (
                 ColumnEnrichment,
-                Field(description=f"Enrichissement pour la colonne {col.name}")
+                Field(description=f"Enrichissement pour la colonne {col.name}"),
             )
 
         ColumnsModel = create_model(  # noqa: N806
             f"{table.name}_Columns",
-            **column_fields  # type: ignore
+            **column_fields,  # type: ignore
         )
 
         # Créer le modèle de la table
         TableModel = create_model(  # noqa: N806
             f"{table.name}_Enrichment",
             description=(str, Field(description=f"Description métier de la table {table.name}")),
-            columns=(ColumnsModel, Field(description="Enrichissement des colonnes"))
+            columns=(ColumnsModel, Field(description="Enrichissement des colonnes")),
         )
 
-        table_models[table.name] = (TableModel, Field(description=f"Enrichissement de la table {table.name}"))
+        table_models[table.name] = (
+            TableModel,
+            Field(description=f"Enrichissement de la table {table.name}"),
+        )
 
     # Modèle global
     return create_model(
         "CatalogEnrichment",
-        **table_models  # type: ignore
+        **table_models,  # type: ignore
     )
 
 
@@ -574,7 +590,7 @@ def build_column_full_context(col: ColumnMetadata) -> str:
     # Statistiques de base
     stats_parts = []
     if col.null_rate > 0:
-        stats_parts.append(f"{col.null_rate*100:.1f}% NULL")
+        stats_parts.append(f"{col.null_rate * 100:.1f}% NULL")
     if col.distinct_count > 0:
         stats_parts.append(f"{col.distinct_count} valeurs distinctes")
     if stats_parts:
@@ -603,11 +619,13 @@ def build_column_full_context(col: ColumnMetadata) -> str:
 
     # Statistiques texte
     if col.min_length is not None and col.max_length is not None:
-        parts.append(f"Longueur: {col.min_length}-{col.max_length} chars (avg: {col.avg_length:.0f})")
+        parts.append(
+            f"Longueur: {col.min_length}-{col.max_length} chars (avg: {col.avg_length:.0f})"
+        )
 
     # Pattern détecté
     if col.detected_pattern:
-        parts.append(f"Pattern: {col.detected_pattern} ({col.pattern_match_rate*100:.0f}% match)")
+        parts.append(f"Pattern: {col.detected_pattern} ({col.pattern_match_rate * 100:.0f}% match)")
 
     return " | ".join(parts) if parts else ""
 
@@ -634,7 +652,7 @@ def _build_full_context(catalog: ExtractedCatalog) -> str:
             # Statistiques de base
             stats_parts = []
             if col.null_rate > 0:
-                stats_parts.append(f"{col.null_rate*100:.1f}% NULL")
+                stats_parts.append(f"{col.null_rate * 100:.1f}% NULL")
             if col.distinct_count > 0:
                 stats_parts.append(f"{col.distinct_count} valeurs distinctes")
             if stats_parts:
@@ -666,7 +684,7 @@ def _build_full_context(catalog: ExtractedCatalog) -> str:
 
             # Pattern détecté
             if col.detected_pattern:
-                col_info += f"\n      Pattern détecté: {col.detected_pattern} ({col.pattern_match_rate*100:.0f}% match)"
+                col_info += f"\n      Pattern détecté: {col.detected_pattern} ({col.pattern_match_rate * 100:.0f}% match)"
 
             cols_desc.append(col_info)
 
@@ -679,10 +697,7 @@ Colonnes:
     return chr(10).join(tables_context)
 
 
-def enrich_with_llm(
-    catalog: ExtractedCatalog,
-    tables_context: str | None = None
-) -> dict[str, Any]:
+def enrich_with_llm(catalog: ExtractedCatalog, tables_context: str | None = None) -> dict[str, Any]:
     """
     Appelle le LLM via llm_service pour obtenir les descriptions.
 
@@ -728,7 +743,7 @@ def enrich_with_llm(
             prompt=prompt,
             response_model=ResponseModel,
             source="catalog_engine",
-            max_tokens=8192  # Assez pour les descriptions de toutes les colonnes
+            max_tokens=8192,  # Assez pour les descriptions de toutes les colonnes
         )
 
         # Convertir en dict
@@ -741,7 +756,9 @@ def enrich_with_llm(
         for table in catalog.tables:
             fallback[table.name] = {
                 "description": None,
-                "columns": {col.name: {"description": None, "synonyms": []} for col in table.columns}
+                "columns": {
+                    col.name: {"description": None, "synonyms": []} for col in table.columns
+                },
             }
         return fallback
 
@@ -750,10 +767,9 @@ def enrich_with_llm(
 # ÉTAPE 4: SAUVEGARDE DANS LE CATALOGUE SQLite
 # =============================================================================
 
+
 def save_to_catalog(
-    catalog: ExtractedCatalog,
-    enrichment: dict[str, Any],
-    db_path: str | None = None
+    catalog: ExtractedCatalog, enrichment: dict[str, Any], db_path: str | None = None
 ) -> dict[str, int]:
     """
     Sauvegarde le catalogue enrichi dans SQLite.
@@ -765,7 +781,7 @@ def save_to_catalog(
         name=catalog.datasource.replace(".duckdb", ""),
         ds_type="duckdb",
         path=db_path,
-        description="Base analytique générée automatiquement"
+        description="Base analytique générée automatiquement",
     )
 
     if datasource_id is None:
@@ -773,7 +789,7 @@ def save_to_catalog(
         cursor = conn.cursor()
         cursor.execute(
             "SELECT id FROM datasources WHERE name = ?",
-            (catalog.datasource.replace(".duckdb", ""),)
+            (catalog.datasource.replace(".duckdb", ""),),
         )
         row = cursor.fetchone()
         datasource_id = row["id"] if row else None
@@ -795,7 +811,7 @@ def save_to_catalog(
             datasource_id=datasource_id,
             name=table.name,
             description=table_description,
-            row_count=table.row_count
+            row_count=table.row_count,
         )
 
         if table_id is None:
@@ -803,7 +819,7 @@ def save_to_catalog(
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT id FROM tables WHERE datasource_id = ? AND name = ?",
-                (datasource_id, table.name)
+                (datasource_id, table.name),
             )
             row = cursor.fetchone()
             table_id = row["id"] if row else None
@@ -826,7 +842,7 @@ def save_to_catalog(
                     description=col_description,
                     sample_values=", ".join(col.sample_values) if col.sample_values else None,
                     value_range=col.value_range,
-                    is_primary_key=col.is_primary_key
+                    is_primary_key=col.is_primary_key,
                 )
 
                 if column_id is None:
@@ -834,7 +850,7 @@ def save_to_catalog(
                     cursor = conn.cursor()
                     cursor.execute(
                         "SELECT id FROM columns WHERE table_id = ? AND name = ?",
-                        (table_id, col.name)
+                        (table_id, col.name),
                     )
                     row = cursor.fetchone()
                     column_id = row["id"] if row else None
@@ -856,8 +872,10 @@ def save_to_catalog(
 # ÉTAPE 5: GÉNÉRATION DES KPIs
 # =============================================================================
 
+
 class KpiDefinition(BaseModel):
     """Définition d'un KPI généré par le LLM (KpiCompactData)."""
+
     id: str = Field(description="Slug unique (ex: 'total-evaluations')")
     title: str = Field(description="Titre du KPI (max 20 caractères)")
     sql_value: str = Field(description="Requête SQL pour la valeur actuelle (1 ligne)")
@@ -865,8 +883,13 @@ class KpiDefinition(BaseModel):
     sql_sparkline: str = Field(description="Requête SQL pour l'historique (12-15 lignes)")
     sparkline_type: str = Field(default="area", description="Type de sparkline: area ou bar")
     footer: str = Field(description="Texte explicatif avec la période")
-    trend_label: str | None = Field(default=None, description="Label de tendance (ex: 'vs 1ère quinzaine')")
-    invert_trend: bool = Field(default=False, description="Si true, baisse=positif (vert), hausse=négatif (rouge). Ex: taux d'erreur, insatisfaction")
+    trend_label: str | None = Field(
+        default=None, description="Label de tendance (ex: 'vs 1ère quinzaine')"
+    )
+    invert_trend: bool = Field(
+        default=False,
+        description="Si true, baisse=positif (vert), hausse=négatif (rouge). Ex: taux d'erreur, insatisfaction",
+    )
 
     @classmethod
     def get_fields_description(cls) -> str:
@@ -881,7 +904,9 @@ class KpiDefinition(BaseModel):
             if hasattr(annotation, "__origin__"):  # Pour Union, Optional, etc.
                 type_str = str(annotation).replace("typing.", "")
             else:
-                type_str = annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
+                type_str = (
+                    annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
+                )
 
             # Description
             desc = field_info.description or "Non documenté"
@@ -900,11 +925,13 @@ class KpiDefinition(BaseModel):
 
 class KpisGenerationResult(BaseModel):
     """Résultat de la génération de KPIs."""
+
     kpis: list[KpiDefinition] = Field(description="Liste des 4 KPIs")
 
 
 class KpiValidationResult(BaseModel):
     """Résultat de la validation d'un KPI."""
+
     kpi_id: str
     status: str  # "OK" ou "WARNING"
     issues: list[str] = []
@@ -942,9 +969,7 @@ def validate_kpi(kpi: KpiDefinition) -> KpiValidationResult:
         issues.append("footer manquant")
 
     return KpiValidationResult(
-        kpi_id=kpi.id,
-        status="OK" if not issues else "WARNING",
-        issues=issues
+        kpi_id=kpi.id, status="OK" if not issues else "WARNING", issues=issues
     )
 
 
@@ -968,7 +993,7 @@ def validate_all_kpis(result: KpisGenerationResult) -> dict[str, Any]:
         "total": len(result.kpis),
         "ok": ok_count,
         "warnings": warning_count,
-        "details": details
+        "details": details,
     }
 
 
@@ -1004,7 +1029,9 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
     # Récupérer le prompt depuis la DB
     prompt_data = get_active_prompt("widgets_generation")
     if not prompt_data or not prompt_data.get("content"):
-        print("  [WARN] Prompt 'widgets_generation' non configuré. Exécutez: python seed_prompts.py --force")
+        print(
+            "  [WARN] Prompt 'widgets_generation' non configuré. Exécutez: python seed_prompts.py --force"
+        )
         return None
 
     # Construire le schéma pour le prompt
@@ -1027,9 +1054,7 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
     kpi_fields = KpiDefinition.get_fields_description()
 
     prompt = prompt_data["content"].format(
-        schema="\n".join(schema_lines),
-        data_period=data_period,
-        kpi_fields=kpi_fields
+        schema="\n".join(schema_lines), data_period=data_period, kpi_fields=kpi_fields
     )
 
     # Vérifier la taille du prompt avant l'appel
@@ -1044,7 +1069,7 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
             prompt=prompt,
             response_model=KpisGenerationResult,
             source="kpi_generation",
-            max_tokens=8192  # 4 KPIs avec 3 SQL chacun = réponse longue
+            max_tokens=8192,  # 4 KPIs avec 3 SQL chacun = réponse longue
         )
         return result
     except Exception as e:
@@ -1066,23 +1091,26 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
 
     for i, kpi in enumerate(result.kpis):
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO kpis (
                     kpi_id, title, sql_value, sql_trend, sql_sparkline,
                     sparkline_type, footer, trend_label, invert_trend, display_order, is_enabled
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
-            """, (
-                kpi.id,
-                kpi.title,
-                kpi.sql_value,
-                kpi.sql_trend,
-                kpi.sql_sparkline,
-                kpi.sparkline_type,
-                kpi.footer,
-                kpi.trend_label,
-                kpi.invert_trend,
-                i
-            ))
+            """,
+                (
+                    kpi.id,
+                    kpi.title,
+                    kpi.sql_value,
+                    kpi.sql_trend,
+                    kpi.sql_sparkline,
+                    kpi.sparkline_type,
+                    kpi.footer,
+                    kpi.trend_label,
+                    kpi.invert_trend,
+                    i,
+                ),
+            )
             stats["kpis"] += 1
         except Exception as e:
             print(f"  [WARN] Erreur KPI {kpi.id}: {e}")
@@ -1125,7 +1153,7 @@ def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, st
             prompt=prompt,
             system_prompt="Tu es un expert en analyse de données.",
             source="catalog",
-            temperature=0.7  # Un peu de créativité pour varier les questions
+            temperature=0.7,  # Un peu de créativité pour varier les questions
         )
 
         # Parser la réponse JSON
@@ -1173,10 +1201,13 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
     # Insérer les nouvelles
     for i, q in enumerate(questions):
         try:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO suggested_questions (question, category, icon, display_order, is_enabled)
                 VALUES (?, ?, ?, ?, 1)
-            """, (q.get("question"), q.get("category"), q.get("icon"), i))
+            """,
+                (q.get("question"), q.get("category"), q.get("icon"), i),
+            )
             stats["questions"] += 1
         except Exception as e:
             print(f"    [WARN] Erreur sauvegarde question: {e}")
@@ -1189,6 +1220,7 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
 # =============================================================================
 # FONCTION EXTRACTION SEULE (ÉTAPE 1 - SANS LLM)
 # =============================================================================
+
 
 def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any]:
     """
@@ -1213,7 +1245,9 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
     with workflow.step("extract_metadata") if workflow else _dummy_context():
         print("1/2 - Extraction des métadonnées depuis DuckDB...")
         catalog = extract_metadata_from_connection(db_connection)
-        print(f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes")
+        print(
+            f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes"
+        )
 
     # Step 2: Sauvegarde dans SQLite
     with workflow.step("save_to_catalog") if workflow else _dummy_context():
@@ -1224,7 +1258,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
             name=catalog.datasource.replace(".duckdb", ""),
             ds_type="duckdb",
             path=get_duckdb_path(),
-            description="Base analytique - En attente d'enrichissement"
+            description="Base analytique - En attente d'enrichissement",
         )
 
         if datasource_id is None:
@@ -1232,7 +1266,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
             cursor = conn.cursor()
             cursor.execute(
                 "SELECT id FROM datasources WHERE name = ?",
-                (catalog.datasource.replace(".duckdb", ""),)
+                (catalog.datasource.replace(".duckdb", ""),),
             )
             row = cursor.fetchone()
             datasource_id = row["id"] if row else None
@@ -1249,7 +1283,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
                 datasource_id=datasource_id,
                 name=table.name,
                 description=None,  # Pas de description pour l'instant
-                row_count=table.row_count
+                row_count=table.row_count,
             )
 
             if table_id is None:
@@ -1257,7 +1291,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT id FROM tables WHERE datasource_id = ? AND name = ?",
-                    (datasource_id, table.name)
+                    (datasource_id, table.name),
                 )
                 row = cursor.fetchone()
                 table_id = row["id"] if row else None
@@ -1279,7 +1313,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
                         sample_values=", ".join(col.sample_values) if col.sample_values else None,
                         value_range=col.value_range,
                         is_primary_key=col.is_primary_key,
-                        full_context=full_context if full_context else None
+                        full_context=full_context if full_context else None,
                     )
 
                     if column_id:
@@ -1294,7 +1328,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
         "message": f"Extraction terminée: {stats['tables']} tables extraites",
         "stats": stats,
         "datasource": catalog.datasource.replace(".duckdb", ""),
-        "tables": [t.name for t in catalog.tables]
+        "tables": [t.name for t in catalog.tables],
     }
 
 
@@ -1302,10 +1336,9 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
 # FONCTION ENRICHISSEMENT (ÉTAPE 2 - LLM SUR TABLES ACTIVÉES)
 # =============================================================================
 
+
 def enrich_selected_tables(
-    table_ids: list[int],
-    db_connection: Any,
-    job_id: int | None = None
+    table_ids: list[int], db_connection: Any, job_id: int | None = None
 ) -> dict[str, Any]:
     """
     Enrichit les tables sélectionnées par l'utilisateur.
@@ -1329,7 +1362,7 @@ def enrich_selected_tables(
         return {
             "status": "error",
             "message": "Aucune table sélectionnée.",
-            "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
+            "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
         }
 
     # Calculer nombre de steps dynamiquement
@@ -1364,12 +1397,15 @@ def enrich_selected_tables(
     # Step 2: Récupérer les tables sélectionnées + nom datasource
     with workflow.step("fetch_tables") if workflow else _dummy_context():
         print("2/N - Récupération des tables sélectionnées...")
-        cursor.execute(f"""
+        cursor.execute(
+            f"""
             SELECT t.id, t.name, t.row_count, d.id as datasource_id, d.name as datasource_name
             FROM tables t
             JOIN datasources d ON t.datasource_id = d.id
             WHERE t.id IN ({placeholders})
-        """, table_ids)  # noqa: S608
+        """,
+            table_ids,
+        )  # noqa: S608
         selected_tables = cursor.fetchall()
 
         # Récupérer le nom de la datasource (même pour toutes les tables)
@@ -1380,7 +1416,7 @@ def enrich_selected_tables(
             return {
                 "status": "error",
                 "message": "Aucune table trouvée avec les IDs fournis.",
-                "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
+                "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
             }
 
         print(f"    → {len(selected_tables)} tables à enrichir")
@@ -1389,9 +1425,7 @@ def enrich_selected_tables(
     return _enrich_tables(selected_tables, db_connection, workflow, datasource_name)
 
 
-def enrich_enabled_tables(
-    db_connection: Any
-) -> dict[str, Any]:
+def enrich_enabled_tables(db_connection: Any) -> dict[str, Any]:
     """
     [LEGACY] Enrichit SEULEMENT les tables avec is_enabled=1.
 
@@ -1428,7 +1462,7 @@ def enrich_enabled_tables(
         return {
             "status": "error",
             "message": "Aucune table activée. Activez au moins une table avant l'enrichissement.",
-            "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
+            "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
         }
 
     return _enrich_tables(enabled_tables, db_connection)
@@ -1438,7 +1472,7 @@ def _enrich_tables(
     tables_rows: list,
     db_connection: Any,
     workflow: "WorkflowManager | None" = None,
-    datasource_name: str = "DuckDB"
+    datasource_name: str = "DuckDB",
 ) -> dict[str, Any]:
     """
     Fonction interne d'enrichissement.
@@ -1475,12 +1509,15 @@ def _enrich_tables(
         row_count = table_row["row_count"] or 0
 
         # Récupérer les colonnes depuis SQLite (avec full_context)
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT name, data_type, full_context, sample_values, value_range
             FROM columns
             WHERE table_id = ?
             ORDER BY id
-        """, (table_id,))
+        """,
+            (table_id,),
+        )
         columns_rows = cursor.fetchall()
 
         print(f"    → Lecture depuis SQLite: {table_name} ({len(columns_rows)} colonnes)")
@@ -1501,12 +1538,16 @@ def _enrich_tables(
             cols_desc.append(col_line)
 
             # Créer un ColumnMetadata minimal pour le modèle de réponse
-            columns_result.append(ColumnMetadata(
-                name=col_name,
-                data_type=col_type,
-                sample_values=col_row["sample_values"].split(", ") if col_row["sample_values"] else [],
-                value_range=col_row["value_range"]
-            ))
+            columns_result.append(
+                ColumnMetadata(
+                    name=col_name,
+                    data_type=col_type,
+                    sample_values=col_row["sample_values"].split(", ")
+                    if col_row["sample_values"]
+                    else [],
+                    value_range=col_row["value_range"],
+                )
+            )
 
         context_part = f"""
 Table: {table_name} ({row_count:,} lignes)
@@ -1514,11 +1555,7 @@ Colonnes:
 {chr(10).join(cols_desc)}
 """
 
-        table_metadata = TableMetadata(
-            name=table_name,
-            row_count=row_count,
-            columns=columns_result
-        )
+        table_metadata = TableMetadata(name=table_name, row_count=row_count, columns=columns_result)
 
         all_tables_metadata.append(table_metadata)
         all_tables_info.append((table_metadata, context_part))
@@ -1528,10 +1565,12 @@ Colonnes:
     # Diviser en batches
     batches = []
     for i in range(0, len(all_tables_info), max_tables_per_batch):
-        batch = all_tables_info[i:i + max_tables_per_batch]
+        batch = all_tables_info[i : i + max_tables_per_batch]
         batches.append(batch)
 
-    print(f"Enrichissement avec LLM ({len(batches)} batch(es) de {max_tables_per_batch} tables max)...")
+    print(
+        f"Enrichissement avec LLM ({len(batches)} batch(es) de {max_tables_per_batch} tables max)..."
+    )
 
     # Enrichir par batch
     all_enrichments = {}
@@ -1545,10 +1584,7 @@ Colonnes:
         with workflow.step(f"llm_batch_{batch_idx + 1}") if workflow else _dummy_context():
             print(f"    → Batch {batch_idx + 1}/{len(batches)}: {[t.name for t in batch_tables]}")
 
-            batch_catalog = ExtractedCatalog(
-                datasource="g7_analytics.duckdb",
-                tables=batch_tables
-            )
+            batch_catalog = ExtractedCatalog(datasource="g7_analytics.duckdb", tables=batch_tables)
 
             # Enrichissement LLM pour ce batch avec gestion d'erreur
             try:
@@ -1566,14 +1602,14 @@ Colonnes:
                             f"Réduisez 'Batch Size' dans Settings > Database (actuel: {max_tables_per_batch})."
                         ),
                         "suggestion": f"Essayez avec max_tables_per_batch = {max(1, max_tables_per_batch // 2)}",
-                        "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
+                        "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
                     }
                 # Autres erreurs LLM
                 return {
                     "status": "error",
                     "error_type": "llm_error",
                     "message": f"Erreur LLM lors du batch {batch_idx + 1}: {e!s}",
-                    "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
+                    "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
                 }
 
             # Fusionner les enrichissements
@@ -1584,10 +1620,7 @@ Colonnes:
             all_validations.append(batch_validation)
 
     # Créer le catalogue complet pour les stats
-    full_catalog = ExtractedCatalog(
-        datasource="g7_analytics.duckdb",
-        tables=all_tables_metadata
-    )
+    full_catalog = ExtractedCatalog(datasource="g7_analytics.duckdb", tables=all_tables_metadata)
 
     # Résumé des validations
     total_issues = sum(len(v.issues) for v in all_validations)
@@ -1600,7 +1633,9 @@ Colonnes:
     with workflow.step("save_descriptions") if workflow else _dummy_context():
         print("Mise à jour des descriptions...")
         stats = update_descriptions(full_catalog, all_enrichments)
-        print(f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
+        print(
+            f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
+        )
 
     # Step: Génération des KPIs
     with workflow.step("generate_kpis") if workflow else _dummy_context():
@@ -1640,7 +1675,7 @@ Colonnes:
         "message": f"Enrichissement terminé: {stats['tables']} tables enrichies",
         "stats": stats,
         "datasource": datasource_name,
-        "validation": combined_validation.to_dict()
+        "validation": combined_validation.to_dict(),
     }
 
 
@@ -1661,10 +1696,13 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
 
         # Mettre à jour la description de la table
         if table_description:
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE tables SET description = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE name = ?
-            """, (table_description, table.name))
+            """,
+                (table_description, table.name),
+            )
             if cursor.rowcount > 0:
                 stats["tables"] += 1
 
@@ -1682,18 +1720,24 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
             synonyms = col_enrichment.get("synonyms", [])
 
             if col_description:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE columns SET description = ?
                     WHERE table_id = ? AND name = ?
-                """, (col_description, table_id, col.name))
+                """,
+                    (col_description, table_id, col.name),
+                )
                 if cursor.rowcount > 0:
                     stats["columns"] += 1
 
             # Ajouter les synonymes (directement, sans ouvrir une nouvelle connexion)
             if synonyms:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT id FROM columns WHERE table_id = ? AND name = ?
-                """, (table_id, col.name))
+                """,
+                    (table_id, col.name),
+                )
                 col_row = cursor.fetchone()
                 if col_row:
                     column_id = col_row["id"]
@@ -1701,7 +1745,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                         with suppress(Exception):
                             cursor.execute(
                                 "INSERT INTO synonyms (column_id, term) VALUES (?, ?)",
-                                (column_id, synonym)
+                                (column_id, synonym),
                             )
                             stats["synonyms"] += 1
 
@@ -1714,9 +1758,9 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
 # FONCTION PRINCIPALE: GÉNÉRATION COMPLÈTE (LEGACY - GARDE POUR COMPAT)
 # =============================================================================
 
+
 def generate_catalog_from_connection(
-    db_connection: Any,
-    prompt_mode: PromptMode = "full"
+    db_connection: Any, prompt_mode: PromptMode = "full"
 ) -> dict[str, Any]:
     """
     Génère le catalogue complet depuis une connexion DuckDB existante.
@@ -1729,15 +1773,14 @@ def generate_catalog_from_connection(
 
     Retourne les statistiques, validations et le catalogue.
     """
-    validation_results: dict[str, Any] = {
-        "catalog": None,
-        "kpis": None
-    }
+    validation_results: dict[str, Any] = {"catalog": None, "kpis": None}
 
     # 1. Extraction depuis la connexion existante
     print("1/5 - Extraction des métadonnées depuis connexion DuckDB...")
     catalog = extract_metadata_from_connection(db_connection)
-    print(f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes")
+    print(
+        f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes"
+    )
 
     # 2. Modèle dynamique (implicite dans enrich_with_llm)
     print("2/5 - Création du modèle Pydantic dynamique...")
@@ -1750,16 +1793,22 @@ def generate_catalog_from_connection(
     catalog_validation = validate_catalog_enrichment(catalog, enrichment)
     validation_results["catalog"] = catalog_validation.to_dict()
     if catalog_validation.status == "OK":
-        print(f"    → Validation: [OK] {catalog_validation.tables_ok} tables, {catalog_validation.columns_ok} colonnes")
+        print(
+            f"    → Validation: [OK] {catalog_validation.tables_ok} tables, {catalog_validation.columns_ok} colonnes"
+        )
     else:
-        print(f"    → Validation: [WARNING] {catalog_validation.tables_warning} tables, {catalog_validation.columns_warning} colonnes avec problèmes")
+        print(
+            f"    → Validation: [WARNING] {catalog_validation.tables_warning} tables, {catalog_validation.columns_warning} colonnes avec problèmes"
+        )
         for issue in catalog_validation.issues[:5]:  # Limiter à 5 issues
             print(f"      - {issue}")
 
     # 4. Sauvegarde du catalogue
     print("4/5 - Sauvegarde dans le catalogue SQLite...")
     stats = save_to_catalog(catalog, enrichment, get_duckdb_path())
-    print(f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
+    print(
+        f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
+    )
 
     # 5. Génération des KPIs
     print("5/5 - Génération des 4 KPIs...")
@@ -1775,7 +1824,9 @@ def generate_catalog_from_connection(
         if kpis_validation["warnings"] == 0:
             print(f"    → [OK] {kpis_stats['kpis']} KPIs générés")
         else:
-            print(f"    → [WARNING] {kpis_stats['kpis']} KPIs générés, {kpis_validation['warnings']} avec problèmes")
+            print(
+                f"    → [WARNING] {kpis_stats['kpis']} KPIs générés, {kpis_validation['warnings']} avec problèmes"
+            )
             for detail in kpis_validation["details"]:
                 if detail.status == "WARNING":
                     print(f"      - {detail.kpi_id}: {', '.join(detail.issues)}")
@@ -1795,14 +1846,18 @@ def generate_catalog_from_connection(
         overall_status = "WARNING"
 
     print(f"RAPPORT FINAL: [{overall_status}]")
-    print(f"  - Catalogue: {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes")
+    print(
+        f"  - Catalogue: {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
+    )
     print(f"  - KPIs: {stats['kpis']}/4 générés")
     print("=" * 50)
 
     return {
         "status": overall_status.lower(),
-        "message": "Catalogue généré avec succès" if overall_status == "OK" else "Catalogue généré avec des avertissements",
+        "message": "Catalogue généré avec succès"
+        if overall_status == "OK"
+        else "Catalogue généré avec des avertissements",
         "stats": stats,
         "tables": [t.name for t in catalog.tables],
-        "validation": validation_results
+        "validation": validation_results,
     }

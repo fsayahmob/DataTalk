@@ -2,6 +2,7 @@
 FastAPI Backend pour G7 Analytics
 Gère les appels LLM + DuckDB dans un seul processus Python persistant
 """
+
 import asyncio
 import contextlib
 import json
@@ -99,6 +100,7 @@ DEFAULT_MAX_CHART_ROWS = 5000  # Limite par défaut pour les graphiques
 # Module-level state using a mutable container to avoid global statements
 class _AppState:
     """Container for mutable application state."""
+
     db_connection: duckdb.DuckDBPyConnection | None = None
     current_db_path: str | None = None
     db_schema_cache: str | None = None
@@ -116,6 +118,7 @@ def get_duckdb_path() -> str:
             path = str(Path(__file__).parent / ".." / path)
         return str(Path(path).resolve())
     return DEFAULT_DB_PATH
+
 
 class PromptNotConfiguredError(Exception):
     """Erreur levée quand un prompt n'est pas configuré en base."""
@@ -147,6 +150,7 @@ def get_system_instruction() -> str:
 # Modèles Pydantic
 class AnalysisFilters(BaseModel):
     """Filtres structurés pour l'analyse."""
+
     date_start: str | None = Field(default=None, alias="dateStart")
     date_end: str | None = Field(default=None, alias="dateEnd")
     note_min: str | None = Field(default=None, alias="noteMin")
@@ -237,7 +241,7 @@ app = FastAPI(
     title="G7 Analytics API",
     description="API pour l'analyse des évaluations clients G7",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS pour permettre les appels depuis Next.js
@@ -300,7 +304,7 @@ def build_filter_context(filters: AnalysisFilters | None) -> str:
 
     return f"""
 FILTRES OBLIGATOIRES (à ajouter dans WHERE):
-{' AND '.join(constraints)}
+{" AND ".join(constraints)}
 """
 
 
@@ -324,7 +328,9 @@ def build_conversation_context(conversation_id: int | None, max_messages: int = 
         content = msg["content"]
         # Pour les réponses assistant, inclure le SQL si présent (résumé)
         if msg["role"] == "assistant" and msg.get("sql_query"):
-            sql_preview = msg["sql_query"][:100] + "..." if len(msg["sql_query"]) > 100 else msg["sql_query"]
+            sql_preview = (
+                msg["sql_query"][:100] + "..." if len(msg["sql_query"]) > 100 else msg["sql_query"]
+            )
             context_parts.append(f"{role}: {content}\n  SQL: {sql_preview}")
         else:
             context_parts.append(f"{role}: {content}")
@@ -333,10 +339,7 @@ def build_conversation_context(conversation_id: int | None, max_messages: int = 
     return "\n".join(context_parts)
 
 
-def should_disable_chart(
-    row_count: int,
-    chart_type: str | None
-) -> tuple[bool, str | None]:
+def should_disable_chart(row_count: int, chart_type: str | None) -> tuple[bool, str | None]:
     """
     Détermine si le graphique doit être désactivé pour protéger les performances.
 
@@ -366,7 +369,7 @@ def call_llm_for_analytics(
     question: str,
     conversation_id: int | None = None,
     filters: AnalysisFilters | None = None,
-    use_context: bool = False
+    use_context: bool = False,
 ) -> dict:
     """Appelle le LLM pour générer SQL + message + config chart + métadonnées.
 
@@ -439,7 +442,7 @@ def call_llm_for_analytics(
                     result = {
                         "sql": "",
                         "message": content,
-                        "chart": {"type": "none", "x": None, "y": None, "title": ""}
+                        "chart": {"type": "none", "x": None, "y": None, "title": ""},
                     }
             else:
                 # Pas de JSON trouvé - retourner le texte brut comme message
@@ -447,7 +450,7 @@ def call_llm_for_analytics(
                 result = {
                     "sql": "",
                     "message": content,
-                    "chart": {"type": "none", "x": None, "y": None, "title": ""}
+                    "chart": {"type": "none", "x": None, "y": None, "title": ""},
                 }
 
         if isinstance(result, list):
@@ -456,7 +459,7 @@ def call_llm_for_analytics(
             "model_name": response.model_name,
             "tokens_input": response.tokens_input,
             "tokens_output": response.tokens_output,
-            "response_time_ms": response.response_time_ms
+            "response_time_ms": response.response_time_ms,
         }
         return result
 
@@ -465,7 +468,7 @@ def call_llm_for_analytics(
         logger.error("Prompt non configuré: %s", e.prompt_key)
         raise HTTPException(
             status_code=503,
-            detail=f"Prompt '{e.prompt_key}' non configuré. Exécutez: python seed_prompts.py"
+            detail=f"Prompt '{e.prompt_key}' non configuré. Exécutez: python seed_prompts.py",
         ) from e
 
     except LLMError as e:
@@ -482,7 +485,7 @@ async def health_check():
     return {
         "status": "ok",
         "database": "connected" if _app_state.db_connection else "disconnected",
-        "llm": llm_status
+        "llm": llm_status,
     }
 
 
@@ -493,7 +496,7 @@ async def get_database_status():
         "status": "connected" if _app_state.db_connection else "disconnected",
         "path": _app_state.current_db_path,
         "configured_path": get_setting("duckdb_path") or "data/g7_analytics.duckdb",
-        "engine": "DuckDB"
+        "engine": "DuckDB",
     }
 
 
@@ -501,7 +504,11 @@ async def get_database_status():
 async def refresh_schema():
     """Rafraîchit le cache du schéma depuis le catalogue SQLite."""
     _app_state.db_schema_cache = get_schema_for_llm()
-    return {"status": "ok", "message": t("db.schema_refreshed"), "schema_preview": _app_state.db_schema_cache[:500] + "..."}
+    return {
+        "status": "ok",
+        "message": t("db.schema_refreshed"),
+        "schema_preview": _app_state.db_schema_cache[:500] + "...",
+    }
 
 
 @app.get("/schema")
@@ -535,9 +542,7 @@ async def analyze(request: QuestionRequest):
         data = execute_query(sql)
 
         # 3. Vérifier si le chart doit être désactivé
-        chart_disabled, chart_disabled_reason = should_disable_chart(
-            len(data), chart.get("type")
-        )
+        chart_disabled, chart_disabled_reason = should_disable_chart(len(data), chart.get("type"))
 
         # 4. Retourner la réponse complète avec métadonnées
         return AnalysisResponse(
@@ -550,7 +555,7 @@ async def analyze(request: QuestionRequest):
             model_name=metadata.get("model_name", "unknown"),
             tokens_input=metadata.get("tokens_input"),
             tokens_output=metadata.get("tokens_output"),
-            response_time_ms=metadata.get("response_time_ms")
+            response_time_ms=metadata.get("response_time_ms"),
         )
 
     except HTTPException:
@@ -562,6 +567,7 @@ async def analyze(request: QuestionRequest):
 # ========================================
 # ENDPOINTS CONVERSATIONS
 # ========================================
+
 
 @app.post("/conversations")
 async def create_new_conversation():
@@ -608,18 +614,11 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
     """
     try:
         # Sauvegarder le message user
-        add_message(
-            conversation_id=conversation_id,
-            role="user",
-            content=request.question
-        )
+        add_message(conversation_id=conversation_id, role="user", content=request.question)
 
         # Appeler le LLM avec les filtres et le mode contexte
         llm_response = call_llm_for_analytics(
-            request.question,
-            conversation_id,
-            request.filters,
-            use_context=request.use_context
+            request.question, conversation_id, request.filters, use_context=request.use_context
         )
 
         sql = llm_response.get("sql", "")
@@ -636,7 +635,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 model_name=metadata.get("model_name"),
                 tokens_input=metadata.get("tokens_input"),
                 tokens_output=metadata.get("tokens_output"),
-                response_time_ms=metadata.get("response_time_ms")
+                response_time_ms=metadata.get("response_time_ms"),
             )
             return {
                 "message_id": message_id,
@@ -649,7 +648,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "model_name": metadata.get("model_name", "unknown"),
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
-                "response_time_ms": metadata.get("response_time_ms")
+                "response_time_ms": metadata.get("response_time_ms"),
             }
 
         # Exécuter le SQL
@@ -666,7 +665,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 model_name=metadata.get("model_name"),
                 tokens_input=metadata.get("tokens_input"),
                 tokens_output=metadata.get("tokens_output"),
-                response_time_ms=metadata.get("response_time_ms")
+                response_time_ms=metadata.get("response_time_ms"),
             )
             return {
                 "message_id": message_id,
@@ -680,13 +679,11 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "model_name": metadata.get("model_name", "unknown"),
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
-                "response_time_ms": metadata.get("response_time_ms")
+                "response_time_ms": metadata.get("response_time_ms"),
             }
 
         # Vérifier si le chart doit être désactivé
-        chart_disabled, chart_disabled_reason = should_disable_chart(
-            len(data), chart.get("type")
-        )
+        chart_disabled, chart_disabled_reason = should_disable_chart(len(data), chart.get("type"))
 
         # Limiter les données pour le stockage (max 100 lignes)
         data_to_store = data[:100] if len(data) > 100 else data
@@ -702,7 +699,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
             model_name=metadata.get("model_name"),
             tokens_input=metadata.get("tokens_input"),
             tokens_output=metadata.get("tokens_output"),
-            response_time_ms=metadata.get("response_time_ms")
+            response_time_ms=metadata.get("response_time_ms"),
         )
 
         return {
@@ -716,7 +713,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
             "model_name": metadata.get("model_name", "unknown"),
             "tokens_input": metadata.get("tokens_input"),
             "tokens_output": metadata.get("tokens_output"),
-            "response_time_ms": metadata.get("response_time_ms")
+            "response_time_ms": metadata.get("response_time_ms"),
         }
 
     except HTTPException:
@@ -728,6 +725,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
 # ========================================
 # ENDPOINTS RAPPORTS SAUVEGARDÉS
 # ========================================
+
 
 @app.get("/reports")
 async def list_reports():
@@ -744,7 +742,7 @@ async def create_report(request: SaveReportRequest):
         question=request.question,
         sql_query=request.sql_query,
         chart_config=request.chart_config,
-        message_id=request.message_id
+        message_id=request.message_id,
     )
     return {"id": report_id, "message": t("report.saved")}
 
@@ -799,7 +797,7 @@ async def execute_report(report_id: int):
             "title": report.get("title", ""),
             "sql": sql_query,
             "chart": chart_config,
-            "data": data
+            "data": data,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=t("db.query_error", error=str(e))) from e
@@ -808,6 +806,7 @@ async def execute_report(report_id: int):
 # ========================================
 # ENDPOINTS SETTINGS
 # ========================================
+
 
 @app.get("/settings")
 async def get_settings():
@@ -823,14 +822,16 @@ async def get_settings():
     providers_status = []
     for p in providers:
         hint = get_api_key_hint(p["id"])
-        providers_status.append({
-            "name": p["name"],
-            "display_name": p["display_name"],
-            "type": p["type"],
-            "requires_api_key": p["requires_api_key"],
-            "api_key_configured": hint is not None,
-            "api_key_hint": hint
-        })
+        providers_status.append(
+            {
+                "name": p["name"],
+                "display_name": p["display_name"],
+                "type": p["type"],
+                "requires_api_key": p["requires_api_key"],
+                "api_key_configured": hint is not None,
+                "api_key_hint": hint,
+            }
+        )
 
     return {
         "settings": settings,
@@ -838,8 +839,8 @@ async def get_settings():
             "status": llm_status["status"],
             "message": llm_status.get("message"),
             "current_model": default_model,
-            "providers": providers_status
-        }
+            "providers": providers_status,
+        },
     }
 
 
@@ -852,7 +853,9 @@ async def update_settings(request: SettingsUpdateRequest):
     if request.api_key is not None and request.provider_name is not None:
         provider = get_provider_by_name(request.provider_name)
         if not provider:
-            raise HTTPException(status_code=404, detail=t("provider.not_found", name=request.provider_name))
+            raise HTTPException(
+                status_code=404, detail=t("provider.not_found", name=request.provider_name)
+            )
         set_api_key(provider["id"], request.api_key)
         messages.append(t("settings.api_key_saved", provider=request.provider_name))
 
@@ -881,6 +884,7 @@ async def get_single_setting(key: str):
 
 class UpdateSettingRequest(BaseModel):
     """Requête de mise à jour d'un setting."""
+
     value: str
 
 
@@ -894,13 +898,17 @@ async def update_single_setting(key: str, request: UpdateSettingRequest):
 
     # Validation spécifique par clé
     if key == "catalog_context_mode" and request.value not in ("compact", "full"):
-        raise HTTPException(status_code=400, detail=t("validation.allowed_values", values="'compact', 'full'"))
+        raise HTTPException(
+            status_code=400, detail=t("validation.allowed_values", values="'compact', 'full'")
+        )
 
     if key == "max_tables_per_batch":
         try:
             val = int(request.value)
             if val < 1 or val > 50:
-                raise HTTPException(status_code=400, detail=t("validation.range_error", min=1, max=50))
+                raise HTTPException(
+                    status_code=400, detail=t("validation.range_error", min=1, max=50)
+                )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=t("validation.numeric_required")) from e
 
@@ -908,7 +916,9 @@ async def update_single_setting(key: str, request: UpdateSettingRequest):
         try:
             val = int(request.value)
             if val < 100 or val > 100000:
-                raise HTTPException(status_code=400, detail=t("validation.range_error", min=100, max=100000))
+                raise HTTPException(
+                    status_code=400, detail=t("validation.range_error", min=100, max=100000)
+                )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=t("validation.numeric_required")) from e
 
@@ -945,6 +955,7 @@ async def update_single_setting(key: str, request: UpdateSettingRequest):
 # ENDPOINTS CATALOGUE DE DONNÉES
 # ========================================
 
+
 @app.get("/catalog")
 async def get_catalog():
     """
@@ -961,26 +972,35 @@ async def get_catalog():
     result = []
     for ds in datasources:
         # Récupérer les tables de cette datasource
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM tables WHERE datasource_id = ?
             ORDER BY name
-        """, (ds["id"],))
+        """,
+            (ds["id"],),
+        )
         tables = [dict(row) for row in cursor.fetchall()]
 
         tables_with_columns = []
         for table in tables:
             # Récupérer les colonnes de cette table
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT * FROM columns WHERE table_id = ?
                 ORDER BY name
-            """, (table["id"],))
+            """,
+                (table["id"],),
+            )
             columns = [dict(row) for row in cursor.fetchall()]
 
             # Récupérer les synonymes de chaque colonne
             for col in columns:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT term FROM synonyms WHERE column_id = ?
-                """, (col["id"],))
+                """,
+                    (col["id"],),
+                )
                 col["synonyms"] = [row["term"] for row in cursor.fetchall()]
 
             table["columns"] = columns
@@ -1049,7 +1069,7 @@ async def toggle_table_enabled_endpoint(table_id: int):
         "status": "ok",
         "table_id": table_id,
         "is_enabled": bool(table["is_enabled"]) if table else False,
-        "message": f"Table {'activée' if table and table['is_enabled'] else 'désactivée'}"
+        "message": f"Table {'activée' if table and table['is_enabled'] else 'désactivée'}",
     }
 
 
@@ -1069,10 +1089,7 @@ async def extract_catalog_endpoint():
     run_id = str(uuid.uuid4())
     # Extraction a 2 steps: extract_metadata, save_to_catalog (géré par WorkflowManager)
     job_id = create_catalog_job(
-        job_type="extraction",
-        run_id=run_id,
-        total_steps=2,
-        details={"mode": "extraction_only"}
+        job_type="extraction", run_id=run_id, total_steps=2, details={"mode": "extraction_only"}
     )
 
     # 1. Vider le catalogue existant
@@ -1102,14 +1119,19 @@ async def extract_catalog_endpoint():
 
         # Marquer le job comme complété (géré par WorkflowManager maintenant)
         update_job_status(job_id, status="completed")
-        update_job_result(job_id, {
-            "tables": result.get("stats", {}).get("tables", 0),
-            "columns": result.get("stats", {}).get("columns", 0),
-            "datasource": result.get("datasource", "DuckDB")
-        })
+        update_job_result(
+            job_id,
+            {
+                "tables": result.get("stats", {}).get("tables", 0),
+                "columns": result.get("stats", {}).get("columns", 0),
+                "datasource": result.get("datasource", "DuckDB"),
+            },
+        )
     except Exception as e:
         # Erreur déjà marquée par WorkflowManager, juste propager
-        raise HTTPException(status_code=500, detail=t("catalog.extraction_error", error=str(e))) from e
+        raise HTTPException(
+            status_code=500, detail=t("catalog.extraction_error", error=str(e))
+        ) from e
 
     # 3. Rafraîchir le cache du schéma (vide car pas de descriptions)
     _app_state.db_schema_cache = None
@@ -1120,12 +1142,13 @@ async def extract_catalog_endpoint():
         "tables_count": result.get("stats", {}).get("tables", 0),
         "columns_count": result.get("stats", {}).get("columns", 0),
         "tables": result.get("tables", []),
-        "run_id": run_id
+        "run_id": run_id,
     }
 
 
 class EnrichCatalogRequest(BaseModel):
     """Requête d'enrichissement avec les IDs des tables sélectionnées."""
+
     table_ids: list[int] = Field(description="IDs des tables à enrichir")
 
 
@@ -1150,7 +1173,9 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
     # Vérifier que le LLM est configuré
     llm_status = check_llm_status()
     if llm_status["status"] != "ok":
-        raise HTTPException(status_code=500, detail=llm_status.get("message", t("llm.not_configured")))
+        raise HTTPException(
+            status_code=500, detail=llm_status.get("message", t("llm.not_configured"))
+        )
 
     if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
@@ -1175,16 +1200,14 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
         details={
             "table_ids": request.table_ids,
             "batch_size": max_tables_per_batch,
-            "num_batches": num_batches
-        }
+            "num_batches": num_batches,
+        },
     )
 
     # Enrichissement dans un thread séparé (full_context lu depuis SQLite)
     def run_enrichment():
         return enrich_selected_tables(
-            table_ids=request.table_ids,
-            db_connection=_app_state.db_connection,
-            job_id=job_id
+            table_ids=request.table_ids, db_connection=_app_state.db_connection, job_id=job_id
         )
 
     try:
@@ -1204,22 +1227,27 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
                 "columns_count": 0,
                 "synonyms_count": 0,
                 "kpis_count": 0,
-                "run_id": run_id
+                "run_id": run_id,
             }
 
         # Marquer le job comme complété (géré par WorkflowManager maintenant)
         update_job_status(job_id, status="completed")
-        update_job_result(job_id, {
-            "tables": result.get("stats", {}).get("tables", 0),
-            "columns": result.get("stats", {}).get("columns", 0),
-            "synonyms": result.get("stats", {}).get("synonyms", 0),
-            "kpis": result.get("stats", {}).get("kpis", 0),
-            "questions": result.get("stats", {}).get("questions", 0),
-            "datasource": result.get("datasource", "DuckDB")
-        })
+        update_job_result(
+            job_id,
+            {
+                "tables": result.get("stats", {}).get("tables", 0),
+                "columns": result.get("stats", {}).get("columns", 0),
+                "synonyms": result.get("stats", {}).get("synonyms", 0),
+                "kpis": result.get("stats", {}).get("kpis", 0),
+                "questions": result.get("stats", {}).get("questions", 0),
+                "datasource": result.get("datasource", "DuckDB"),
+            },
+        )
     except Exception as e:
         # Erreur déjà marquée par WorkflowManager, juste propager
-        raise HTTPException(status_code=500, detail=t("catalog.enrichment_error", error=str(e))) from e
+        raise HTTPException(
+            status_code=500, detail=t("catalog.enrichment_error", error=str(e))
+        ) from e
 
     # Rafraîchir le cache du schéma
     _app_state.db_schema_cache = get_schema_for_llm()
@@ -1231,7 +1259,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
         "columns_count": result.get("stats", {}).get("columns", 0),
         "synonyms_count": result.get("stats", {}).get("synonyms", 0),
         "kpis_count": result.get("stats", {}).get("kpis", 0),
-        "run_id": run_id
+        "run_id": run_id,
     }
 
 
@@ -1248,7 +1276,9 @@ async def generate_catalog_endpoint():
     # Vérifier que le LLM est configuré
     llm_status = check_llm_status()
     if llm_status["status"] != "ok":
-        raise HTTPException(status_code=500, detail=llm_status.get("message", t("llm.not_configured")))
+        raise HTTPException(
+            status_code=500, detail=llm_status.get("message", t("llm.not_configured"))
+        )
 
     if not _app_state.db_connection:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
@@ -1272,7 +1302,9 @@ async def generate_catalog_endpoint():
         with ThreadPoolExecutor() as executor:
             result = await loop.run_in_executor(executor, run_generation)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=t("catalog.generation_error", error=str(e))) from e
+        raise HTTPException(
+            status_code=500, detail=t("catalog.generation_error", error=str(e))
+        ) from e
 
     # 3. Rafraîchir le cache du schéma
     _app_state.db_schema_cache = get_schema_for_llm()
@@ -1282,13 +1314,14 @@ async def generate_catalog_endpoint():
         "message": result.get("message", "Catalogue généré"),
         "tables_count": result.get("stats", {}).get("tables", 0),
         "columns_count": result.get("stats", {}).get("columns", 0),
-        "synonyms_count": result.get("stats", {}).get("synonyms", 0)
+        "synonyms_count": result.get("stats", {}).get("synonyms", 0),
     }
 
 
 # ========================================
 # ENDPOINTS LLM
 # ========================================
+
 
 @app.get("/llm/providers")
 async def list_llm_providers():
@@ -1386,12 +1419,7 @@ async def get_llm_costs(days: int = 30):
     by_hour = get_costs_by_hour(days)
     by_model = get_costs_by_model(days)
 
-    return {
-        "period_days": days,
-        "total": total,
-        "by_hour": by_hour,
-        "by_model": by_model
-    }
+    return {"period_days": days, "total": total, "by_hour": by_hour, "by_model": by_model}
 
 
 @app.get("/llm/status")
@@ -1403,6 +1431,7 @@ async def get_llm_status_endpoint():
 # ========================================
 # ENDPOINTS PROMPTS LLM
 # ========================================
+
 
 @app.get("/llm/prompts")
 async def list_llm_prompts(category: str | None = None):
@@ -1430,8 +1459,7 @@ async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
     success = set_active_prompt(key, request.version)
     if not success:
         raise HTTPException(
-            status_code=404,
-            detail=f"Prompt '{key}' version '{request.version}' non trouvé"
+            status_code=404, detail=f"Prompt '{key}' version '{request.version}' non trouvé"
         )
     return {"message": f"Prompt '{key}' version '{request.version}' activé"}
 
@@ -1439,6 +1467,7 @@ async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
 # ========================================
 # ENDPOINTS WIDGETS DYNAMIQUES
 # ========================================
+
 
 @app.get("/widgets")
 async def list_widgets(use_cache: bool = True):
@@ -1491,6 +1520,7 @@ async def refresh_widget(widget_id: str):
 # ENDPOINTS KPIs
 # ========================================
 
+
 @app.get("/kpis")
 async def list_kpis():
     """
@@ -1511,6 +1541,7 @@ async def list_kpis():
 # ========================================
 # ENDPOINTS QUESTIONS SUGGÉRÉES
 # ========================================
+
 
 @app.get("/suggested-questions")
 async def list_suggested_questions():
@@ -1538,6 +1569,7 @@ async def list_suggested_questions():
 # ========================================
 # ENDPOINTS PROMPTS
 # ========================================
+
 
 @app.get("/prompts")
 async def list_prompts():
@@ -1567,6 +1599,7 @@ async def get_prompt(key: str):
 
 class PromptUpdateRequest(BaseModel):
     """Requête de mise à jour d'un prompt."""
+
     content: str = Field(description="Contenu du prompt")
 
 
@@ -1588,6 +1621,7 @@ async def update_prompt(key: str, request: PromptUpdateRequest):
 # ========================================
 # ENDPOINTS CATALOG JOBS
 # ========================================
+
 
 @app.get("/catalog/jobs")
 async def list_catalog_jobs(limit: int = 50):
@@ -1650,12 +1684,14 @@ async def get_latest_run():
 # SSE ENDPOINTS - TEMPS RÉEL
 # ========================================
 
+
 @app.get("/catalog/job-stream/{run_id}")
 async def stream_run_jobs(run_id: str):
     """
     Stream SSE des jobs d'un run spécifique (extraction + enrichissement).
     Se ferme automatiquement quand tous les jobs sont terminés.
     """
+
     async def event_generator():
         try:
             while True:
@@ -1685,7 +1721,7 @@ async def stream_run_jobs(run_id: str):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",  # Disable nginx buffering
-        }
+        },
     )
 
 
@@ -1695,6 +1731,7 @@ async def stream_catalog_status():
     Stream SSE de l'état global du catalogue (running ou pas).
     Permet de bloquer les boutons Extract/Enrich pendant un run.
     """
+
     async def event_generator():
         previous_status = None
 
@@ -1705,10 +1742,7 @@ async def stream_catalog_status():
                 is_running = any(j["status"] == "running" for j in recent_jobs)
                 current_run_id = get_latest_run_id() if is_running else None
 
-                status = {
-                    "is_running": is_running,
-                    "current_run_id": current_run_id
-                }
+                status = {"is_running": is_running, "current_run_id": current_run_id}
 
                 # Envoyer seulement si changement (éviter spam)
                 if status != previous_status:
@@ -1728,7 +1762,7 @@ async def stream_catalog_status():
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
-        }
+        },
     )
 
 
@@ -1770,17 +1804,19 @@ async def list_all_runs():
                     except (json.JSONDecodeError, TypeError):
                         result = None
 
-                runs.append({
-                    "id": row["id"],
-                    "run_id": row["run_id"],
-                    "job_type": row["job_type"],
-                    "status": row["status"],
-                    "started_at": row["started_at"],
-                    "completed_at": row["completed_at"],
-                    "current_step": row["current_step"],
-                    "progress": row["progress"],
-                    "result": result
-                })
+                runs.append(
+                    {
+                        "id": row["id"],
+                        "run_id": row["run_id"],
+                        "job_type": row["job_type"],
+                        "status": row["status"],
+                        "started_at": row["started_at"],
+                        "completed_at": row["completed_at"],
+                        "current_step": row["current_step"],
+                        "progress": row["progress"],
+                        "result": result,
+                    }
+                )
 
             return {"runs": runs}
 
@@ -1817,10 +1853,7 @@ async def update_column_description(column_id: int, request: dict):
             raise HTTPException(status_code=404, detail=t("catalog.column_not_found", id=column_id))
 
         # Mettre à jour la description
-        cursor.execute(
-            "UPDATE columns SET description = ? WHERE id = ?",
-            (description, column_id)
-        )
+        cursor.execute("UPDATE columns SET description = ? WHERE id = ?", (description, column_id))
         conn.commit()
         conn.close()
 
@@ -1828,7 +1861,7 @@ async def update_column_description(column_id: int, request: dict):
             "status": "ok",
             "column_id": column_id,
             "column_name": column["name"],
-            "description": description
+            "description": description,
         }
 
     except HTTPException:

@@ -197,27 +197,27 @@ export function PipelineLog({ runId }: PipelineLogProps) {
             <div className="ml-6 flex flex-wrap gap-2 text-[10px]">
               {job.result.tables !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                  {job.result.tables} tables
+                  {String(job.result.tables)} tables
                 </span>
               )}
               {job.result.columns !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                  {job.result.columns} colonnes
+                  {String(job.result.columns)} colonnes
                 </span>
               )}
               {job.result.synonyms !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">
-                  {job.result.synonyms} synonymes
+                  {String(job.result.synonyms)} synonymes
                 </span>
               )}
               {job.result.kpis !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                  {job.result.kpis} KPIs
+                  {String(job.result.kpis)} KPIs
                 </span>
               )}
               {job.result.questions !== undefined && (
                 <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
-                  {job.result.questions} questions
+                  {String(job.result.questions)} questions
                 </span>
               )}
             </div>

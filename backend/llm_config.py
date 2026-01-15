@@ -5,6 +5,7 @@ Gère les providers, modèles, secrets (chiffrés) et tracking des coûts.
 NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
       Utiliser db.init_db() pour initialiser la base.
 """
+
 import urllib.error
 import urllib.request
 from typing import Optional
@@ -86,9 +87,12 @@ def update_provider_base_url(provider_id: int, base_url: str | None) -> bool:
     """Met à jour le base_url d'un provider (pour self-hosted)."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE llm_providers SET base_url = ? WHERE id = ?
-    """, (base_url.rstrip("/") if base_url else None, provider_id))
+    """,
+        (base_url.rstrip("/") if base_url else None, provider_id),
+    )
     conn.commit()
     affected = cursor.rowcount
     conn.close()
@@ -98,6 +102,7 @@ def update_provider_base_url(provider_id: int, base_url: str | None) -> bool:
 # ========================================
 # CRUD MODELS
 # ========================================
+
 
 def get_models(provider_id: int | None = None, enabled_only: bool = True) -> list[dict]:
     """Récupère la liste des modèles."""
@@ -130,13 +135,16 @@ def get_model(model_id: int) -> dict | None:
     """Récupère un modèle par ID."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT m.*, p.name as provider_name, p.display_name as provider_display_name,
                p.base_url, p.requires_api_key
         FROM llm_models m
         JOIN llm_providers p ON m.provider_id = p.id
         WHERE m.id = ?
-    """, (model_id,))
+    """,
+        (model_id,),
+    )
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -162,13 +170,16 @@ def get_model_by_model_id(model_id: str) -> dict | None:
     """Récupère un modèle par son model_id (ex: 'gemini-2.0-flash')."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT m.*, p.name as provider_name, p.display_name as provider_display_name,
                p.base_url, p.requires_api_key
         FROM llm_models m
         JOIN llm_providers p ON m.provider_id = p.id
         WHERE m.model_id = ?
-    """, (model_id,))
+    """,
+        (model_id,),
+    )
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -202,6 +213,7 @@ def set_default_model(model_id: str) -> bool:
 # CRUD SECRETS (chiffrement AES)
 # ========================================
 
+
 def set_api_key(provider_id: int, api_key: str) -> bool:
     """Sauvegarde une clé API (chiffrée) pour un provider."""
     conn = get_connection()
@@ -220,10 +232,13 @@ def set_api_key(provider_id: int, api_key: str) -> bool:
     # Masquer la clé pour l'affichage
     key_hint = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "***"
 
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT OR REPLACE INTO llm_secrets (provider_id, encrypted_api_key, key_hint, updated_at)
         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-    """, (provider_id, encrypted_key, key_hint))
+    """,
+        (provider_id, encrypted_key, key_hint),
+    )
 
     conn.commit()
     conn.close()
@@ -234,7 +249,9 @@ def get_api_key(provider_id: int) -> str | None:
     """Récupère la clé API (déchiffrée) pour un provider depuis la base."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT encrypted_api_key FROM llm_secrets WHERE provider_id = ?", (provider_id,))
+    cursor.execute(
+        "SELECT encrypted_api_key FROM llm_secrets WHERE provider_id = ?", (provider_id,)
+    )
     row = cursor.fetchone()
     conn.close()
 
@@ -263,6 +280,7 @@ def get_api_key_hint(provider_id: int) -> str | None:
 # CRUD COSTS (tracking)
 # ========================================
 
+
 def log_cost(
     model_id: int,
     source: str,
@@ -271,7 +289,7 @@ def log_cost(
     response_time_ms: int | None = None,
     conversation_id: int | None = None,
     success: bool = True,
-    error_message: str | None = None
+    error_message: str | None = None,
 ) -> int:
     """Enregistre un appel LLM avec son coût."""
     # Récupérer les coûts du modèle
@@ -289,13 +307,27 @@ def log_cost(
 
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO llm_costs
         (model_id, source, conversation_id, tokens_input, tokens_output,
          cost_input, cost_output, cost_total, response_time_ms, success, error_message)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (model_id, source, conversation_id, tokens_input, tokens_output,
-          cost_input, cost_output, cost_total, response_time_ms, success, error_message))
+    """,
+        (
+            model_id,
+            source,
+            conversation_id,
+            tokens_input,
+            tokens_output,
+            cost_input,
+            cost_output,
+            cost_total,
+            response_time_ms,
+            success,
+            error_message,
+        ),
+    )
 
     conn.commit()
     cost_id = cursor.lastrowid
@@ -335,7 +367,7 @@ def get_total_costs(days: int = 30, model_id: int | None = None, source: str | N
         "total_calls": row["total_calls"] or 0,
         "total_tokens_input": row["total_tokens_input"] or 0,
         "total_tokens_output": row["total_tokens_output"] or 0,
-        "total_cost": row["total_cost"] or 0.0
+        "total_cost": row["total_cost"] or 0.0,
     }
 
 
@@ -343,7 +375,8 @@ def get_costs_by_period(days: int = 30) -> list[dict]:
     """Récupère les coûts par jour sur les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             DATE(created_at) as date,
             COUNT(*) as calls,
@@ -354,7 +387,9 @@ def get_costs_by_period(days: int = 30) -> list[dict]:
         WHERE success = 1 AND created_at >= DATE('now', ?)
         GROUP BY DATE(created_at)
         ORDER BY date DESC
-    """, (f"-{days} days",))
+    """,
+        (f"-{days} days",),
+    )
 
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -365,7 +400,8 @@ def get_costs_by_hour(days: int = 7) -> list[dict]:
     """Récupère les coûts par heure sur les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             strftime('%Y-%m-%d %H:00', created_at) as hour,
             COUNT(*) as calls,
@@ -376,7 +412,9 @@ def get_costs_by_hour(days: int = 7) -> list[dict]:
         WHERE success = 1 AND created_at >= datetime('now', ?)
         GROUP BY strftime('%Y-%m-%d %H:00', created_at)
         ORDER BY hour DESC
-    """, (f"-{days} days",))
+    """,
+        (f"-{days} days",),
+    )
 
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -387,7 +425,8 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
     """Récupère les coûts groupés par modèle pour les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT
             m.display_name as model_name,
             p.display_name as provider_name,
@@ -402,7 +441,9 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
           AND c.created_at >= datetime('now', ?)
         GROUP BY c.model_id
         ORDER BY cost DESC
-    """, (f"-{days} days",))
+    """,
+        (f"-{days} days",),
+    )
 
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -412,6 +453,7 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
 # ========================================
 # CRUD PROMPTS
 # ========================================
+
 
 def get_prompts(category: str | None = None, active_only: bool = False) -> list[dict]:
     """Récupère la liste des prompts."""
@@ -439,10 +481,7 @@ def get_prompt(key: str, version: str = "normal") -> dict | None:
     """Récupère un prompt par clé et version."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM llm_prompts WHERE key = ? AND version = ?",
-        (key, version)
-    )
+    cursor.execute("SELECT * FROM llm_prompts WHERE key = ? AND version = ?", (key, version))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -452,10 +491,7 @@ def get_active_prompt(key: str) -> dict | None:
     """Récupère le prompt actif pour une clé donnée."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "SELECT * FROM llm_prompts WHERE key = ? AND is_active = 1",
-        (key,)
-    )
+    cursor.execute("SELECT * FROM llm_prompts WHERE key = ? AND is_active = 1", (key,))
     row = cursor.fetchone()
     conn.close()
 
@@ -474,18 +510,21 @@ def add_prompt(
     version: str = "normal",
     is_active: bool = False,
     tokens_estimate: int | None = None,
-    description: str | None = None
+    description: str | None = None,
 ) -> int | None:
     """Ajoute un nouveau prompt."""
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO llm_prompts
             (key, name, category, content, version, is_active, tokens_estimate, description)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (key, name, category, content, version, is_active, tokens_estimate, description))
+        """,
+            (key, name, category, content, version, is_active, tokens_estimate, description),
+        )
         conn.commit()
         prompt_id = cursor.lastrowid
         conn.close()
@@ -500,7 +539,7 @@ def update_prompt(
     content: str | None = None,
     name: str | None = None,
     tokens_estimate: int | None = None,
-    description: str | None = None
+    description: str | None = None,
 ) -> bool:
     """Met à jour un prompt existant."""
     conn = get_connection()
@@ -517,7 +556,7 @@ def update_prompt(
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,
-        (content, name, tokens_estimate, description, prompt_id)
+        (content, name, tokens_estimate, description, prompt_id),
     )
     conn.commit()
     affected = cursor.rowcount
@@ -531,10 +570,7 @@ def set_active_prompt(key: str, version: str) -> bool:
     cursor = conn.cursor()
 
     # Vérifier que le prompt existe
-    cursor.execute(
-        "SELECT id FROM llm_prompts WHERE key = ? AND version = ?",
-        (key, version)
-    )
+    cursor.execute("SELECT id FROM llm_prompts WHERE key = ? AND version = ?", (key, version))
     if not cursor.fetchone():
         conn.close()
         return False
@@ -545,7 +581,7 @@ def set_active_prompt(key: str, version: str) -> bool:
     # Activer la version demandée
     cursor.execute(
         "UPDATE llm_prompts SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE key = ? AND version = ?",
-        (key, version)
+        (key, version),
     )
 
     conn.commit()
@@ -595,15 +631,16 @@ def update_prompt_content(key: str, content: str) -> bool:
         cursor = conn.cursor()
 
         # Mettre à jour le prompt actif
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE llm_prompts
             SET content = ?, updated_at = CURRENT_TIMESTAMP
             WHERE key = ? AND is_active = 1
-        """, (content, key))
+        """,
+            (content, key),
+        )
 
         conn.commit()
         return cursor.rowcount > 0
     finally:
         conn.close()
-
-

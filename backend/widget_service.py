@@ -2,6 +2,7 @@
 Service pour les widgets dynamiques.
 Gère l'exécution SQL sur DuckDB et le cache des résultats.
 """
+
 import json
 import logging
 from datetime import datetime, timedelta, timezone, UTC
@@ -25,8 +26,7 @@ DEFAULT_CACHE_TTL_MINUTES = 60
 
 
 def execute_widget_sql(
-    db_connection: duckdb.DuckDBPyConnection,
-    sql_query: str
+    db_connection: duckdb.DuckDBPyConnection, sql_query: str
 ) -> list[dict[str, Any]]:
     """
     Exécute une requête SQL de widget sur DuckDB.
@@ -56,7 +56,7 @@ def get_widget_with_data(
     widget: dict,
     db_connection: duckdb.DuckDBPyConnection,
     use_cache: bool = True,
-    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES
+    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES,
 ) -> dict[str, Any]:
     """
     Récupère un widget avec ses données.
@@ -77,7 +77,7 @@ def get_widget_with_data(
                     **widget,
                     "data": data,
                     "cached_at": cached["computed_at"],
-                    "from_cache": True
+                    "from_cache": True,
                 }
             except json.JSONDecodeError:
                 logger.warning("Cache invalide pour widget %s", widget_id)
@@ -87,32 +87,23 @@ def get_widget_with_data(
         data = execute_widget_sql(db_connection, widget["sql_query"])
 
         # Mettre en cache
-        set_widget_cache(
-            widget_id=widget_id,
-            data=json.dumps(data),
-            ttl_minutes=cache_ttl_minutes
-        )
+        set_widget_cache(widget_id=widget_id, data=json.dumps(data), ttl_minutes=cache_ttl_minutes)
 
         return {
             **widget,
             "data": data,
             "cached_at": datetime.now(tz=UTC).isoformat(),
-            "from_cache": False
+            "from_cache": False,
         }
     except Exception as e:
         logger.error("Erreur SQL widget %s: %s", widget_id, e)
-        return {
-            **widget,
-            "data": [],
-            "error": str(e),
-            "from_cache": False
-        }
+        return {**widget, "data": [], "error": str(e), "from_cache": False}
 
 
 def get_all_widgets_with_data(
     db_connection: duckdb.DuckDBPyConnection,
     use_cache: bool = True,
-    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES
+    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES,
 ) -> list[dict[str, Any]]:
     """
     Récupère tous les widgets actifs avec leurs données.
@@ -123,10 +114,7 @@ def get_all_widgets_with_data(
     result = []
     for widget in widgets:
         widget_with_data = get_widget_with_data(
-            widget,
-            db_connection,
-            use_cache=use_cache,
-            cache_ttl_minutes=cache_ttl_minutes
+            widget, db_connection, use_cache=use_cache, cache_ttl_minutes=cache_ttl_minutes
         )
         result.append(widget_with_data)
 
@@ -134,8 +122,7 @@ def get_all_widgets_with_data(
 
 
 def refresh_all_widgets_cache(
-    db_connection: duckdb.DuckDBPyConnection,
-    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES
+    db_connection: duckdb.DuckDBPyConnection, cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES
 ) -> dict[str, Any]:
     """
     Force le recalcul du cache de tous les widgets.
@@ -155,30 +142,25 @@ def refresh_all_widgets_cache(
         try:
             data = execute_widget_sql(db_connection, widget["sql_query"])
             set_widget_cache(
-                widget_id=widget["widget_id"],
-                data=json.dumps(data),
-                ttl_minutes=cache_ttl_minutes
+                widget_id=widget["widget_id"], data=json.dumps(data), ttl_minutes=cache_ttl_minutes
             )
             success += 1
         except Exception as e:
-            errors.append({
-                "widget_id": widget["widget_id"],
-                "error": str(e)
-            })
+            errors.append({"widget_id": widget["widget_id"], "error": str(e)})
             logger.error("Erreur refresh widget %s: %s", widget["widget_id"], e)
 
     return {
         "total": len(widgets),
         "success": success,
         "errors": errors,
-        "refreshed_at": datetime.now(tz=UTC).isoformat()
+        "refreshed_at": datetime.now(tz=UTC).isoformat(),
     }
 
 
 def refresh_single_widget_cache(
     widget_id: str,
     db_connection: duckdb.DuckDBPyConnection,
-    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES
+    cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES,
 ) -> dict[str, Any]:
     """
     Force le recalcul du cache d'un seul widget.
@@ -191,20 +173,12 @@ def refresh_single_widget_cache(
 
     try:
         data = execute_widget_sql(db_connection, widget["sql_query"])
-        set_widget_cache(
-            widget_id=widget_id,
-            data=json.dumps(data),
-            ttl_minutes=cache_ttl_minutes
-        )
+        set_widget_cache(widget_id=widget_id, data=json.dumps(data), ttl_minutes=cache_ttl_minutes)
         return {
             "widget_id": widget_id,
             "success": True,
             "rows": len(data),
-            "refreshed_at": datetime.now(tz=UTC).isoformat()
+            "refreshed_at": datetime.now(tz=UTC).isoformat(),
         }
     except Exception as e:
-        return {
-            "widget_id": widget_id,
-            "success": False,
-            "error": str(e)
-        }
+        return {"widget_id": widget_id, "success": False, "error": str(e)}

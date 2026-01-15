@@ -11,6 +11,7 @@ Usage:
     # Message avec variables
     t("llm.api_key_missing", provider="Google")
 """
+
 import json
 from functools import lru_cache
 from pathlib import Path

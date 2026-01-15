@@ -92,7 +92,7 @@ export function VisualizationZone({
             <div className="w-20 h-20 mx-auto mb-4 bg-secondary/30 rounded-lg flex items-center justify-center">
               <ChartIcon size={40} className="text-primary/50" />
             </div>
-            <p className="text-foreground/80 font-medium">G7 Analytics</p>
+            <p className="text-foreground/80 font-medium">TalkData Analytics</p>
             <p className="text-sm mt-1">Posez une question pour visualiser les données</p>
           </div>
         </div>

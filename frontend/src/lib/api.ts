@@ -794,8 +794,12 @@ export interface Run {
   completed_at: string | null;
   status: "pending" | "running" | "completed" | "failed";
   current_step: string | null;
+  step_index: number | null;
+  total_steps: number | null;
   progress: number;
+  details: Record<string, unknown> | null;
   result: Record<string, unknown> | null;
+  error_message: string | null;
 }
 
 export async function fetchRuns(): Promise<Run[]> {

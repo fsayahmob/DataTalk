@@ -138,7 +138,7 @@ function RunsPageContent() {
             subtitle: step.subtitle,
             status,
             progress: status === 'running' ? job.progress : undefined,
-            result: idx === steps.length - 1 && job.status === 'completed' ? job.result : undefined,
+            result: idx === steps.length - 1 && job.status === 'completed' ? job.result ?? undefined : undefined,
           },
         });
 
@@ -218,7 +218,7 @@ function RunsPageContent() {
             subtitle: subtitle,
             status,
             progress: status === 'running' ? job.progress : undefined,
-            result: idx === enrichmentSteps.length - 1 && job.status === 'completed' ? job.result : undefined,
+            result: idx === enrichmentSteps.length - 1 && job.status === 'completed' ? job.result ?? undefined : undefined,
           },
         });
 
@@ -291,7 +291,7 @@ function RunsPageContent() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-[hsl(220_10%_6%)]">
+      <div className="h-screen flex items-center justify-center bg-sidebar">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Chargement des runs...</p>
@@ -301,9 +301,9 @@ function RunsPageContent() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[hsl(220_10%_6%)]">
+    <div className="h-screen flex flex-col bg-sidebar">
       {/* ReactFlow: Visualisation du job */}
-      <div className="h-[40vh] bg-[hsl(220_10%_4%)]">
+      <div className="h-[40vh] bg-background">
         {selectedJobId ? (
           <ReactFlow
             nodes={nodes}
@@ -347,7 +347,7 @@ function RunsPageContent() {
       </div>
 
       {/* Historique des runs (style GitHub) */}
-      <div className="border-t border-border bg-[hsl(220_10%_8%)] overflow-hidden">
+      <div className="border-t border-border bg-sidebar overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border/30">
           <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Historique</h2>
         </div>
@@ -399,7 +399,7 @@ function RunsPageContent() {
                   {/* Colonne 4: Datasource */}
                   <div className="flex items-center gap-1.5">
                     <span className="text-muted-foreground text-xs">Base:</span>
-                    <span className="font-medium text-foreground text-sm">{job.result?.datasource || "-"}</span>
+                    <span className="font-medium text-foreground text-sm">{String(job.result?.datasource ?? "-")}</span>
                   </div>
 
                   {/* Colonne 5: Date */}
@@ -407,14 +407,14 @@ function RunsPageContent() {
 
                   {/* Colonne 6: Résultats (alignés à droite) */}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground justify-end">
-                    {job.result?.tables && (
-                      <span className="font-medium">{job.result.tables} tables</span>
+                    {job.result?.tables !== undefined && (
+                      <span className="font-medium">{String(job.result.tables)} tables</span>
                     )}
-                    {job.result?.kpis && (
-                      <span>· {job.result.kpis} KPIs</span>
+                    {job.result?.kpis !== undefined && (
+                      <span>· {String(job.result.kpis)} KPIs</span>
                     )}
-                    {job.result?.columns && job.job_type === "extraction" && (
-                      <span>· {job.result.columns} colonnes</span>
+                    {job.result?.columns !== undefined && job.job_type === "extraction" && (
+                      <span>· {String(job.result.columns)} colonnes</span>
                     )}
                   </div>
                 </button>

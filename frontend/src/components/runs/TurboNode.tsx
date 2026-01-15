@@ -92,22 +92,22 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
           <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
             {data.result.tables !== undefined && (
               <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {data.result.tables} tables
+                {String(data.result.tables)} tables
               </span>
             )}
             {data.result.columns !== undefined && (
               <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {data.result.columns} cols
+                {String(data.result.columns)} cols
               </span>
             )}
             {data.result.synonyms !== undefined && (
               <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">
-                {data.result.synonyms} syn
+                {String(data.result.synonyms)} syn
               </span>
             )}
             {data.result.kpis !== undefined && (
               <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
-                {data.result.kpis} KPIs
+                {String(data.result.kpis)} KPIs
               </span>
             )}
           </div>

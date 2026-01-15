@@ -3,6 +3,7 @@ Service LLM centralisé pour G7 Analytics.
 Utilise LiteLLM pour une interface unifiée multi-provider.
 Gère le tracking des coûts automatiquement.
 """
+
 import logging
 import os
 import time
@@ -40,6 +41,7 @@ from pydantic import BaseModel
 
 class LLMErrorCode(str, Enum):
     """Codes d'erreur LLM pour le mapping i18n."""
+
     NOT_CONFIGURED = "llm.not_configured"
     API_KEY_MISSING = "llm.api_key_missing"
     API_KEY_INVALID = "llm.api_key_invalid"
@@ -77,7 +79,9 @@ def _handle_litellm_exception(e: Exception, provider: str) -> LLMError:
 
     # Cas spécial: APIConnectionError peut être timeout ou connexion
     if isinstance(e, APIConnectionError):
-        code = LLMErrorCode.TIMEOUT if "timeout" in str(e).lower() else LLMErrorCode.CONNECTION_ERROR
+        code = (
+            LLMErrorCode.TIMEOUT if "timeout" in str(e).lower() else LLMErrorCode.CONNECTION_ERROR
+        )
         return LLMError(code, provider)
 
     # Chercher dans le mapping
