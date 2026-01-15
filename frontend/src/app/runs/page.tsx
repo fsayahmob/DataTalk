@@ -27,6 +27,34 @@ const defaultEdgeOptions = {
   markerEnd: 'edge-circle',
 };
 
+// Helper functions pour le style des jobs (réduit la complexité)
+function getStatusBgClass(status: string): string {
+  switch (status) {
+    case "completed": return "bg-green-500/20";
+    case "running": return "bg-orange-500/20";
+    case "failed": return "bg-red-500/20";
+    default: return "bg-gray-500/20";
+  }
+}
+
+function getStatusTextClass(status: string): string {
+  switch (status) {
+    case "completed": return "text-green-400";
+    case "running": return "text-orange-400";
+    case "failed": return "text-red-400";
+    default: return "text-gray-400";
+  }
+}
+
+function getStatusIcon(status: string): string {
+  switch (status) {
+    case "completed": return "✓";
+    case "running": return "⟳";
+    case "failed": return "✗";
+    default: return "○";
+  }
+}
+
 function RunsPageContent() {
   const [runs, setRuns] = useState<api.Run[]>([]);
   const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
@@ -34,26 +62,28 @@ function RunsPageContent() {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [loading, setLoading] = useState(true);
 
+  // Effet 1: Charger les runs (une seule fois au mount)
   const loadRuns = useCallback(async () => {
     try {
       const data = await api.fetchRuns();
       setRuns(data);
-
-      // Sélectionner le premier job par défaut
-      if (data.length > 0 && !selectedJobId) {
-        setSelectedJobId(data[0].id);
-      }
     } catch (error) {
       console.error("Error loading runs:", error);
     } finally {
       setLoading(false);
     }
-  }, [selectedJobId]);
+  }, []);
 
-  // Charger liste des runs
   useEffect(() => {
     void loadRuns();
   }, [loadRuns]);
+
+  // Effet 2: Auto-sélectionner le premier job quand runs change et pas de sélection
+  useEffect(() => {
+    if (runs.length > 0 && selectedJobId === null) {
+      setSelectedJobId(runs[0].id);
+    }
+  }, [runs, selectedJobId]);
 
   // Fonction pour construire le flow depuis un job
   const buildFlowFromJob = useCallback((jobType: "extraction" | "enrichment", jobs: api.CatalogJob[]) => {
@@ -214,9 +244,9 @@ function RunsPageContent() {
     setEdges(newEdges);
   }, [setNodes, setEdges]);
 
-  // Charger détails d'un job (SSE pour temps réel)
+  // Effet 3: Charger détails d'un job (SSE pour temps réel)
   useEffect(() => {
-    if (!selectedJobId) return;
+    if (!selectedJobId || runs.length === 0) return;
 
     // Trouver le job sélectionné pour récupérer son run_id
     const selectedJob = runs.find((r) => r.id === selectedJobId);
@@ -330,80 +360,66 @@ function RunsPageContent() {
           </div>
         ) : (
           <div className="max-h-[40vh] overflow-y-auto">
-            {runs.map((job) => (
-              <button
-                key={job.id}
-                onClick={() => setSelectedJobId(job.id)}
-                className={`w-full px-4 py-2 grid grid-cols-[auto_140px_120px_180px_140px_1fr] gap-4 items-center border-b border-border/10 transition-all ${
-                  selectedJobId === job.id
-                    ? "bg-primary/10 border-l-[3px] border-l-primary"
-                    : "hover:bg-primary/5 border-l-[3px] border-l-transparent"
-                }`}
-              >
-                {/* Colonne 1: Status icon */}
-                <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  job.status === "completed"
-                    ? "bg-green-500/20"
-                    : job.status === "running"
-                    ? "bg-orange-500/20"
-                    : job.status === "failed"
-                    ? "bg-red-500/20"
-                    : "bg-gray-500/20"
-                }`}>
-                  <span className={`text-xs ${
-                    job.status === "completed"
-                      ? "text-green-400"
-                      : job.status === "running"
-                      ? "text-orange-400"
-                      : job.status === "failed"
-                      ? "text-red-400"
-                      : "text-gray-400"
-                  }`}>
-                    {job.status === "completed" ? "✓" : job.status === "running" ? "⟳" : job.status === "failed" ? "✗" : "○"}
-                  </span>
-                </div>
+            {runs.map((job) => {
+              const isSelected = selectedJobId === job.id;
+              const jobLabel = job.job_type === "extraction" ? "Extraction" : "Enrichissement";
+              const dateStr = new Date(job.started_at).toLocaleString('fr-FR', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              });
 
-                {/* Colonne 2: Type de job */}
-                <span className="text-sm font-semibold text-foreground">
-                  {job.job_type === "extraction" ? "Extraction" : "Enrichissement"}
-                </span>
+              return (
+                <button
+                  key={job.id}
+                  onClick={() => setSelectedJobId(job.id)}
+                  className={`w-full px-4 py-2 grid grid-cols-[auto_140px_120px_180px_140px_1fr] gap-4 items-center border-b border-border/10 transition-all ${
+                    isSelected
+                      ? "bg-primary/10 border-l-[3px] border-l-primary"
+                      : "hover:bg-primary/5 border-l-[3px] border-l-transparent"
+                  }`}
+                >
+                  {/* Colonne 1: Status icon */}
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${getStatusBgClass(job.status)}`}>
+                    <span className={`text-xs ${getStatusTextClass(job.status)}`}>
+                      {getStatusIcon(job.status)}
+                    </span>
+                  </div>
 
-                {/* Colonne 3: Run ID */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground text-xs">Run:</span>
-                  <span className="font-mono text-foreground text-sm">#{job.run_id.slice(0, 8)}</span>
-                </div>
+                  {/* Colonne 2: Type de job */}
+                  <span className="text-sm font-semibold text-foreground">{jobLabel}</span>
 
-                {/* Colonne 4: Datasource */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-muted-foreground text-xs">Base:</span>
-                  <span className="font-medium text-foreground text-sm">{job.result?.datasource || "-"}</span>
-                </div>
+                  {/* Colonne 3: Run ID */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs">Run:</span>
+                    <span className="font-mono text-foreground text-sm">#{job.run_id.slice(0, 8)}</span>
+                  </div>
 
-                {/* Colonne 5: Date */}
-                <span className="text-muted-foreground text-sm">
-                  {new Date(job.started_at).toLocaleString('fr-FR', {
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </span>
+                  {/* Colonne 4: Datasource */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-muted-foreground text-xs">Base:</span>
+                    <span className="font-medium text-foreground text-sm">{job.result?.datasource || "-"}</span>
+                  </div>
 
-                {/* Colonne 6: Résultats (alignés à droite) */}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground justify-end">
-                  {job.result?.tables && (
-                    <span className="font-medium">{job.result.tables} tables</span>
-                  )}
-                  {job.result?.kpis && (
-                    <span>· {job.result.kpis} KPIs</span>
-                  )}
-                  {job.result?.columns && job.job_type === "extraction" && (
-                    <span>· {job.result.columns} colonnes</span>
-                  )}
-                </div>
-              </button>
-            ))}
+                  {/* Colonne 5: Date */}
+                  <span className="text-muted-foreground text-sm">{dateStr}</span>
+
+                  {/* Colonne 6: Résultats (alignés à droite) */}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground justify-end">
+                    {job.result?.tables && (
+                      <span className="font-medium">{job.result.tables} tables</span>
+                    )}
+                    {job.result?.kpis && (
+                      <span>· {job.result.kpis} KPIs</span>
+                    )}
+                    {job.result?.columns && job.job_type === "extraction" && (
+                      <span>· {job.result.columns} colonnes</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

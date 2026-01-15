@@ -12,7 +12,7 @@ Ces warnings sont des problèmes de structure (fonctions trop longues, complexit
 |---------|----------|--------|-----|
 | `src/app/catalog/page.tsx:31` | `CatalogPageContent` | 321 | 150 |
 | `src/app/page.tsx:17` | `Home` | 241 | 150 |
-| `src/app/runs/page.tsx:30` | `RunsPageContent` | 324 | 150 |
+| `src/app/runs/page.tsx:58` | `RunsPageContent` | 311 | 150 |
 | `src/app/settings/page.tsx:10` | `SettingsPage` | 153 | 150 |
 | `src/components/Chart.tsx:64` | `Chart` | 289 | 150 |
 | `src/components/ChatZone.tsx:79` | `ChatZone` | 279 | 150 |
@@ -29,11 +29,10 @@ Ces warnings sont des problèmes de structure (fonctions trop longues, complexit
 
 ---
 
-## complexity (2 warnings)
+## complexity (1 warning)
 
 | Fichier | Fonction | Complexité | Max |
 |---------|----------|------------|-----|
-| `src/app/runs/page.tsx:333` | Arrow function | 21 | 20 |
 | `src/components/Chart.tsx:64` | `Chart` | 29 | 20 |
 
 **Solution**: Simplifier la logique conditionnelle, extraire des fonctions helper.
@@ -74,3 +73,4 @@ Ces warnings sont des problèmes de structure (fonctions trop longues, complexit
 ## Historique
 
 - **2026-01-15**: 54 warnings corrigés (no-floating-promises, no-misused-promises, no-unused-vars, no-explicit-any, exhaustive-deps, eqeqeq). 20 warnings structurels reportés.
+- **2026-01-15**: Refactoring runs/page.tsx - séparation en 3 effets distincts, extraction helpers status. Complexity warning corrigé (21→OK). 19 warnings restants.
