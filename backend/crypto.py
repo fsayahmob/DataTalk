@@ -5,6 +5,7 @@ Utilise la bibliothèque cryptography.
 import base64
 import hashlib
 import os
+import socket
 from typing import Optional
 
 try:
@@ -28,7 +29,6 @@ def _get_encryption_key() -> bytes:
         key_bytes = env_key.encode()
     else:
         # Fallback: dériver une clé du hostname (dev uniquement)
-        import socket
         hostname = socket.gethostname()
         key_bytes = hostname.encode()
 
@@ -48,7 +48,7 @@ def encrypt(plaintext: str) -> bytes:
     return f.encrypt(plaintext.encode())
 
 
-def decrypt(ciphertext: bytes) -> Optional[str]:
+def decrypt(ciphertext: bytes) -> str | None:
     """Déchiffre des données."""
     if not ciphertext:
         return None

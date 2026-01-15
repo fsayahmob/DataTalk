@@ -10,10 +10,30 @@ Architecture:
 4. save_to_catalog() - SQLite update
 5. generate_kpis() - Génération des 4 KPIs
 """
-import os
+import json
 import re
 from contextlib import contextmanager
-from typing import Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+from pydantic import BaseModel, Field, create_model
+from pydantic_core import PydanticUndefined
+
+from catalog import (
+    WorkflowManager,
+    add_column,
+    add_datasource,
+    add_synonym,
+    add_table,
+    get_connection,
+    get_schema_for_llm,
+    get_setting,
+)
+from llm_config import get_active_prompt
+from llm_service import call_llm, call_llm_structured
+
+if TYPE_CHECKING:
+    pass
 
 
 # =============================================================================
@@ -48,10 +68,9 @@ def check_token_limit(prompt: str, max_input_tokens: int = 100000) -> tuple[bool
 
     if token_count > max_input_tokens:
         return (False, token_count, f"Prompt trop long: {token_count:,} tokens (max: {max_input_tokens:,})")
-    elif token_count > max_input_tokens * 0.8:
+    if token_count > max_input_tokens * 0.8:
         return (True, token_count, f"Prompt volumineux: {token_count:,} tokens (80% de la limite)")
-    else:
-        return (True, token_count, f"OK: {token_count:,} tokens")
+    return (True, token_count, f"OK: {token_count:,} tokens")
 
 
 class CatalogValidationResult:
@@ -127,12 +146,8 @@ def validate_catalog_enrichment(
 
     return result
 
-from pydantic import BaseModel, Field, create_model
-
-from catalog import get_setting
-
 # Configuration par défaut (fallback si settings non initialisé)
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "g7_analytics.duckdb")
+DEFAULT_DB_PATH = str(Path(__file__).parent / ".." / "data" / "g7_analytics.duckdb")
 
 
 def get_duckdb_path() -> str:
@@ -140,9 +155,9 @@ def get_duckdb_path() -> str:
     path = get_setting("duckdb_path")
     if path:
         # Si chemin relatif, le résoudre par rapport au dossier backend
-        if not os.path.isabs(path):
-            path = os.path.join(os.path.dirname(__file__), "..", path)
-        return os.path.normpath(path)
+        if not Path(path).is_absolute():
+            path = str(Path(__file__).parent / ".." / path)
+        return str(Path(path).resolve())
     return DEFAULT_DB_PATH
 
 
@@ -217,16 +232,16 @@ class ExtractedCatalog(BaseModel):
 
 # Patterns communs pour détection automatique
 COMMON_PATTERNS = {
-    "email": r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    "uuid": r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
-    "phone_fr": r'^(?:\+33|0)[1-9](?:[0-9]{8}|[0-9]{2}(?:\s|\.|-)?[0-9]{2}(?:\s|\.|-)?[0-9]{2}(?:\s|\.|-)?[0-9]{2})$',
-    "url": r'^https?://[^\s]+$',
-    "ip_address": r'^(?:\d{1,3}\.){3}\d{1,3}$',
-    "date_iso": r'^\d{4}-\d{2}-\d{2}$',
-    "datetime_iso": r'^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}',
-    "postal_code_fr": r'^\d{5}$',
-    "siret": r'^\d{14}$',
-    "siren": r'^\d{9}$',
+    "email": r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$",
+    "uuid": r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+    "phone_fr": r"^(?:\+33|0)[1-9](?:[0-9]{8}|[0-9]{2}(?:\s|\.|-)?[0-9]{2}(?:\s|\.|-)?[0-9]{2}(?:\s|\.|-)?[0-9]{2})$",
+    "url": r"^https?://[^\s]+$",
+    "ip_address": r"^(?:\d{1,3}\.){3}\d{1,3}$",
+    "date_iso": r"^\d{4}-\d{2}-\d{2}$",
+    "datetime_iso": r"^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}",
+    "postal_code_fr": r"^\d{5}$",
+    "siret": r"^\d{14}$",
+    "siren": r"^\d{9}$",
 }
 
 
@@ -253,7 +268,7 @@ def detect_pattern(values: list[str]) -> tuple[str | None, float | None]:
             if rate > 0.7 and rate > best_rate:
                 best_pattern = pattern_name
                 best_rate = rate
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
     return (best_pattern, best_rate) if best_pattern else (None, None)
@@ -265,10 +280,10 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
 
     Inspiré des data catalogs professionnels (dbt, DataHub, Amundsen, Great Expectations).
     """
-    CATEGORICAL_THRESHOLD = 50
+    categorical_threshold = 50
     col_type_lower = col_type.lower()
-    is_numeric = any(t in col_type_lower for t in ['int', 'float', 'decimal', 'double', 'numeric', 'real'])
-    is_text = any(t in col_type_lower for t in ['varchar', 'text', 'char', 'string'])
+    is_numeric = any(t in col_type_lower for t in ["int", "float", "decimal", "double", "numeric", "real"])
+    is_text = any(t in col_type_lower for t in ["varchar", "text", "char", "string"])
 
     # Initialiser les valeurs par défaut
     stats: dict[str, Any] = {
@@ -297,12 +312,12 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
 
     try:
         # 1. Statistiques de base (null_count, distinct_count)
-        base_stats = conn.execute(f'''
+        base_stats = conn.execute(f"""
             SELECT
                 COUNT(*) - COUNT("{col_name}") as null_count,
                 COUNT(DISTINCT "{col_name}") as distinct_count
             FROM "{table_name}"
-        ''').fetchone()
+        """).fetchone()  # noqa: S608
 
         null_count = base_stats[0] or 0
         distinct_count = base_stats[1] or 0
@@ -313,36 +328,36 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
         stats["unique_rate"] = round(distinct_count / row_count, 4) if row_count > 0 else 0.0
 
         # 2. Détection catégorielle et valeurs
-        stats["is_categorical"] = distinct_count <= CATEGORICAL_THRESHOLD
+        stats["is_categorical"] = distinct_count <= categorical_threshold
 
         if stats["is_categorical"]:
             # Récupérer TOUTES les valeurs pour colonnes catégorielles
-            samples = conn.execute(f'''
+            samples = conn.execute(f"""
                 SELECT DISTINCT CAST("{col_name}" AS VARCHAR) as val
                 FROM "{table_name}"
                 WHERE "{col_name}" IS NOT NULL
                 ORDER BY val
-            ''').fetchall()
+            """).fetchall()  # noqa: S608
             stats["sample_values"] = [str(s[0])[:100] for s in samples if s[0]]
         else:
             # Échantillon de 5 valeurs
-            samples = conn.execute(f'''
+            samples = conn.execute(f"""
                 SELECT DISTINCT CAST("{col_name}" AS VARCHAR) as val
                 FROM "{table_name}"
                 WHERE "{col_name}" IS NOT NULL
                 LIMIT 5
-            ''').fetchall()
+            """).fetchall()  # noqa: S608
             stats["sample_values"] = [str(s[0])[:50] for s in samples if s[0]]
 
         # 3. Top 10 valeurs avec fréquences (distribution)
-        top_values_result = conn.execute(f'''
+        top_values_result = conn.execute(f"""
             SELECT CAST("{col_name}" AS VARCHAR) as val, COUNT(*) as cnt
             FROM "{table_name}"
             WHERE "{col_name}" IS NOT NULL
             GROUP BY "{col_name}"
             ORDER BY cnt DESC
             LIMIT 10
-        ''').fetchall()
+        """).fetchall()  # noqa: S608
 
         stats["top_values"] = [
             ValueFrequency(
@@ -356,7 +371,7 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
         # 4. Statistiques numériques
         if is_numeric:
             try:
-                num_stats = conn.execute(f'''
+                num_stats = conn.execute(f"""
                     SELECT
                         MIN("{col_name}"),
                         MAX("{col_name}"),
@@ -364,50 +379,50 @@ def extract_column_stats(conn: Any, table_name: str, col_name: str, col_type: st
                         MEDIAN("{col_name}")
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
-                ''').fetchone()
+                """).fetchone()  # noqa: S608
 
                 if num_stats[0] is not None:
                     stats["value_range"] = f"{num_stats[0]} - {num_stats[1]}"
                     stats["mean"] = round(float(num_stats[2]), 4) if num_stats[2] else None
                     stats["median"] = round(float(num_stats[3]), 4) if num_stats[3] else None
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         # 5. Statistiques texte (longueurs)
         if is_text:
             try:
-                text_stats = conn.execute(f'''
+                text_stats = conn.execute(f"""
                     SELECT
                         MIN(LENGTH("{col_name}")),
                         MAX(LENGTH("{col_name}")),
                         AVG(LENGTH("{col_name}"))
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
-                ''').fetchone()
+                """).fetchone()  # noqa: S608
 
                 if text_stats[0] is not None:
                     stats["min_length"] = text_stats[0]
                     stats["max_length"] = text_stats[1]
                     stats["avg_length"] = round(float(text_stats[2]), 2) if text_stats[2] else None
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
         # 6. Détection de patterns (sur échantillon pour performance)
         if is_text and distinct_count > 10:
             try:
-                pattern_samples = conn.execute(f'''
+                pattern_samples = conn.execute(f"""
                     SELECT CAST("{col_name}" AS VARCHAR)
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
                     LIMIT 100
-                ''').fetchall()
+                """).fetchall()  # noqa: S608
                 sample_values_for_pattern = [str(s[0]) for s in pattern_samples if s[0]]
 
                 pattern, rate = detect_pattern(sample_values_for_pattern)
                 if pattern:
                     stats["detected_pattern"] = pattern
                     stats["pattern_match_rate"] = round(rate, 4) if rate else None
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
 
     except Exception as e:
@@ -444,7 +459,9 @@ def extract_metadata_from_connection(conn: Any) -> ExtractedCatalog:
 
     for (table_name,) in tables:
         # Nombre de lignes
-        row_count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+        row_count = conn.execute(
+            f'SELECT COUNT(*) FROM "{table_name}"'  # noqa: S608
+        ).fetchone()[0]
 
         # Colonnes via information_schema
         columns_info = conn.execute(f"""
@@ -452,7 +469,7 @@ def extract_metadata_from_connection(conn: Any) -> ExtractedCatalog:
             FROM information_schema.columns
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
-        """).fetchall()
+        """).fetchall()  # noqa: S608
 
         print(f"    → {table_name}: {len(columns_info)} colonnes, {row_count:,} lignes")
 
@@ -525,12 +542,10 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         table_models[table.name] = (TableModel, Field(description=f"Enrichissement de la table {table.name}"))
 
     # Modèle global
-    CatalogEnrichment = create_model(  # noqa: N806
+    return create_model(
         "CatalogEnrichment",
         **table_models  # type: ignore
     )
-
-    return CatalogEnrichment
 
 
 # =============================================================================
@@ -690,9 +705,6 @@ def enrich_with_llm(
     Raises:
         PromptNotConfiguredError: Si le prompt catalog_enrichment n'est pas en base.
     """
-    from llm_config import get_active_prompt
-    from llm_service import call_llm_structured
-
     # Construire le modèle de réponse dynamique
     ResponseModel = build_response_model(catalog)  # noqa: N806
 
@@ -754,14 +766,6 @@ def save_to_catalog(
 
     Retourne les statistiques: tables, columns, synonyms créés.
     """
-    from catalog import (
-        add_column,
-        add_datasource,
-        add_synonym,
-        add_table,
-        get_connection,
-    )
-
     # Créer la datasource
     datasource_id = add_datasource(
         name=catalog.datasource.replace(".duckdb", ""),
@@ -778,7 +782,7 @@ def save_to_catalog(
             (catalog.datasource.replace(".duckdb", ""),)
         )
         row = cursor.fetchone()
-        datasource_id = row['id'] if row else None
+        datasource_id = row["id"] if row else None
         conn.close()
 
     if datasource_id is None:
@@ -808,7 +812,7 @@ def save_to_catalog(
                 (datasource_id, table.name)
             )
             row = cursor.fetchone()
-            table_id = row['id'] if row else None
+            table_id = row["id"] if row else None
             conn.close()
 
         if table_id:
@@ -839,7 +843,7 @@ def save_to_catalog(
                         (table_id, col.name)
                     )
                     row = cursor.fetchone()
-                    column_id = row['id'] if row else None
+                    column_id = row["id"] if row else None
                     conn.close()
 
                 if column_id:
@@ -850,7 +854,7 @@ def save_to_catalog(
                         try:
                             add_synonym(column_id, synonym)
                             stats["synonyms"] += 1
-                        except Exception:
+                        except Exception:  # noqa: S110
                             pass  # Ignorer les doublons
 
     return stats
@@ -878,8 +882,6 @@ class KpiDefinition(BaseModel):
         Génère automatiquement la description des champs pour le prompt LLM.
         Extrait les infos du modèle Pydantic (nom, type, description, défaut).
         """
-        from pydantic_core import PydanticUndefined
-
         lines = []
         for field_name, field_info in cls.model_fields.items():
             # Type du champ
@@ -997,7 +999,7 @@ def get_data_period(conn: Any) -> str:
             max_date = result[1]
             nb_jours = result[2]
             return f"Du {min_date} au {max_date} ({nb_jours} jours de données)"
-    except Exception:
+    except Exception:  # noqa: S110
         pass
 
     return "Période non déterminée"
@@ -1009,9 +1011,6 @@ def generate_kpis(catalog: ExtractedCatalog, db_connection: Any) -> KpisGenerati
 
     Utilise le prompt 'widgets_generation' de la base de données.
     """
-    from llm_config import get_active_prompt
-    from llm_service import call_llm_structured
-
     # Récupérer le prompt depuis la DB
     prompt_data = get_active_prompt("widgets_generation")
     if not prompt_data or not prompt_data.get("content"):
@@ -1067,8 +1066,6 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
     """
     Sauvegarde les KPIs générés dans SQLite.
     """
-    from catalog import get_connection
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -1118,10 +1115,6 @@ def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, st
     Returns:
         Liste de questions avec catégorie et icône
     """
-    from catalog import get_schema_for_llm
-    from llm_config import get_active_prompt
-    from llm_service import call_llm
-
     print("    Génération des questions suggérées...")
 
     # Récupérer le schéma formaté
@@ -1155,7 +1148,6 @@ def generate_suggested_questions(catalog: ExtractedCatalog) -> list[dict[str, st
                 lines = lines[:-1]
             content = "\n".join(lines).strip()
 
-        import json
         result = json.loads(content)
         questions = result.get("questions", [])
 
@@ -1177,8 +1169,6 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
     Returns:
         Stats de sauvegarde
     """
-    from catalog import get_connection
-
     if not questions:
         return {"questions": 0}
 
@@ -1224,14 +1214,6 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
     Returns:
         Stats d'extraction (tables, colonnes)
     """
-    from catalog import (
-        WorkflowManager,
-        add_column,
-        add_datasource,
-        add_table,
-        get_connection,
-    )
-
     print("EXTRACTION SEULE (sans LLM)...")
 
     # Initialiser le workflow si job_id fourni
@@ -1263,7 +1245,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
                 (catalog.datasource.replace(".duckdb", ""),)
             )
             row = cursor.fetchone()
-            datasource_id = row['id'] if row else None
+            datasource_id = row["id"] if row else None
             conn.close()
 
         if datasource_id is None:
@@ -1288,7 +1270,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
                     (datasource_id, table.name)
                 )
                 row = cursor.fetchone()
-                table_id = row['id'] if row else None
+                table_id = row["id"] if row else None
                 conn.close()
 
             if table_id:
@@ -1351,8 +1333,6 @@ def enrich_selected_tables(
     Returns:
         Stats d'enrichissement + validation
     """
-    from catalog import WorkflowManager, get_connection
-
     print("ENRICHISSEMENT LLM (tables sélectionnées)...")
 
     if not table_ids:
@@ -1364,8 +1344,8 @@ def enrich_selected_tables(
 
     # Calculer nombre de steps dynamiquement
     max_batch_setting = get_setting("max_tables_per_batch")
-    MAX_TABLES_PER_BATCH = int(max_batch_setting) if max_batch_setting else 4
-    num_batches = (len(table_ids) + MAX_TABLES_PER_BATCH - 1) // MAX_TABLES_PER_BATCH
+    max_tables_per_batch = int(max_batch_setting) if max_batch_setting else 4
+    num_batches = (len(table_ids) + max_tables_per_batch - 1) // max_tables_per_batch
     # Steps: update_enabled + fetch_tables + N*llm_batch + save_descriptions + generate_kpis + generate_questions
     total_steps = 2 + num_batches + 3
 
@@ -1383,7 +1363,10 @@ def enrich_selected_tables(
 
         # Activer seulement les tables sélectionnées
         placeholders = ",".join("?" * len(table_ids))
-        cursor.execute(f"UPDATE tables SET is_enabled = 1 WHERE id IN ({placeholders})", table_ids)
+        cursor.execute(
+            f"UPDATE tables SET is_enabled = 1 WHERE id IN ({placeholders})",  # noqa: S608
+            table_ids,
+        )
         conn.commit()
 
         print(f"    → {len(table_ids)} tables activées")
@@ -1396,11 +1379,11 @@ def enrich_selected_tables(
             FROM tables t
             JOIN datasources d ON t.datasource_id = d.id
             WHERE t.id IN ({placeholders})
-        """, table_ids)
+        """, table_ids)  # noqa: S608
         selected_tables = cursor.fetchall()
 
         # Récupérer le nom de la datasource (même pour toutes les tables)
-        datasource_name = selected_tables[0]['datasource_name'] if selected_tables else "DuckDB"
+        datasource_name = selected_tables[0]["datasource_name"] if selected_tables else "DuckDB"
         conn.close()
 
         if not selected_tables:
@@ -1435,8 +1418,6 @@ def enrich_enabled_tables(
     Returns:
         Stats d'enrichissement + validation
     """
-    from catalog import get_connection
-
     print("ENRICHISSEMENT LLM (tables activées uniquement)...")
 
     # 1. Récupérer les tables activées depuis SQLite
@@ -1466,7 +1447,7 @@ def enrich_enabled_tables(
 def _enrich_tables(
     tables_rows: list,
     db_connection: Any,
-    workflow: 'WorkflowManager | None' = None,
+    workflow: "WorkflowManager | None" = None,
     datasource_name: str = "DuckDB"
 ) -> dict[str, Any]:
     """
@@ -1475,7 +1456,7 @@ def _enrich_tables(
     Lit le full_context depuis SQLite (calculé à l'extraction) au lieu de
     recalculer les stats depuis DuckDB.
 
-    Enrichit par lots de MAX_TABLES_PER_BATCH tables pour éviter l'erreur
+    Enrichit par lots de max_tables_per_batch tables pour éviter l'erreur
     "too many states" de Vertex AI avec les réponses structurées.
 
     Args:
@@ -1486,12 +1467,10 @@ def _enrich_tables(
     Returns:
         Stats d'enrichissement
     """
-    from catalog import get_connection
-
     # Limite de tables par batch pour éviter les erreurs Vertex AI
     # Lire depuis settings (défaut: 15)
     max_batch_setting = get_setting("max_tables_per_batch")
-    MAX_TABLES_PER_BATCH = int(max_batch_setting) if max_batch_setting else 15
+    max_tables_per_batch = int(max_batch_setting) if max_batch_setting else 15
 
     # Lire toutes les colonnes avec full_context depuis SQLite
     conn = get_connection()
@@ -1501,9 +1480,9 @@ def _enrich_tables(
     all_tables_info = []  # (table_metadata, context_part)
 
     for table_row in tables_rows:
-        table_id = table_row['id']
-        table_name = table_row['name']
-        row_count = table_row['row_count'] or 0
+        table_id = table_row["id"]
+        table_name = table_row["name"]
+        row_count = table_row["row_count"] or 0
 
         # Récupérer les colonnes depuis SQLite (avec full_context)
         cursor.execute("""
@@ -1521,9 +1500,9 @@ def _enrich_tables(
         columns_result = []
 
         for col_row in columns_rows:
-            col_name = col_row['name']
-            col_type = col_row['data_type']
-            full_context = col_row['full_context'] or ""
+            col_name = col_row["name"]
+            col_type = col_row["data_type"]
+            full_context = col_row["full_context"] or ""
 
             # Ligne de contexte pour le LLM
             col_line = f"  - {col_name} ({col_type})"
@@ -1535,8 +1514,8 @@ def _enrich_tables(
             columns_result.append(ColumnMetadata(
                 name=col_name,
                 data_type=col_type,
-                sample_values=col_row['sample_values'].split(", ") if col_row['sample_values'] else [],
-                value_range=col_row['value_range']
+                sample_values=col_row["sample_values"].split(", ") if col_row["sample_values"] else [],
+                value_range=col_row["value_range"]
             ))
 
         context_part = f"""
@@ -1558,11 +1537,11 @@ Colonnes:
 
     # Diviser en batches
     batches = []
-    for i in range(0, len(all_tables_info), MAX_TABLES_PER_BATCH):
-        batch = all_tables_info[i:i + MAX_TABLES_PER_BATCH]
+    for i in range(0, len(all_tables_info), max_tables_per_batch):
+        batch = all_tables_info[i:i + max_tables_per_batch]
         batches.append(batch)
 
-    print(f"Enrichissement avec LLM ({len(batches)} batch(es) de {MAX_TABLES_PER_BATCH} tables max)...")
+    print(f"Enrichissement avec LLM ({len(batches)} batch(es) de {max_tables_per_batch} tables max)...")
 
     # Enrichir par batch
     all_enrichments = {}
@@ -1594,9 +1573,9 @@ Colonnes:
                         "error_type": "vertex_ai_schema_too_complex",
                         "message": (
                             f"Erreur Vertex AI: schéma trop complexe ({len(batch_tables)} tables, {total_cols} colonnes). "
-                            f"Réduisez 'Batch Size' dans Settings > Database (actuel: {MAX_TABLES_PER_BATCH})."
+                            f"Réduisez 'Batch Size' dans Settings > Database (actuel: {max_tables_per_batch})."
                         ),
-                        "suggestion": f"Essayez avec max_tables_per_batch = {max(1, MAX_TABLES_PER_BATCH // 2)}",
+                        "suggestion": f"Essayez avec max_tables_per_batch = {max(1, max_tables_per_batch // 2)}",
                         "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0}
                     }
                 # Autres erreurs LLM
@@ -1623,7 +1602,7 @@ Colonnes:
     # Résumé des validations
     total_issues = sum(len(v.issues) for v in all_validations)
     if total_issues == 0:
-        print(f"    → Validation: [OK]")
+        print("    → Validation: [OK]")
     else:
         print(f"    → Validation: [WARNING] {total_issues} problèmes")
 
@@ -1680,8 +1659,6 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
     Met à jour les descriptions des tables et colonnes existantes.
     Utilise une seule connexion pour éviter les deadlocks SQLite.
     """
-    from catalog import get_connection
-
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -1706,7 +1683,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
         table_row = cursor.fetchone()
         if not table_row:
             continue
-        table_id = table_row['id']
+        table_id = table_row["id"]
 
         # Mettre à jour les colonnes
         for col in table.columns:
@@ -1729,7 +1706,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                 """, (table_id, col.name))
                 col_row = cursor.fetchone()
                 if col_row:
-                    column_id = col_row['id']
+                    column_id = col_row["id"]
                     for synonym in synonyms:
                         try:
                             cursor.execute(
@@ -1737,7 +1714,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                                 (column_id, synonym)
                             )
                             stats["synonyms"] += 1
-                        except Exception:
+                        except Exception:  # noqa: S110
                             pass
 
     conn.commit()

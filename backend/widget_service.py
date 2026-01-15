@@ -4,10 +4,12 @@ Gère l'exécution SQL sur DuckDB et le cache des résultats.
 """
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import duckdb
+import numpy as np
+import pandas as pd
 
 from catalog import (
     clear_widget_cache,
@@ -30,9 +32,6 @@ def execute_widget_sql(
     Exécute une requête SQL de widget sur DuckDB.
     Convertit les types non sérialisables en JSON.
     """
-    import numpy as np
-    import pandas as pd
-
     result = db_connection.execute(sql_query).fetchdf()
     data = result.to_dict(orient="records")
 
@@ -43,9 +42,9 @@ def execute_widget_sql(
                 row[key] = value.isoformat() if not pd.isna(value) else None
             elif isinstance(value, np.datetime64):
                 row[key] = str(value) if not pd.isna(value) else None
-            elif hasattr(value, 'item'):
+            elif hasattr(value, "item"):
                 row[key] = value.item()
-            elif str(type(value).__name__) in ('date', 'datetime', 'time'):
+            elif str(type(value).__name__) in ("date", "datetime", "time"):
                 row[key] = str(value)
             elif pd.isna(value):
                 row[key] = None

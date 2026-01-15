@@ -4,6 +4,7 @@ Utilise LiteLLM pour une interface unifiée multi-provider.
 Gère le tracking des coûts automatiquement.
 """
 import logging
+import os
 import time
 from enum import Enum
 from typing import Optional, Type, TypeVar
@@ -67,24 +68,21 @@ def _handle_litellm_exception(e: Exception, provider: str) -> LLMError:
     """Convertit une exception LiteLLM en LLMError typé."""
     if isinstance(e, AuthenticationError):
         return LLMError(LLMErrorCode.API_KEY_INVALID, provider)
-    elif isinstance(e, RateLimitError):
+    if isinstance(e, RateLimitError):
         return LLMError(LLMErrorCode.QUOTA_EXCEEDED, provider)
-    elif isinstance(e, APIConnectionError):
+    if isinstance(e, APIConnectionError):
         if "timeout" in str(e).lower():
             return LLMError(LLMErrorCode.TIMEOUT, provider)
         return LLMError(LLMErrorCode.CONNECTION_ERROR, provider)
-    elif isinstance(e, ContextWindowExceededError):
+    if isinstance(e, ContextWindowExceededError):
         return LLMError(LLMErrorCode.CONTEXT_TOO_LONG, provider)
-    elif isinstance(e, ContentPolicyViolationError):
+    if isinstance(e, ContentPolicyViolationError):
         return LLMError(LLMErrorCode.CONTENT_POLICY, provider)
-    elif isinstance(e, ServiceUnavailableError):
+    if isinstance(e, ServiceUnavailableError):
         return LLMError(LLMErrorCode.SERVICE_UNAVAILABLE, provider)
-    elif isinstance(e, BadRequestError):
+    if isinstance(e, BadRequestError) or isinstance(e, APIError):
         return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
-    elif isinstance(e, APIError):
-        return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
-    else:
-        return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
+    return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
 
 
 # Désactiver les logs verbeux de LiteLLM
@@ -143,22 +141,19 @@ def _get_litellm_model_name(model: dict) -> str:
     # Mapping provider -> préfixe LiteLLM
     if provider == "google":
         return f"gemini/{model_id}"
-    elif provider == "openai":
+    if provider == "openai":
         return model_id  # OpenAI n'a pas besoin de préfixe
-    elif provider == "anthropic":
+    if provider == "anthropic":
         return f"anthropic/{model_id}"
-    elif provider == "mistral":
+    if provider == "mistral":
         return f"mistral/{model_id}"
-    elif provider == "ollama":
+    if provider == "ollama":
         return f"ollama_chat/{model_id}"
-    else:
-        return model_id
+    return model_id
 
 
 def _configure_api_key(model: dict) -> bool:
     """Configure la clé API pour le provider."""
-    import os
-
     provider_id = model.get("provider_id")
     if not provider_id:
         return False
@@ -187,10 +182,10 @@ def _configure_api_key(model: dict) -> bool:
 
 def call_llm(
     prompt: str,
-    system_prompt: Optional[str] = None,
-    model_id: Optional[int] = None,
+    system_prompt: str | None = None,
+    model_id: int | None = None,
     source: str = "analytics",
-    conversation_id: Optional[int] = None,
+    conversation_id: int | None = None,
     temperature: float = 0.0,
     max_tokens: int = 4096,
 ) -> LLMResponse:
@@ -318,11 +313,11 @@ def call_llm(
 
 def call_llm_structured(
     prompt: str,
-    response_model: Type[T],
-    system_prompt: Optional[str] = None,
-    model_id: Optional[int] = None,
+    response_model: type[T],
+    system_prompt: str | None = None,
+    model_id: int | None = None,
     source: str = "analytics",
-    conversation_id: Optional[int] = None,
+    conversation_id: int | None = None,
     temperature: float = 0.0,
     max_tokens: int = 4096,
 ) -> tuple[T, dict]:

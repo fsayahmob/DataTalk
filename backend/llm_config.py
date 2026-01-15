@@ -5,6 +5,8 @@ Gère les providers, modèles, secrets (chiffrés) et tracking des coûts.
 NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
       Utiliser db.init_db() pour initialiser la base.
 """
+import urllib.error
+import urllib.request
 from typing import Optional
 
 from crypto import decrypt, encrypt
@@ -26,9 +28,6 @@ def check_local_provider_available(provider_name: str) -> bool:
     Vérifie si un provider self-hosted est accessible.
     Utilise base_url de la DB + endpoint de health check.
     """
-    import urllib.error
-    import urllib.request
-
     # Récupérer le provider pour avoir son base_url
     provider = get_provider_by_name(provider_name)
     if not provider:
@@ -63,7 +62,7 @@ def get_providers(enabled_only: bool = True) -> list[dict]:
     return results
 
 
-def get_provider(provider_id: int) -> Optional[dict]:
+def get_provider(provider_id: int) -> dict | None:
     """Récupère un provider par ID."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -73,7 +72,7 @@ def get_provider(provider_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_provider_by_name(name: str) -> Optional[dict]:
+def get_provider_by_name(name: str) -> dict | None:
     """Récupère un provider par nom."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -83,7 +82,7 @@ def get_provider_by_name(name: str) -> Optional[dict]:
     return dict(row) if row else None
 
 
-def update_provider_base_url(provider_id: int, base_url: Optional[str]) -> bool:
+def update_provider_base_url(provider_id: int, base_url: str | None) -> bool:
     """Met à jour le base_url d'un provider (pour self-hosted)."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -100,7 +99,7 @@ def update_provider_base_url(provider_id: int, base_url: Optional[str]) -> bool:
 # CRUD MODELS
 # ========================================
 
-def get_models(provider_id: Optional[int] = None, enabled_only: bool = True) -> list[dict]:
+def get_models(provider_id: int | None = None, enabled_only: bool = True) -> list[dict]:
     """Récupère la liste des modèles."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -127,7 +126,7 @@ def get_models(provider_id: Optional[int] = None, enabled_only: bool = True) -> 
     return results
 
 
-def get_model(model_id: int) -> Optional[dict]:
+def get_model(model_id: int) -> dict | None:
     """Récupère un modèle par ID."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -143,7 +142,7 @@ def get_model(model_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_default_model() -> Optional[dict]:
+def get_default_model() -> dict | None:
     """Récupère le modèle par défaut."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -159,7 +158,7 @@ def get_default_model() -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_model_by_model_id(model_id: str) -> Optional[dict]:
+def get_model_by_model_id(model_id: str) -> dict | None:
     """Récupère un modèle par son model_id (ex: 'gemini-2.0-flash')."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -234,7 +233,7 @@ def set_api_key(provider_id: int, api_key: str) -> bool:
     return True
 
 
-def get_api_key(provider_id: int) -> Optional[str]:
+def get_api_key(provider_id: int) -> str | None:
     """Récupère la clé API (déchiffrée) pour un provider depuis la base."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -253,7 +252,7 @@ def has_api_key(provider_id: int) -> bool:
     return get_api_key(provider_id) is not None
 
 
-def get_api_key_hint(provider_id: int) -> Optional[str]:
+def get_api_key_hint(provider_id: int) -> str | None:
     """Récupère l'indice de la clé API (ex: AIza...xyz)."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -272,10 +271,10 @@ def log_cost(
     source: str,
     tokens_input: int,
     tokens_output: int,
-    response_time_ms: Optional[int] = None,
-    conversation_id: Optional[int] = None,
+    response_time_ms: int | None = None,
+    conversation_id: int | None = None,
     success: bool = True,
-    error_message: Optional[str] = None
+    error_message: str | None = None
 ) -> int:
     """Enregistre un appel LLM avec son coût."""
     # Récupérer les coûts du modèle
@@ -308,7 +307,7 @@ def log_cost(
     return cost_id
 
 
-def get_total_costs(days: int = 30, model_id: Optional[int] = None, source: Optional[str] = None) -> dict:
+def get_total_costs(days: int = 30, model_id: int | None = None, source: str | None = None) -> dict:
     """Récupère les coûts totaux pour les N derniers jours."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -406,7 +405,7 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
           AND c.created_at >= datetime('now', ?)
         GROUP BY c.model_id
         ORDER BY cost DESC
-    """, (f'-{days} days',))
+    """, (f"-{days} days",))
 
     results = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -417,7 +416,7 @@ def get_costs_by_model(days: int = 30) -> list[dict]:
 # CRUD PROMPTS
 # ========================================
 
-def get_prompts(category: Optional[str] = None, active_only: bool = False) -> list[dict]:
+def get_prompts(category: str | None = None, active_only: bool = False) -> list[dict]:
     """Récupère la liste des prompts."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -439,7 +438,7 @@ def get_prompts(category: Optional[str] = None, active_only: bool = False) -> li
     return results
 
 
-def get_prompt(key: str, version: str = "normal") -> Optional[dict]:
+def get_prompt(key: str, version: str = "normal") -> dict | None:
     """Récupère un prompt par clé et version."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -452,7 +451,7 @@ def get_prompt(key: str, version: str = "normal") -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_active_prompt(key: str) -> Optional[dict]:
+def get_active_prompt(key: str) -> dict | None:
     """Récupère le prompt actif pour une clé donnée."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -477,9 +476,9 @@ def add_prompt(
     content: str,
     version: str = "normal",
     is_active: bool = False,
-    tokens_estimate: Optional[int] = None,
-    description: Optional[str] = None
-) -> Optional[int]:
+    tokens_estimate: int | None = None,
+    description: str | None = None
+) -> int | None:
     """Ajoute un nouveau prompt."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -501,10 +500,10 @@ def add_prompt(
 
 def update_prompt(
     prompt_id: int,
-    content: Optional[str] = None,
-    name: Optional[str] = None,
-    tokens_estimate: Optional[int] = None,
-    description: Optional[str] = None
+    content: str | None = None,
+    name: str | None = None,
+    tokens_estimate: int | None = None,
+    description: str | None = None
 ) -> bool:
     """Met à jour un prompt existant."""
     conn = get_connection()

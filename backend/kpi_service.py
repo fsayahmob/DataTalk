@@ -4,10 +4,12 @@ Gère l'exécution des 3 requêtes SQL par KPI et la construction des données.
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import duckdb
+import numpy as np
+import pandas as pd
 
 from catalog import get_connection
 
@@ -19,9 +21,6 @@ def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) ->
     Exécute une requête SQL de KPI sur DuckDB.
     Retourne la valeur brute (scalar ou liste).
     """
-    import numpy as np
-    import pandas as pd
-
     result = db_connection.execute(sql_query).fetchdf()
 
     if result.empty:
@@ -34,7 +33,7 @@ def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) ->
             val = row.iloc[0]  # Première colonne
             if isinstance(val, (pd.Timestamp, np.datetime64)):
                 continue  # Skip dates
-            if hasattr(val, 'item'):
+            if hasattr(val, "item"):
                 val = val.item()
             if pd.isna(val):
                 val = 0
@@ -43,7 +42,7 @@ def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) ->
 
     # Pour les requêtes valeur unique
     val = result.iloc[0, 0]
-    if hasattr(val, 'item'):
+    if hasattr(val, "item"):
         val = val.item()
     if pd.isna(val):
         val = None

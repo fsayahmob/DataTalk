@@ -5,19 +5,26 @@ Permet de générer dynamiquement le contexte pour le LLM.
 NOTE: Les tables sont définies dans schema.sql (source unique de vérité).
       Utiliser db.init_db() pour initialiser la base.
 """
-from typing import Any, Optional
+import contextlib
+import json
+from typing import Any
 
 from db import get_connection
 
 
-def add_datasource(name: str, type: str, path: str | None = None, description: str | None = None) -> int | None:
+def add_datasource(
+    name: str,
+    ds_type: str,
+    path: str | None = None,
+    description: str | None = None,
+) -> int | None:
     """Ajoute une source de données."""
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT OR REPLACE INTO datasources (name, type, path, description, updated_at)
         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-    """, (name, type, path, description))
+    """, (name, ds_type, path, description))
     conn.commit()
     datasource_id = cursor.lastrowid
     conn.close()
@@ -71,7 +78,7 @@ def add_synonym(column_id: int, term: str):
     conn.close()
 
 
-def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
+def get_schema_for_llm(datasource_name: str | None = None) -> str:
     """
     Génère le schéma formaté pour le contexte LLM (text-to-SQL).
 
@@ -85,7 +92,7 @@ def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
     # Lire le mode de contexte depuis les settings
     cursor.execute("SELECT value FROM settings WHERE key = 'catalog_context_mode'")
     mode_row = cursor.fetchone()
-    use_full = (mode_row and mode_row['value'] == 'full')
+    use_full = (mode_row and mode_row["value"] == "full")
 
     # Récupérer les datasources
     if datasource_name:
@@ -101,12 +108,12 @@ def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
         # Récupérer les tables activées uniquement
         cursor.execute("""
             SELECT * FROM tables WHERE datasource_id = ? AND is_enabled = 1
-        """, (ds['id'],))
+        """, (ds["id"],))
         tables = cursor.fetchall()
 
         for table in tables:
             table_desc = f"Table: {table['name']}"
-            if table['row_count']:
+            if table["row_count"]:
                 table_desc += f" ({table['row_count']:,} lignes)"
 
             schema_parts.append(table_desc)
@@ -114,21 +121,21 @@ def get_schema_for_llm(datasource_name: Optional[str] = None) -> str:
             # Récupérer les colonnes
             cursor.execute("""
                 SELECT * FROM columns WHERE table_id = ?
-            """, (table['id'],))
+            """, (table["id"],))
             columns = cursor.fetchall()
 
             for col in columns:
                 col_line = f"- {col['name']} ({col['data_type']})"
 
-                if col['description']:
+                if col["description"]:
                     # Tronquer description longue
-                    desc = col['description'][:80] + "..." if len(col['description'] or "") > 80 else col['description']
+                    desc = col["description"][:80] + "..." if len(col["description"] or "") > 80 else col["description"]
                     col_line += f": {desc}"
 
-                if use_full and col['full_context']:
+                if use_full and col["full_context"]:
                     # Mode FULL: ajouter le full_context (stats calculées à l'extraction)
                     col_line += f" | {col['full_context']}"
-                elif col['value_range']:
+                elif col["value_range"]:
                     # Mode COMPACT ou pas de full_context: juste le range
                     col_line += f" [{col['value_range']}]"
 
@@ -159,7 +166,7 @@ def get_table_info(table_name: str) -> dict[str, Any] | None:
 # FONCTIONS CRUD - CONVERSATIONS
 # ========================================
 
-def create_conversation(title: Optional[str] = None) -> int:
+def create_conversation(title: str | None = None) -> int:
     """Crée une nouvelle conversation."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -224,13 +231,13 @@ def add_message(
     conversation_id: int,
     role: str,
     content: str,
-    sql_query: Optional[str] = None,
-    chart_config: Optional[str] = None,
-    data_json: Optional[str] = None,
-    model_name: Optional[str] = None,
-    tokens_input: Optional[int] = None,
-    tokens_output: Optional[int] = None,
-    response_time_ms: Optional[int] = None
+    sql_query: str | None = None,
+    chart_config: str | None = None,
+    data_json: str | None = None,
+    model_name: str | None = None,
+    tokens_input: int | None = None,
+    tokens_output: int | None = None,
+    response_time_ms: int | None = None
 ) -> int:
     """Ajoute un message à une conversation."""
     conn = get_connection()
@@ -271,7 +278,6 @@ def get_messages(conversation_id: int) -> list[dict]:
     - chart_config -> chart (JSON parsé)
     - data_json -> data (JSON parsé)
     """
-    import json
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -322,8 +328,8 @@ def save_report(
     title: str,
     question: str,
     sql_query: str,
-    chart_config: Optional[str] = None,
-    message_id: Optional[int] = None,
+    chart_config: str | None = None,
+    message_id: int | None = None,
     is_pinned: bool = False
 ) -> int:
     """Sauvegarde un rapport."""
@@ -427,9 +433,9 @@ def add_widget(
     title: str,
     sql_query: str,
     chart_type: str,
-    description: Optional[str] = None,
-    icon: Optional[str] = None,
-    chart_config: Optional[str] = None,
+    description: str | None = None,
+    icon: str | None = None,
+    chart_config: str | None = None,
     display_order: int = 0,
     priority: str = "normal"
 ) -> int:
@@ -493,7 +499,7 @@ def get_widget_cache(widget_id: str) -> dict | None:
     return dict(result) if result else None
 
 
-def set_widget_cache(widget_id: str, data: str, ttl_minutes: Optional[int] = None):
+def set_widget_cache(widget_id: str, data: str, ttl_minutes: int | None = None):
     """Met en cache le résultat d'un widget."""
     conn = get_connection()
     cursor = conn.cursor()
@@ -526,9 +532,9 @@ def clear_widget_cache():
 
 def add_suggested_question(
     question: str,
-    category: Optional[str] = None,
-    icon: Optional[str] = None,
-    business_value: Optional[str] = None,
+    category: str | None = None,
+    icon: str | None = None,
+    business_value: str | None = None,
     display_order: int = 0
 ) -> int:
     """Ajoute une question suggérée."""
@@ -623,7 +629,7 @@ def create_catalog_job(
     job_type: str,
     run_id: str,
     total_steps: int,
-    details: Optional[dict[str, Any]] = None
+    details: dict[str, Any] | None = None
 ) -> int:
     """
     Crée un nouveau job de catalogue (extraction ou enrichment).
@@ -637,7 +643,6 @@ def create_catalog_job(
     Returns:
         ID du job créé
     """
-    import json
 
     conn = get_connection()
     try:
@@ -661,9 +666,9 @@ def create_catalog_job(
 def update_job_status(
     job_id: int,
     status: str,
-    current_step: Optional[str] = None,
-    step_index: Optional[int] = None,
-    error_message: Optional[str] = None
+    current_step: str | None = None,
+    step_index: int | None = None,
+    error_message: str | None = None
 ):
     """
     Met à jour le statut d'un job.
@@ -683,8 +688,8 @@ def update_job_status(
         if step_index is not None:
             cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = ?", (job_id,))
             row = cursor.fetchone()
-            if row and row['total_steps']:
-                progress = int((step_index + 1) / row['total_steps'] * 100)
+            if row and row["total_steps"]:
+                progress = int((step_index + 1) / row["total_steps"] * 100)
             else:
                 progress = 0
 
@@ -715,7 +720,6 @@ def update_job_result(job_id: int, result: dict[str, Any]):
         job_id: ID du job
         result: Dictionnaire avec les métriques (tables, columns, synonyms, kpis, questions)
     """
-    import json
 
     conn = get_connection()
     try:
@@ -731,7 +735,6 @@ def update_job_result(job_id: int, result: dict[str, Any]):
 
 def get_catalog_job(job_id: int) -> dict | None:
     """Récupère un job par son ID."""
-    import json
 
     conn = get_connection()
     try:
@@ -745,17 +748,13 @@ def get_catalog_job(job_id: int) -> dict | None:
         job = dict(result)
 
         # Parser les champs JSON
-        if job.get('details'):
-            try:
-                job['details'] = json.loads(job['details'])
-            except Exception:
-                pass
+        if job.get("details"):
+            with contextlib.suppress(Exception):
+                job["details"] = json.loads(job["details"])
 
-        if job.get('result'):
-            try:
-                job['result'] = json.loads(job['result'])
-            except Exception:
-                pass
+        if job.get("result"):
+            with contextlib.suppress(Exception):
+                job["result"] = json.loads(job["result"])
 
         return job
     finally:
@@ -772,7 +771,6 @@ def get_catalog_jobs(limit: int = 50) -> list[dict]:
     Returns:
         Liste des jobs avec leurs détails
     """
-    import json
 
     conn = get_connection()
     try:
@@ -787,17 +785,13 @@ def get_catalog_jobs(limit: int = 50) -> list[dict]:
 
         # Parser les champs JSON
         for job in results:
-            if job.get('details'):
-                try:
-                    job['details'] = json.loads(job['details'])
-                except Exception:
-                    pass
+            if job.get("details"):
+                with contextlib.suppress(Exception):
+                    job["details"] = json.loads(job["details"])
 
-            if job.get('result'):
-                try:
-                    job['result'] = json.loads(job['result'])
-                except Exception:
-                    pass
+            if job.get("result"):
+                with contextlib.suppress(Exception):
+                    job["result"] = json.loads(job["result"])
 
         return results
     finally:
@@ -814,7 +808,6 @@ def get_run_jobs(run_id: str) -> list[dict]:
     Returns:
         Liste ordonnée: [extraction_job, enrichment_job, ...]
     """
-    import json
 
     conn = get_connection()
     try:
@@ -831,17 +824,13 @@ def get_run_jobs(run_id: str) -> list[dict]:
 
         # Parser JSON pour tous les jobs
         for job in jobs:
-            if job.get('details'):
-                try:
-                    job['details'] = json.loads(job['details'])
-                except Exception:
-                    pass
+            if job.get("details"):
+                with contextlib.suppress(Exception):
+                    job["details"] = json.loads(job["details"])
 
-            if job.get('result'):
-                try:
-                    job['result'] = json.loads(job['result'])
-                except Exception:
-                    pass
+            if job.get("result"):
+                with contextlib.suppress(Exception):
+                    job["result"] = json.loads(job["result"])
 
         return jobs
     finally:
@@ -867,7 +856,7 @@ def get_latest_run_id() -> str | None:
         """)
 
         row = cursor.fetchone()
-        return row['run_id'] if row else None
+        return row["run_id"] if row else None
     finally:
         conn.close()
 
