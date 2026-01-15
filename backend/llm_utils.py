@@ -222,4 +222,6 @@ def call_with_retry(
         # Convertir en error_class si ce n'en est pas déjà une
         if isinstance(e, error_class):
             raise
-        raise error_class(f"Échec {context} après {max_retries + 1} tentatives: {last_error or e}") from e
+        raise error_class(
+            f"Échec {context} après {max_retries + 1} tentatives: {last_error or e}"
+        ) from e

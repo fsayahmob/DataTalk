@@ -1028,7 +1028,9 @@ def get_data_period(conn: Any) -> str:
     return "Période non déterminée"
 
 
-def generate_kpis(catalog: ExtractedCatalog, db_connection: Any, max_retries: int = 2) -> KpisGenerationResult:
+def generate_kpis(
+    catalog: ExtractedCatalog, db_connection: Any, max_retries: int = 2
+) -> KpisGenerationResult:
     """
     Génère les 4 KPIs via LLM avec retry.
 
@@ -1135,7 +1137,9 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
     return stats
 
 
-def generate_suggested_questions(catalog: ExtractedCatalog, max_retries: int = 2) -> list[dict[str, str]]:
+def generate_suggested_questions(
+    catalog: ExtractedCatalog, max_retries: int = 2
+) -> list[dict[str, str]]:
     """
     Génère des questions suggérées basées sur le catalogue enrichi.
 
