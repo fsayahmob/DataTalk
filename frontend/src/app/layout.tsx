@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "G7 Analytics - Text-to-SQL Dashboard",
-  description: "Analyse des évaluations clients G7 avec intelligence artificielle",
+  title: "TalkData - Text-to-SQL Dashboard",
+  description: "Analyse de données avec intelligence artificielle",
 };
 
 export default function RootLayout({

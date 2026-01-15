@@ -1,13 +1,15 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { t } from "@/hooks/useTranslation";
 
-// Titres et sous-titres par route
-const PAGE_CONFIG: Record<string, { title: string; subtitle: string }> = {
-  "/": { title: "G7 Analytics", subtitle: "Text-to-SQL Dashboard" },
-  "/catalog": { title: "Catalogue de Données", subtitle: "Visualisation ERD du schéma DuckDB" },
-  "/analytics": { title: "G7 Analytics", subtitle: "Text-to-SQL Dashboard" },
-  "/settings": { title: "Paramètres", subtitle: "Configuration de l'application" },
+// Clés i18n par route
+const PAGE_I18N_KEYS: Record<string, { titleKey: string; subtitleKey: string }> = {
+  "/": { titleKey: "home.welcome", subtitleKey: "home.subtitle" },
+  "/catalog": { titleKey: "catalog.title", subtitleKey: "catalog.subtitle" },
+  "/analytics": { titleKey: "home.welcome", subtitleKey: "home.subtitle" },
+  "/settings": { titleKey: "settings.title", subtitleKey: "settings.subtitle" },
+  "/runs": { titleKey: "runs.title", subtitleKey: "runs.subtitle" },
 };
 
 interface GlobalHeaderProps {
@@ -16,13 +18,15 @@ interface GlobalHeaderProps {
 
 export function GlobalHeader({ actions }: GlobalHeaderProps) {
   const pathname = usePathname();
-  const config = PAGE_CONFIG[pathname] || PAGE_CONFIG["/"];
+  const keys = PAGE_I18N_KEYS[pathname] || PAGE_I18N_KEYS["/"];
+  const title = t(keys.titleKey);
+  const subtitle = t(keys.subtitleKey);
 
   return (
     <header className="h-14 border-b border-border/50 px-4 flex items-center justify-between bg-background">
       <div>
-        <h1 className="font-semibold text-foreground">{config.title}</h1>
-        <p className="text-xs text-muted-foreground">{config.subtitle}</p>
+        <h1 className="font-semibold text-foreground">{title}</h1>
+        <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
 
       {actions && (

@@ -17,11 +17,17 @@
     "tables_per_batch": "tables/batch"
   },
   "home": {
-    "welcome": "G7 Analytics",
+    "welcome": "TalkData",
+    "subtitle": "Text-to-SQL Dashboard",
     "ask_question": "Ask a question to visualize data"
+  },
+  "visualization": {
+    "title": "Visualization",
+    "save": "Save"
   },
   "catalog": {
     "title": "Catalog",
+    "subtitle": "ERD visualization of DuckDB schema",
     "loading": "Loading catalog...",
     "extracting": "Extracting schema...",
     "enriching": "LLM enrichment in progress...",
@@ -79,6 +85,7 @@
   },
   "settings": {
     "title": "Settings",
+    "subtitle": "Application configuration",
     "database": "Database",
     "llm_models": "LLM Models",
     "prompts": "Prompts",
@@ -108,6 +115,10 @@
     "filter_placeholder": "Filter...",
     "no_results": "No results",
     "page_size": "{size} per page"
+  },
+  "runs": {
+    "title": "Runs History",
+    "subtitle": "Visualization of extraction and enrichment pipelines"
   },
   "prompts": {
     "description": "Configure the prompts used by the LLM for analysis and catalog enrichment.",

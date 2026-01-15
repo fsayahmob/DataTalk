@@ -11,6 +11,7 @@ import {
   TablePanel,
   type Filters,
 } from "@/components/panels";
+import { t } from "@/hooks/useTranslation";
 
 interface VisualizationZoneProps {
   selectedMessage: Message | null;
@@ -29,11 +30,11 @@ export function VisualizationZone({
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Zone 2.1: Header + Filtres (fixe) */}
       <div className="border-b border-red-500/30">
-        {/* Header Zone 2 - Rouge G7 */}
+        {/* Header Zone 2 */}
         <div className="h-10 px-3 flex items-center justify-between bg-secondary/30">
           <h3 className="text-xs font-semibold text-red-400 uppercase tracking-wider flex items-center gap-2">
             <ChartIcon size={14} />
-            Visualisation
+            {t("visualization.title")}
           </h3>
           <div className="flex items-center gap-3">
             {selectedMessage && (
@@ -47,7 +48,7 @@ export function VisualizationZone({
             {selectedMessage?.sql && (
               <Button variant="outline" size="sm" onClick={onSaveReport} className="h-7 text-xs border-red-500/30 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/50">
                 <SaveIcon size={12} className="mr-1" />
-                Sauvegarder
+                {t("visualization.save")}
               </Button>
             )}
           </div>
@@ -92,8 +93,8 @@ export function VisualizationZone({
             <div className="w-20 h-20 mx-auto mb-4 bg-secondary/30 rounded-lg flex items-center justify-center">
               <ChartIcon size={40} className="text-primary/50" />
             </div>
-            <p className="text-foreground/80 font-medium">TalkData Analytics</p>
-            <p className="text-sm mt-1">Posez une question pour visualiser les données</p>
+            <p className="text-foreground/80 font-medium">{t("home.welcome")}</p>
+            <p className="text-sm mt-1">{t("home.ask_question")}</p>
           </div>
         </div>
       )}

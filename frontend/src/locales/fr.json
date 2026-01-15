@@ -17,11 +17,17 @@
     "tables_per_batch": "tables/batch"
   },
   "home": {
-    "welcome": "G7 Analytics",
+    "welcome": "TalkData",
+    "subtitle": "Text-to-SQL Dashboard",
     "ask_question": "Posez une question pour visualiser les données"
+  },
+  "visualization": {
+    "title": "Visualisation",
+    "save": "Sauvegarder"
   },
   "catalog": {
     "title": "Catalogue",
+    "subtitle": "Visualisation ERD du schéma DuckDB",
     "loading": "Chargement du catalogue...",
     "extracting": "Extraction du schéma en cours...",
     "enriching": "Enrichissement LLM en cours...",
@@ -79,6 +85,7 @@
   },
   "settings": {
     "title": "Paramètres",
+    "subtitle": "Configuration de l'application",
     "database": "Base de données",
     "llm_models": "Modèles LLM",
     "prompts": "Prompts",
@@ -108,6 +115,10 @@
     "filter_placeholder": "Filtrer...",
     "no_results": "Aucun résultat",
     "page_size": "{size} par page"
+  },
+  "runs": {
+    "title": "Historique des Runs",
+    "subtitle": "Visualisation des pipelines d'extraction et d'enrichissement"
   },
   "prompts": {
     "description": "Configurez les prompts utilisés par le LLM pour l'analyse et l'enrichissement du catalogue.",
