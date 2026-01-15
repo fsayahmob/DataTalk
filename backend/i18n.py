@@ -55,14 +55,14 @@ def _get_nested(data: dict, key: str) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def t(key: str, locale: str | None = None, **kwargs: Any) -> str:
+def t(msg_key: str, locale: str | None = None, **kwargs: Any) -> str:
     """
     Traduit une clé en message localisé.
 
     Args:
-        key: Clé pointée (ex: "llm.empty_response")
+        msg_key: Clé pointée (ex: "llm.empty_response")
         locale: Locale à utiliser (défaut: locale courante)
-        **kwargs: Variables à interpoler dans le message
+        **kwargs: Variables à interpoler dans le message (ex: key=value)
 
     Returns:
         Message traduit avec variables interpolées
@@ -71,16 +71,16 @@ def t(key: str, locale: str | None = None, **kwargs: Any) -> str:
 
     # Essayer la locale demandée
     messages = _load_locale(locale)
-    message = _get_nested(messages, key)
+    message = _get_nested(messages, msg_key)
 
     # Fallback sur la locale par défaut
     if message is None and locale != FALLBACK_LOCALE:
         messages = _load_locale(FALLBACK_LOCALE)
-        message = _get_nested(messages, key)
+        message = _get_nested(messages, msg_key)
 
     # Si toujours pas trouvé, retourner la clé
     if message is None:
-        return key
+        return msg_key
 
     # Interpoler les variables
     try:
