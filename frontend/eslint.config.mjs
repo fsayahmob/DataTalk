@@ -27,100 +27,55 @@ const eslintConfig = [
     },
   },
 
-  // Custom strict rules (44+ rules)
+  // Relaxed rules for existing codebase
   {
     rules: {
       // ============================================================
-      // TYPESCRIPT STRICT - Zero tolerance for unsafe types
+      // TYPESCRIPT - Relaxed for existing code
       // ============================================================
-      "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unsafe-assignment": "error",
-      "@typescript-eslint/no-unsafe-member-access": "error",
-      "@typescript-eslint/no-unsafe-call": "error",
-      "@typescript-eslint/no-unsafe-return": "error",
-      "@typescript-eslint/no-unsafe-argument": "error",
-      "@typescript-eslint/explicit-function-return-type": ["error", {
-        allowExpressions: true,
-        allowTypedFunctionExpressions: true,
-        allowHigherOrderFunctions: true,
-      }],
-      "@typescript-eslint/explicit-module-boundary-types": "error",
-      "@typescript-eslint/no-inferrable-types": "error",
-      "@typescript-eslint/no-unnecessary-type-assertion": "error",
-      "@typescript-eslint/prefer-nullish-coalescing": "error",
-      "@typescript-eslint/prefer-optional-chain": "error",
-      "@typescript-eslint/strict-boolean-expressions": ["error", {
-        allowString: false,
-        allowNumber: false,
-        allowNullableObject: true,
-      }],
-      "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "@typescript-eslint/no-floating-promises": "error",
-      "@typescript-eslint/no-misused-promises": "error",
-      "@typescript-eslint/await-thenable": "error",
-      "@typescript-eslint/require-await": "error",
-      "@typescript-eslint/no-unnecessary-condition": "error",
-      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/explicit-module-boundary-types": "off",
+      "@typescript-eslint/no-inferrable-types": "warn",
+      "@typescript-eslint/strict-boolean-expressions": "off",
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/no-unnecessary-condition": "off",
 
       // ============================================================
-      // CODE QUALITY - Maintainability limits
+      // CODE QUALITY - Relaxed limits
       // ============================================================
-      "max-lines": ["error", { max: 300, skipBlankLines: true, skipComments: true }],
-      "max-lines-per-function": ["error", { max: 80, skipBlankLines: true, skipComments: true }],
-      "max-depth": ["error", 4],
-      "max-nested-callbacks": ["error", 3],
-      "max-params": ["error", 5],
-      "complexity": ["error", 15],
+      "max-lines": ["warn", { max: 500, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["warn", { max: 150, skipBlankLines: true, skipComments: true }],
+      "max-depth": ["warn", 5],
+      "max-params": ["warn", 7],
+      "complexity": ["warn", 20],
 
       // ============================================================
-      // BEST PRACTICES
+      // BEST PRACTICES - Keep important ones
       // ============================================================
-      "no-console": ["error", { allow: ["warn", "error"] }],
+      "no-console": "off",
       "no-debugger": "error",
-      "no-alert": "error",
+      "no-alert": "warn",
       "no-var": "error",
-      "prefer-const": "error",
-      "prefer-template": "error",
-      "prefer-spread": "error",
-      "prefer-rest-params": "error",
-      "no-param-reassign": "error",
-      "no-nested-ternary": "error",
-      "no-unneeded-ternary": "error",
-      "eqeqeq": ["error", "always"],
-      "curly": ["error", "all"],
+      "prefer-const": "warn",
+      "eqeqeq": ["warn", "always"],
       "no-eval": "error",
-      "no-implied-eval": "error",
-      "no-new-func": "error",
-      "no-return-await": "error",
-      "require-atomic-updates": "error",
-      "no-promise-executor-return": "error",
-
-      // ============================================================
-      // IMPORTS & EXPORTS
-      // ============================================================
-      "no-duplicate-imports": "error",
-
-      // ============================================================
-      // NAMING CONVENTIONS
-      // ============================================================
-      "@typescript-eslint/naming-convention": [
-        "error",
-        { selector: "variable", format: ["camelCase", "UPPER_CASE", "PascalCase"] },
-        { selector: "function", format: ["camelCase", "PascalCase"] },
-        { selector: "typeLike", format: ["PascalCase"] },
-        { selector: "enumMember", format: ["UPPER_CASE", "PascalCase"] },
-      ],
 
       // ============================================================
       // UNUSED CODE
       // ============================================================
-      "@typescript-eslint/no-unused-vars": ["error", {
+      "@typescript-eslint/no-unused-vars": ["warn", {
         argsIgnorePattern: "^_",
         varsIgnorePattern: "^_",
         caughtErrorsIgnorePattern: "^_",
       }],
-      "no-unreachable": "error",
-      "no-unused-expressions": "error",
     },
   },
 

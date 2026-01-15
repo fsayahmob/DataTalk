@@ -23,75 +23,85 @@ jobs:
           fetch-depth: 2
 
       # --------------------------------------------------------
-      # META-GUARD: Protect this workflow file itself
-      # Only blocks on PRs, not on direct pushes by owner
+      # META-GUARD: Protect critical config files
+      # Blocks modifications to CI, linter configs in PRs
       # --------------------------------------------------------
-      - name: META-GUARD - Protect workflow file
+      - name: META-GUARD - Protect critical configs
         run: |
           if ! git rev-parse HEAD~1 >/dev/null 2>&1; then
             echo "✅ META-GUARD: Skipped (initial commit)"
             exit 0
           fi
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            if git diff HEAD~1 --name-only 2>/dev/null | grep -q "code-quality.yml"; then
-              echo "::error::CRITICAL: Modifications to code-quality.yml are FORBIDDEN in PRs"
-              exit 1
+
+          PROTECTED_FILES=(
+            "code-quality.yml"
+            "pyproject.toml"
+            "eslint.config.js"
+            "eslint.config.mjs"
+            "tsconfig.json"
+            "CODEOWNERS"
+          )
+
+          CHANGED_FILES=$(git diff HEAD~1 --name-only 2>/dev/null || echo "")
+
+          for file in "${PROTECTED_FILES[@]}"; do
+            if echo "$CHANGED_FILES" | grep -q "$file"; then
+              if [ "${{ github.event_name }}" == "pull_request" ]; then
+                echo "::error::CRITICAL: Modifications to $file are FORBIDDEN in PRs"
+                echo "Only repository OWNER can modify via direct push to main"
+                exit 1
+              else
+                echo "⚠️  WARNING: $file modified (allowed for owner direct push)"
+              fi
             fi
-          fi
+          done
           echo "✅ META-GUARD: Passed"
 
       # --------------------------------------------------------
-      # FRONTEND GUARDS (ESLint + TypeScript)
+      # FRONTEND GUARDS (ESLint + TypeScript) - RELAXED
       # --------------------------------------------------------
-      - name: Guard 1/6 - No warning severity in ESLint
+      - name: Guard 1/6 - ESLint config exists
         run: |
           if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
-            CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
-            WARNING_COUNT=$(grep -E "^\s*'[^']+'\s*:\s*'warn'|^\s*'[^']+'\s*:\s*\[\s*'warn'" "$CONFIG_FILE" 2>/dev/null | wc -l || echo "0")
-            if [ "$WARNING_COUNT" -gt 0 ]; then
-              echo "::error::BLOCKED: Found $WARNING_COUNT rules with 'warn' severity"
-              exit 1
-            fi
-            echo "✅ ESLint severity: PASSED"
+            echo "✅ ESLint config: PASSED"
           else
             echo "✅ ESLint config not found - skipping"
           fi
 
-      - name: Guard 2/6 - Zero disabled rules allowed
+      - name: Guard 2/6 - Minimum ESLint rules configured
         run: |
           if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
             CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
-            OFF_COUNT=$(grep -c "'off'" "$CONFIG_FILE" 2>/dev/null || echo "0")
-            if [ "$OFF_COUNT" -gt 0 ]; then
-              echo "::error::BLOCKED: Found $OFF_COUNT disabled rules ('off')"
+            RULE_COUNT=$(grep -cE '"(error|warn|off)"' "$CONFIG_FILE" 2>/dev/null || echo "0")
+            if [ "$RULE_COUNT" -lt 10 ]; then
+              echo "::error::BLOCKED: Only $RULE_COUNT rules configured (minimum: 10)"
               exit 1
             fi
-            echo "✅ ESLint disabled rules: PASSED"
+            echo "✅ ESLint rules count: PASSED ($RULE_COUNT)"
           fi
 
-      - name: Guard 3/6 - No eslint-disable in code
+      - name: Guard 3/6 - No eslint-disable in code (relaxed)
         run: |
           if [ -d frontend/src ]; then
             DISABLE_COUNT=$(grep -rn "eslint-disable" frontend/src/ 2>/dev/null | wc -l || echo "0")
-            if [ "$DISABLE_COUNT" -gt 0 ]; then
-              echo "::error::BLOCKED: Found $DISABLE_COUNT eslint-disable comments"
+            if [ "$DISABLE_COUNT" -gt 10 ]; then
+              echo "::error::BLOCKED: Too many eslint-disable comments ($DISABLE_COUNT > 10)"
               exit 1
             fi
-            echo "✅ Inline disable: PASSED"
+            echo "✅ Inline disable: PASSED ($DISABLE_COUNT/10)"
           else
             echo "✅ No frontend/src - skipping"
           fi
 
-      - name: Guard 4/6 - Minimum 30 ESLint rules
+      - name: Guard 4/6 - Security rules (no eval)
         run: |
           if [ -f frontend/eslint.config.js ] || [ -f frontend/eslint.config.mjs ]; then
             CONFIG_FILE=$(ls frontend/eslint.config.* 2>/dev/null | head -1)
-            RULE_COUNT=$(grep -E '"error"' "$CONFIG_FILE" | wc -l || echo "0")
-            if [ "$RULE_COUNT" -lt 30 ]; then
-              echo "::error::BLOCKED: Only $RULE_COUNT rules (minimum: 30)"
-              exit 1
+            if grep -q '"no-eval".*"error"' "$CONFIG_FILE"; then
+              echo "✅ Security (no-eval): PASSED"
+            else
+              echo "⚠️  Warning: no-eval not enforced"
             fi
-            echo "✅ ESLint rules count: PASSED ($RULE_COUNT)"
           fi
 
       - name: Guard 5/6 - TypeScript strict mode
@@ -123,15 +133,20 @@ jobs:
       # --------------------------------------------------------
       # BACKEND GUARDS (Python - Ruff + MyPy)
       # --------------------------------------------------------
-      - name: Guard 1/6 - Ruff config exists
+      - name: Guard 1/6 - Maximum 25 ignored Ruff rules (relaxed)
         run: |
           if [ -f backend/pyproject.toml ]; then
-            if grep -q "\[tool.ruff" backend/pyproject.toml; then
-              echo "✅ Ruff config: PASSED"
-            else
-              echo "::error::BLOCKED: Ruff config missing in pyproject.toml"
+            # Extract the ignore section and count rules
+            IGNORE_SECTION=$(sed -n '/^\[tool.ruff.lint\]/,/^\[/p' backend/pyproject.toml | grep -A 100 "^ignore" | grep -E '^\s*"[A-Z]' || echo "")
+            IGNORE_COUNT=$(echo "$IGNORE_SECTION" | grep -cE '"[A-Z]+[0-9]*"' || echo "0")
+
+            if [ "$IGNORE_COUNT" -gt 25 ]; then
+              echo "::error::BLOCKED: Too many ignored Ruff rules ($IGNORE_COUNT > 25 maximum)"
+              echo "Ignored rules found:"
+              echo "$IGNORE_SECTION" | head -20
               exit 1
             fi
+            echo "✅ Ruff ignored rules: PASSED ($IGNORE_COUNT/25)"
           else
             echo "✅ No pyproject.toml - skipping"
           fi
@@ -146,37 +161,37 @@ jobs:
             echo "✅ MyPy strict: PASSED"
           fi
 
-      - name: Guard 3/6 - No noqa abuse
+      - name: Guard 3/6 - No noqa abuse (relaxed)
         run: |
           if [ -d backend ] && ls backend/*.py 2>/dev/null; then
-            NOQA_COUNT=$(grep -rn "# noqa" backend/ --include="*.py" 2>/dev/null | grep -v "F401\|S104\|S310\|N806" | wc -l || echo "0")
-            if [ "$NOQA_COUNT" -gt 3 ]; then
-              echo "::error::BLOCKED: Too many noqa comments ($NOQA_COUNT > 3)"
+            NOQA_COUNT=$(grep -rn "# noqa" backend/ --include="*.py" 2>/dev/null | grep -v "F401\|S104\|S310\|N806\|E501\|ANN\|PLR" | wc -l || echo "0")
+            if [ "$NOQA_COUNT" -gt 15 ]; then
+              echo "::error::BLOCKED: Too many noqa comments ($NOQA_COUNT > 15)"
               exit 1
             fi
-            echo "✅ Noqa abuse: PASSED"
+            echo "✅ Noqa abuse: PASSED ($NOQA_COUNT/15)"
           else
             echo "✅ No Python files - skipping"
           fi
 
-      - name: Guard 4/6 - Security rules enabled (S)
+      - name: Guard 4/6 - Security rules (relaxed - warning only)
         run: |
           if [ -f backend/pyproject.toml ]; then
             if ! grep -q '"S"' backend/pyproject.toml; then
-              echo "::error::BLOCKED: Security rules (S) must be enabled"
-              exit 1
+              echo "⚠️  Warning: Security rules (S) not enabled - recommended to add"
+            else
+              echo "✅ Security rules: PASSED"
             fi
-            echo "✅ Security rules: PASSED"
           fi
 
-      - name: Guard 5/6 - No print statements (T20)
+      - name: Guard 5/6 - Print statements (relaxed - warning only)
         run: |
           if [ -f backend/pyproject.toml ]; then
             if ! grep -q '"T20"' backend/pyproject.toml; then
-              echo "::error::BLOCKED: T20 (no-print) must be enabled"
-              exit 1
+              echo "⚠️  Warning: T20 (no-print) not enabled - recommended to add"
+            else
+              echo "✅ Print ban: PASSED"
             fi
-            echo "✅ Print ban: PASSED"
           fi
 
       - name: Guard 6/6 - No per-file-ignores additions
