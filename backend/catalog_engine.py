@@ -1403,9 +1403,9 @@ def enrich_selected_tables(
             FROM tables t
             JOIN datasources d ON t.datasource_id = d.id
             WHERE t.id IN ({placeholders})
-        """,
+        """,  # noqa: S608 - placeholders are sanitized integers from table_ids
             table_ids,
-        )  # noqa: S608
+        )
         selected_tables = cursor.fetchall()
 
         # Récupérer le nom de la datasource (même pour toutes les tables)
