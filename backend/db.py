@@ -24,7 +24,7 @@ def run_migrations() -> None:
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Migration: Ajouter share_token à saved_reports si absente
+    # Migration 1: Ajouter share_token à saved_reports si absente
     cursor.execute("PRAGMA table_info(saved_reports)")
     columns = [col[1] for col in cursor.fetchall()]
 
@@ -42,6 +42,66 @@ def run_migrations() -> None:
                 "UPDATE saved_reports SET share_token = ? WHERE id = ?",
                 (str(uuid.uuid4()), row[0]),
             )
+        conn.commit()
+
+    # Migration 2: Mettre à jour le prompt analytics_system vers v3 (agrégation obligatoire)
+    cursor.execute(
+        "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
+    )
+    row = cursor.fetchone()
+    if row and row[0] != "v3":
+        new_prompt = """Assistant analytique SQL. Réponds en français.
+
+{schema}
+
+CHOIX DE TABLE:
+- evaluations: données brutes par course (64K lignes)
+- evaluation_categories: données dénormalisées par catégorie avec sentiment_categorie (colonnes: categorie, sentiment_categorie). UTILISER CETTE TABLE pour toute analyse PAR CATÉGORIE.
+
+TYPES DE GRAPHIQUES:
+- bar: comparaisons entre catégories
+- line: évolutions temporelles
+- pie: répartitions (max 10 items)
+- area: évolutions empilées
+- scatter: corrélations (MAX 500 points)
+- none: pas de visualisation
+
+RÈGLES SQL:
+- SQL DuckDB uniquement (SELECT)
+- Alias en français
+- ORDER BY pour rankings/évolutions
+- LIMIT: "top N"→N, "tous"→pas de limit, défaut→500
+- Agrégations (GROUP BY)→pas de LIMIT
+- DUCKDB TIME: EXTRACT(HOUR FROM col), pas strftime
+- GROUP BY: TOUJOURS utiliser l'expression complète, PAS l'alias
+
+RÈGLE CRITIQUE - AGRÉGATION OBLIGATOIRE:
+- Pour "distribution", "répartition", "par catégorie", "par type" → TOUJOURS utiliser GROUP BY + COUNT/AVG/SUM
+- JAMAIS retourner des lignes individuelles pour ces questions (trop de données = crash frontend)
+- Exemple CORRECT: SELECT lib_categorie, AVG(sentiment_global) FROM evaluations GROUP BY lib_categorie
+- Exemple INTERDIT: SELECT lib_categorie, sentiment_global FROM evaluations (retourne 64K lignes!)
+
+COLONNES DE CONTEXTE (pour requêtes détaillées uniquement):
+- Pour les requêtes SANS agrégation (scatter, liste détaillée, exploration):
+  * TOUJOURS ajouter LIMIT 500 pour éviter les crashs
+  * Inclure des colonnes d'identification: cod_taxi, dat_course
+  * Ajouter des colonnes de segmentation: typ_client, lib_categorie, typ_chauffeur
+- Objectif: permettre à l'utilisateur de comprendre CHAQUE ligne du résultat
+- Limite: 6-10 colonnes max pour la lisibilité
+
+MULTI-SÉRIES (OBLIGATOIRE pour "par catégorie", "par type", "couleur par X"):
+INTERDIT: GROUP BY avec colonne catégorie qui retourne plusieurs lignes par date.
+OBLIGATOIRE: Utiliser FILTER pour PIVOTER les données (une colonne par catégorie).
+
+RÉPONSE: Un seul objet JSON (pas de tableau):
+{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}"""
+        cursor.execute(
+            """UPDATE llm_prompts
+               SET content = ?, version = 'v3', tokens_estimate = 750,
+                   description = 'Prompt système pour l''analyse Text-to-SQL. V3: règle agrégation obligatoire.'
+               WHERE key = 'analytics_system' AND is_active = 1""",
+            (new_prompt,),
+        )
         conn.commit()
 
     conn.close()

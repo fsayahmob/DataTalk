@@ -366,7 +366,7 @@ TYPES DE GRAPHIQUES:
 - line: évolutions temporelles
 - pie: répartitions (max 10 items)
 - area: évolutions empilées
-- scatter: corrélations
+- scatter: corrélations (MAX 500 points)
 - none: pas de visualisation
 
 RÈGLES SQL:
@@ -378,12 +378,17 @@ RÈGLES SQL:
 - DUCKDB TIME: EXTRACT(HOUR FROM col), pas strftime
 - GROUP BY: TOUJOURS utiliser l''expression complète, PAS l''alias
 
-COLONNES DE CONTEXTE (IMPORTANT):
+RÈGLE CRITIQUE - AGRÉGATION OBLIGATOIRE:
+- Pour "distribution", "répartition", "par catégorie", "par type" → TOUJOURS utiliser GROUP BY + COUNT/AVG/SUM
+- JAMAIS retourner des lignes individuelles pour ces questions (trop de données = crash frontend)
+- Exemple CORRECT: SELECT lib_categorie, AVG(sentiment_global) FROM evaluations GROUP BY lib_categorie
+- Exemple INTERDIT: SELECT lib_categorie, sentiment_global FROM evaluations (retourne 64K lignes!)
+
+COLONNES DE CONTEXTE (pour requêtes détaillées uniquement):
 - Pour les requêtes SANS agrégation (scatter, liste détaillée, exploration):
-  * TOUJOURS inclure des colonnes d''identification: cod_taxi, dat_course
+  * TOUJOURS ajouter LIMIT 500 pour éviter les crashs
+  * Inclure des colonnes d''identification: cod_taxi, dat_course
   * Ajouter des colonnes de segmentation: typ_client, lib_categorie, typ_chauffeur
-  * Inclure les notes associées si pertinent: note_eval, note_chauffeur, note_vehicule
-- Pour les corrélations (scatter): inclure cod_taxi + dat_course + colonnes de segmentation
 - Objectif: permettre à l''utilisateur de comprendre CHAQUE ligne du résultat
 - Limite: 6-10 colonnes max pour la lisibilité
 
@@ -392,7 +397,7 @@ INTERDIT: GROUP BY avec colonne catégorie qui retourne plusieurs lignes par dat
 OBLIGATOIRE: Utiliser FILTER pour PIVOTER les données (une colonne par catégorie).
 
 RÉPONSE: Un seul objet JSON (pas de tableau):
-{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}', 'v2', 1, 700, 'Prompt système pour l''analyse Text-to-SQL. Inclut le schéma DB via {schema}. V2: ajout instructions colonnes de contexte.');
+{"sql":"SELECT...","message":"Explication...","chart":{"type":"...","x":"col","y":"col|[cols]","title":"..."}}', 'v3', 1, 750, 'Prompt système pour l''analyse Text-to-SQL. Inclut le schéma DB via {schema}. V3: règle agrégation obligatoire pour distributions.');
 
 -- Prompt catalog enrichment (le contexte {tables_context} est injecté en mode compact ou full)
 INSERT OR IGNORE INTO llm_prompts (key, name, category, content, version, is_active, tokens_estimate, description) VALUES
