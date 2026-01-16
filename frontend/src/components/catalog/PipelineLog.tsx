@@ -2,6 +2,7 @@
 
 import { useEffect, useState, startTransition } from "react";
 import type { CatalogJob } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import { t } from "@/hooks/useTranslation";
 
 interface PipelineLogProps {
@@ -19,7 +20,7 @@ export function PipelineLog({ runId }: PipelineLogProps) {
     }
 
     // SSE connection pour le run
-    const eventSource = new EventSource(`http://localhost:8000/catalog/job-stream/${runId}`);
+    const eventSource = new EventSource(`${API_BASE}/catalog/job-stream/${runId}`);
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);

@@ -13,6 +13,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import * as api from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import TurboNode, { type TurboNodeData } from "@/components/runs/TurboNode";
 import TurboEdge from "@/components/runs/TurboEdge";
 import { t } from "@/hooks/useTranslation";
@@ -256,7 +257,7 @@ function RunsPageContent() {
     }
 
     const eventSource = new EventSource(
-      `http://localhost:8000/catalog/job-stream/${selectedJob.run_id}`
+      `${API_BASE}/catalog/job-stream/${selectedJob.run_id}`
     );
 
     eventSource.onmessage = (event) => {

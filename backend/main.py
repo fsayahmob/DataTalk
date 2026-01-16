@@ -484,12 +484,56 @@ def call_llm_for_analytics(
 
 @app.get("/health")
 async def health_check() -> dict[str, Any]:
-    """Vérifie que l'API est opérationnelle"""
+    """
+    Health check enrichi pour monitoring et déploiement.
+    Retourne l'état de tous les composants critiques.
+    """
+    import time
+
+    start = time.perf_counter()
+
+    # État de la base DuckDB
+    db_status = "connected" if _app_state.db_connection else "disconnected"
+    db_details: dict[str, Any] = {"status": db_status}
+    if _app_state.db_connection:
+        try:
+            row_result = _app_state.db_connection.execute("SELECT 1").fetchone()
+            db_details["responsive"] = row_result is not None
+        except Exception:
+            db_details["responsive"] = False
+
+    # État du LLM
     llm_status = check_llm_status()
+
+    # État du catalogue SQLite
+    catalog_status: dict[str, Any] = {"status": "unknown"}
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM tables")
+        table_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM columns")
+        column_count = cursor.fetchone()[0]
+        conn.close()
+        catalog_status = {
+            "status": "ok",
+            "tables": table_count,
+            "columns": column_count,
+        }
+    except Exception as e:
+        catalog_status = {"status": "error", "error": str(e)}
+
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+
     return {
-        "status": "ok",
-        "database": "connected" if _app_state.db_connection else "disconnected",
-        "llm": llm_status,
+        "status": "ok" if db_status == "connected" else "degraded",
+        "version": "1.0.0",
+        "components": {
+            "database": db_details,
+            "llm": llm_status,
+            "catalog": catalog_status,
+        },
+        "response_time_ms": elapsed_ms,
     }
 
 

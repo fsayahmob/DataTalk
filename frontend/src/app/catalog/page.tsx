@@ -24,6 +24,7 @@ import {
   getLayoutedElements,
 } from "@/components/catalog";
 import * as api from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import { t } from "@/hooks/useTranslation";
 
 const nodeTypes = { schemaNode: SchemaNode };
@@ -44,7 +45,7 @@ function CatalogPageContent() {
 
   // SSE: Écouter l'état global (running ou pas)
   useEffect(() => {
-    const eventSource = new EventSource("http://localhost:8000/catalog/status-stream");
+    const eventSource = new EventSource(`${API_BASE}/catalog/status-stream`);
 
     eventSource.onmessage = (event) => {
       const status = JSON.parse(event.data);
