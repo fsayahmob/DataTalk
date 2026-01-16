@@ -224,7 +224,7 @@ class TestCheckLLMStatus:
 
     def test_no_model_configured(self) -> None:
         """Retourne erreur si pas de modèle."""
-        with patch("llm_service.get_default_model", return_value=None):
+        with patch("llm_service.calls.get_default_model", return_value=None):
             result = check_llm_status()
 
         assert result["status"] == "error"
@@ -240,8 +240,8 @@ class TestCheckLLMStatus:
         }
 
         with (
-            patch("llm_service.get_default_model", return_value=mock_model),
-            patch("llm_service._get_api_key_for_model", return_value=None),
+            patch("llm_service.calls.get_default_model", return_value=mock_model),
+            patch("llm_service.calls._get_api_key_for_model", return_value=None),
         ):
             result = check_llm_status()
 
@@ -257,8 +257,8 @@ class TestCheckLLMStatus:
         }
 
         with (
-            patch("llm_service.get_default_model", return_value=mock_model),
-            patch("llm_service._get_api_key_for_model", return_value="fake-key"),
+            patch("llm_service.calls.get_default_model", return_value=mock_model),
+            patch("llm_service.calls._get_api_key_for_model", return_value="fake-key"),
         ):
             result = check_llm_status()
 

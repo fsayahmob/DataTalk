@@ -1,7 +1,7 @@
 {
-  "lastMessage": "**Récapitulatif des vérifications :**\n\n| Vérification | Résultat |\n|--------------|----------|\n| `ruff check .` | ✅ All checks passed |\n| `ruff format --check .` | ✅ 13 files already formatted |\n| `npm run lint` (ESLint) | ✅ Pas d'erreur |\n| `pytest test_api.py` | ✅ 14 tests passent |\n| CI | ⏳ En cours (run 21079577766) |\n\nLes erreurs mypy signalées (`arg-type` pour `DuckDBPyConnection | None`) étaient déjà présentes avant mes changements - elles concernent des vérifications de type optionnel sur la connexion DB et ne sont pas bloquantes pour la CI actuelle.\n",
+  "lastMessage": "Le toggle existe et fonctionne. Pour résumer:\n\n| Fonction | Usage | Appelée depuis |\n|----------|-------|----------------|\n| `enrich_selected_tables()` | Enrichissement initial (met `is_enabled=1` pour les tables sélectionnées) | `POST /catalog/enrich` |\n| `enrich_enabled_tables()` | **[LEGACY]** - pas utilisée | Aucun endpoint |\n| `toggle_table_enabled()` | Désactiver une table après enrichissement | `PATCH /catalog/tables/{id}/toggle` |\n\n**Conclusion**: Pas de régression. `enrich_enabled_tables()` est legacy et pourrait être supprimée. Le flux actuel passe par `enrich_selected_tables()` qui gère correctement le `is_enabled`.\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-16T20:15:38Z"
+  "timestamp": "2026-01-16T22:10:13Z"
 }
