@@ -10,8 +10,8 @@ import duckdb
 import numpy as np
 import pandas as pd
 
-
 from db import get_connection
+from type_defs import convert_pandas_value
 
 logger = logging.getLogger(__name__)
 
@@ -35,20 +35,13 @@ def execute_kpi_sql(
             val = row.iloc[0]  # Première colonne
             if isinstance(val, (pd.Timestamp, np.datetime64)):
                 continue  # Skip dates
-            if hasattr(val, "item"):
-                val = val.item()
-            if pd.isna(val):
-                val = 0
-            values.append(val)
+            converted = convert_pandas_value(val)
+            values.append(converted if converted is not None else 0)
         return values
 
     # Pour les requêtes valeur unique
     val = result.iloc[0, 0]
-    if hasattr(val, "item"):
-        val = val.item()
-    if pd.isna(val):
-        val = None
-    return val
+    return convert_pandas_value(val)
 
 
 def get_kpi_with_data(

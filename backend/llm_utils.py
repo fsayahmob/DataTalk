@@ -157,6 +157,42 @@ def extract_json_from_llm(content: str, key: str | None = None, context: str = "
     return data[key]
 
 
+def parse_analytics_response(content: str) -> dict[str, Any]:
+    """
+    Parse une réponse LLM pour l'analytics avec fallback gracieux.
+
+    Contrairement à parse_llm_json qui lève une exception si pas de JSON,
+    cette fonction retourne un dict avec le texte brut comme message
+    si le parsing échoue (utile pour les réponses conversationnelles).
+
+    Args:
+        content: Contenu brut de la réponse LLM
+
+    Returns:
+        Dict avec sql, message, chart (ou fallback avec texte brut)
+    """
+    if not content:
+        return {
+            "sql": "",
+            "message": "",
+            "chart": {"type": "none", "x": None, "y": None, "title": ""},
+        }
+
+    try:
+        result = parse_llm_json(content, context="analytics")
+        # S'assurer que c'est un dict (pas une liste)
+        if isinstance(result, list):
+            result = result[0] if result else {}
+        return result
+    except LLMJsonParseError:
+        # Fallback: retourner le texte brut comme message
+        return {
+            "sql": "",
+            "message": content.strip(),
+            "chart": {"type": "none", "x": None, "y": None, "title": ""},
+        }
+
+
 # =============================================================================
 # RETRY AVEC TENACITY
 # =============================================================================

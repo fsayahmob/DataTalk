@@ -7,7 +7,6 @@ import asyncio
 import contextlib
 import json
 import logging
-import re
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -81,6 +80,8 @@ from llm_config import (
     update_provider_base_url,
 )
 from llm_service import LLMError, call_llm, check_llm_status
+from llm_utils import parse_analytics_response
+from type_defs import convert_df_to_json
 from pydantic import BaseModel, Field
 from widget_service import (
     get_all_widgets_with_data,
@@ -264,28 +265,7 @@ def execute_query(sql: str) -> list[dict[str, Any]]:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
 
     result = _app_state.db_connection.execute(sql).fetchdf()
-    data: list[dict[str, Any]] = result.to_dict(orient="records")
-
-    # Convertir les types non sérialisables en JSON
-    for row in data:
-        for key, value in row.items():
-            # Pandas Timestamp
-            if isinstance(value, pd.Timestamp):
-                row[key] = value.isoformat() if not pd.isna(value) else None
-            # Numpy datetime64
-            elif isinstance(value, np.datetime64):
-                row[key] = str(value) if not pd.isna(value) else None
-            # Numpy types (int64, float64, etc.)
-            elif hasattr(value, "item"):
-                row[key] = value.item()
-            # Python date/datetime/time
-            elif str(type(value).__name__) in ("date", "datetime", "time"):
-                row[key] = str(value)
-            # NaN/NaT values
-            elif pd.isna(value):
-                row[key] = None
-
-    return data
+    return convert_df_to_json(result)
 
 
 def build_filter_context(filters: AnalysisFilters | None) -> str:
@@ -414,52 +394,9 @@ def call_llm_for_analytics(
             temperature=0.1,
         )
 
-        # Nettoyer le contenu (enlever les backticks markdown si présents)
+        # Parser la réponse JSON (via llm_utils centralisé)
         content = response.content.strip() if response.content else ""
-        if content.startswith("```"):
-            lines = content.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            content = "\n".join(lines).strip()
-
-        # Parser la réponse JSON (avec extraction robuste)
-        result: dict[str, Any]
-        try:
-            result = json.loads(content)
-        except json.JSONDecodeError as e:
-            logger.warning("JSON parse failed: %s", e)
-            logger.warning("Raw LLM response (%d chars): %s...", len(content), content[:500])
-
-            # Tenter d'extraire le JSON du contenu
-            json_match = re.search(r'\{[^{}]*"sql"[^{}]*\}', content, re.DOTALL)
-            if not json_match:
-                # Essayer avec une regex plus permissive pour JSON imbriqué
-                json_match = re.search(r'\{.*"sql"\s*:\s*".*?".*\}', content, re.DOTALL)
-            if json_match:
-                logger.info("Found JSON via regex: %s...", json_match.group()[:200])
-                try:
-                    result = json.loads(json_match.group())
-                except json.JSONDecodeError as e2:
-                    logger.error("Regex JSON also invalid: %s", e2)
-                    # Retourner le texte brut comme message (pas d'erreur)
-                    result = {
-                        "sql": "",
-                        "message": content,
-                        "chart": {"type": "none", "x": None, "y": None, "title": ""},
-                    }
-            else:
-                # Pas de JSON trouvé - retourner le texte brut comme message
-                logger.info("No JSON found, returning raw text as message")
-                result = {
-                    "sql": "",
-                    "message": content,
-                    "chart": {"type": "none", "x": None, "y": None, "title": ""},
-                }
-
-        if isinstance(result, list):
-            result = result[0] if result else {}
+        result = parse_analytics_response(content)
         result["_metadata"] = {
             "model_name": response.model_name,
             "tokens_input": response.tokens_input,

@@ -9,8 +9,6 @@ from datetime import datetime, timedelta, timezone, UTC
 from typing import Any
 
 import duckdb
-import numpy as np
-import pandas as pd
 
 from catalog import (
     clear_widget_cache,
@@ -18,6 +16,7 @@ from catalog import (
     get_widgets,
     set_widget_cache,
 )
+from type_defs import convert_df_to_json
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +32,7 @@ def execute_widget_sql(
     Convertit les types non sérialisables en JSON.
     """
     result = db_connection.execute(sql_query).fetchdf()
-    data: list[dict[str, Any]] = result.to_dict(orient="records")
-
-    # Convertir les types non sérialisables en JSON
-    for row in data:
-        for key, value in row.items():
-            if isinstance(value, pd.Timestamp):
-                row[key] = value.isoformat() if not pd.isna(value) else None
-            elif isinstance(value, np.datetime64):
-                row[key] = str(value) if not pd.isna(value) else None
-            elif hasattr(value, "item"):
-                row[key] = value.item()
-            elif str(type(value).__name__) in ("date", "datetime", "time"):
-                row[key] = str(value)
-            elif pd.isna(value):
-                row[key] = None
-
-    return data
+    return convert_df_to_json(result)
 
 
 def get_widget_with_data(
