@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { fetchSharedReport, SharedReportResponse } from "@/lib/api";
 import { TablePanel } from "@/components/panels";
 import { Chart } from "@/components/Chart";
-import { ChartIcon, ExpandIcon } from "@/components/icons";
+import { ChartIcon } from "@/components/icons";
 import { t } from "@/hooks/useTranslation";
 
 export default function SharedReportPage() {

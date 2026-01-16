@@ -6,7 +6,8 @@ Utilise la bibliothèque cryptography.
 import base64
 import hashlib
 import os
-from typing import Optional
+import sys
+from pathlib import Path
 
 try:
     from cryptography.fernet import Fernet
@@ -29,17 +30,14 @@ def _get_encryption_key() -> bytes:
         key_bytes = env_key.encode()
     else:
         # Dev only: générer/charger une clé persistée localement
-        key_file = os.path.join(os.path.dirname(__file__), ".encryption_key")
-        if os.path.exists(key_file):
-            with open(key_file, "rb") as f:
-                key_bytes = f.read()
+        key_file = Path(__file__).parent / ".encryption_key"
+        if key_file.exists():
+            key_bytes = key_file.read_bytes()
         else:
             # Générer une clé aléatoire unique pour cette installation
             key_bytes = os.urandom(32)
-            with open(key_file, "wb") as f:
-                f.write(key_bytes)
+            key_file.write_bytes(key_bytes)
             # Avertissement en dev
-            import sys
             print(
                 "WARNING: ENCRYPTION_KEY not set. Generated random key for dev.",
                 file=sys.stderr,
