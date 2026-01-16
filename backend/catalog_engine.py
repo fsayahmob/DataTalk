@@ -25,10 +25,10 @@ from catalog import (
     add_datasource,
     add_synonym,
     add_table,
-    get_connection,
     get_schema_for_llm,
     get_setting,
 )
+from db import get_connection
 from llm_config import get_active_prompt
 from llm_service import call_llm, call_llm_structured
 from llm_utils import (
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
 
 
 @contextmanager
-def _dummy_context():
+def _dummy_context() -> Any:
     """Context manager vide pour compatibilité quand job_id est None."""
     yield
 
@@ -89,7 +89,7 @@ def check_token_limit(prompt: str, max_input_tokens: int = 100000) -> tuple[bool
 class CatalogValidationResult:
     """Résultat de validation du catalogue complet."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.tables_ok = 0
         self.tables_warning = 0
         self.columns_ok = 0
@@ -558,10 +558,11 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         )
 
     # Modèle global
-    return create_model(
+    model: type[BaseModel] = create_model(  # type: ignore[call-overload]
         "CatalogEnrichment",
-        **table_models,  # type: ignore
+        **table_models,
     )
+    return model
 
 
 # =============================================================================
@@ -747,14 +748,14 @@ def enrich_with_llm(
     if not is_ok:
         raise EnrichmentError(f"Prompt trop volumineux pour le LLM: {token_count:,} tokens")
 
-    def _call_enrichment_llm():
+    def _call_enrichment_llm() -> dict[str, Any]:
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=ResponseModel,
             source="catalog_engine",
             max_tokens=8192,
         )
-        result_dict = result.model_dump()
+        result_dict: dict[str, Any] = result.model_dump()
         # Vérifier qu'on a au moins une table avec des données
         if not result_dict or all(
             not table_data.get("description") and not table_data.get("columns")
@@ -1075,7 +1076,7 @@ def generate_kpis(
     if not is_ok:
         raise KpiGenerationError(f"Prompt trop volumineux: {token_count:,} tokens")
 
-    def _call_kpi_llm():
+    def _call_kpi_llm() -> KpisGenerationResult:
         result, _metadata = call_llm_structured(
             prompt=prompt,
             response_model=KpisGenerationResult,
@@ -1086,12 +1087,13 @@ def generate_kpis(
             raise KpiGenerationError("Aucun KPI généré dans la réponse")
         return result
 
-    return call_with_retry(
+    kpis_result: KpisGenerationResult = call_with_retry(
         _call_kpi_llm,
         max_retries=max_retries,
         error_class=KpiGenerationError,
         context="KPIs",
     )
+    return kpis_result
 
 
 def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
@@ -1169,7 +1171,7 @@ def generate_suggested_questions(
     # Injecter le schéma dans le prompt
     prompt = prompt_data["content"].format(schema=schema)
 
-    def _call_questions_llm():
+    def _call_questions_llm() -> list[dict[str, Any]]:
         # Appeler le LLM
         response = call_llm(
             prompt=prompt,
@@ -1180,7 +1182,7 @@ def generate_suggested_questions(
 
         # Parser avec le parser centralisé
         result = parse_llm_json(response.content, context="questions")
-        questions = result.get("questions", [])
+        questions: list[dict[str, Any]] = result.get("questions", [])
 
         # Vérifier qu'on a des questions
         if not questions:
@@ -1489,7 +1491,7 @@ def enrich_enabled_tables(db_connection: Any) -> dict[str, Any]:
 
 
 def _enrich_tables(
-    tables_rows: list,
+    tables_rows: list[Any],
     db_connection: Any,
     workflow: "WorkflowManager | None" = None,
     datasource_name: str = "DuckDB",

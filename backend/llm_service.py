@@ -8,7 +8,7 @@ import logging
 import os
 import time
 from enum import Enum
-from typing import TypeVar
+from typing import Any, TypeVar
 
 import instructor
 import litellm
@@ -94,7 +94,7 @@ def _handle_litellm_exception(e: Exception, provider: str) -> LLMError:
 
 
 # Désactiver les logs verbeux de LiteLLM
-litellm.set_verbose = False
+litellm.set_verbose = False  # type: ignore[attr-defined]
 
 # Type générique pour les réponses structurées
 T = TypeVar("T", bound=BaseModel)
@@ -121,7 +121,7 @@ class LLMResponse:
         self.response_time_ms = response_time_ms
         self.cost_total = cost_total
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "content": self.content,
             "model_id": self.model_id,
@@ -136,15 +136,15 @@ class LLMResponse:
 class StructuredLLMResponse(LLMResponse):
     """Réponse structurée avec objet Pydantic."""
 
-    def __init__(self, data: BaseModel, **kwargs):
+    def __init__(self, data: BaseModel, **kwargs: Any) -> None:
         super().__init__(content="", **kwargs)
         self.data = data
 
 
-def _get_litellm_model_name(model: dict) -> str:
+def _get_litellm_model_name(model: dict[str, Any]) -> str:
     """Convertit notre model_id en format LiteLLM."""
-    provider = model.get("provider_name", "")
-    model_id = model.get("model_id", "")
+    provider: str = model.get("provider_name", "")
+    model_id: str = model.get("model_id", "")
 
     # Mapping provider -> préfixe LiteLLM
     if provider == "google":
@@ -160,7 +160,7 @@ def _get_litellm_model_name(model: dict) -> str:
     return model_id
 
 
-def _configure_api_key(model: dict) -> bool:
+def _configure_api_key(model: dict[str, Any]) -> bool:
     """Configure la clé API pour le provider."""
     provider_id = model.get("provider_id")
     if not provider_id:
@@ -323,7 +323,7 @@ def call_llm_structured(
     conversation_id: int | None = None,
     temperature: float = 0.0,
     max_tokens: int = 4096,
-) -> tuple[T, dict]:
+) -> tuple[T, dict[str, Any]]:
     """
     Appelle un LLM et retourne une réponse structurée (Pydantic).
 
@@ -444,7 +444,7 @@ def call_llm_structured(
         raise _handle_litellm_exception(e, provider_name) from e
 
 
-def check_llm_status() -> dict:
+def check_llm_status() -> dict[str, Any]:
     """Vérifie le statut du LLM configuré."""
     model = get_default_model()
 

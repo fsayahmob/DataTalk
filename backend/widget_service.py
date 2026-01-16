@@ -33,7 +33,7 @@ def execute_widget_sql(
     Convertit les types non sérialisables en JSON.
     """
     result = db_connection.execute(sql_query).fetchdf()
-    data = result.to_dict(orient="records")
+    data: list[dict[str, Any]] = result.to_dict(orient="records")
 
     # Convertir les types non sérialisables en JSON
     for row in data:
@@ -53,7 +53,7 @@ def execute_widget_sql(
 
 
 def get_widget_with_data(
-    widget: dict,
+    widget: dict[str, Any],
     db_connection: duckdb.DuckDBPyConnection,
     use_cache: bool = True,
     cache_ttl_minutes: int = DEFAULT_CACHE_TTL_MINUTES,

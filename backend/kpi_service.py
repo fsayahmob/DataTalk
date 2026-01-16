@@ -12,7 +12,7 @@ import duckdb
 import numpy as np
 import pandas as pd
 
-from catalog import get_connection
+from db import get_connection
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,9 @@ def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) ->
     return val
 
 
-def get_kpi_with_data(kpi: dict, db_connection: duckdb.DuckDBPyConnection) -> dict[str, Any]:
+def get_kpi_with_data(
+    kpi: dict[str, Any], db_connection: duckdb.DuckDBPyConnection
+) -> dict[str, Any]:
     """
     Exécute les 3 requêtes SQL d'un KPI et construit le KpiCompactData.
 
@@ -148,7 +150,7 @@ def get_all_kpis_with_data(db_connection: duckdb.DuckDBPyConnection) -> list[dic
     return result
 
 
-def save_kpis(kpis: list[dict]) -> int:
+def save_kpis(kpis: list[dict[str, Any]]) -> int:
     """
     Sauvegarde les KPIs générés par le LLM dans SQLite.
 

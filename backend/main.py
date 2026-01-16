@@ -30,7 +30,6 @@ from catalog import (
     get_all_settings,
     get_catalog_job,
     get_catalog_jobs,
-    get_connection as get_catalog_connection,
     get_conversations,
     get_latest_run_id,
     get_messages,
@@ -146,7 +145,8 @@ def get_system_instruction() -> str:
         raise PromptNotConfiguredError("analytics_system")
 
     # Injecter le schéma dans le template
-    return prompt_data["content"].format(schema=_app_state.db_schema_cache)
+    content: str = prompt_data["content"]
+    return content.format(schema=_app_state.db_schema_cache)
 
 
 # Modèles Pydantic
@@ -262,7 +262,7 @@ def execute_query(sql: str) -> list[dict[str, Any]]:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
 
     result = _app_state.db_connection.execute(sql).fetchdf()
-    data = result.to_dict(orient="records")
+    data: list[dict[str, Any]] = result.to_dict(orient="records")
 
     # Convertir les types non sérialisables en JSON
     for row in data:
@@ -423,6 +423,7 @@ def call_llm_for_analytics(
             content = "\n".join(lines).strip()
 
         # Parser la réponse JSON (avec extraction robuste)
+        result: dict[str, Any]
         try:
             result = json.loads(content)
         except json.JSONDecodeError as e:
@@ -997,7 +998,7 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     Retourne le catalogue actuel depuis SQLite.
     Structure: datasources → tables → columns
     """
-    conn = get_catalog_connection()
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Récupérer les datasources
@@ -1054,7 +1055,7 @@ async def delete_catalog() -> dict[str, str]:
     Supprime tout le catalogue (pour permettre de retester la génération).
     Supprime aussi les widgets et questions suggérées associées.
     """
-    conn = get_catalog_connection()
+    conn = get_connection()
     cursor = conn.cursor()
 
     # Supprimer le catalogue sémantique
@@ -1319,7 +1320,7 @@ async def generate_catalog_endpoint() -> dict[str, Any]:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
 
     # 1. Vider le catalogue existant
-    conn = get_catalog_connection()
+    conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM synonyms")
     cursor.execute("DELETE FROM columns")
@@ -1813,7 +1814,7 @@ async def list_all_runs() -> dict[str, list[dict[str, Any]]]:
     Chaque job = 1 run dans l'historique.
     """
     try:
-        conn = get_catalog_connection()
+        conn = get_connection()
         try:
             cursor = conn.cursor()
 
@@ -1882,7 +1883,7 @@ async def update_column_description(column_id: int, request: dict[str, Any]) -> 
         raise HTTPException(status_code=400, detail=t("validation.empty_description"))
 
     try:
-        conn = get_catalog_connection()
+        conn = get_connection()
         cursor = conn.cursor()
 
         # Vérifier que la colonne existe

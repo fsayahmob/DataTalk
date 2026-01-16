@@ -122,29 +122,11 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 # ============================================================
-# MYPY - Static Type Checking (STRICT with targeted relaxations)
+# MYPY - Static Type Checking (STRICT)
 # ============================================================
 [tool.mypy]
 python_version = "3.11"
 strict = true
-
-# Relax specific rules that conflict with FastAPI/Pydantic patterns
-disallow_untyped_defs = false  # Allow functions without full type annotations
-disallow_incomplete_defs = false  # Allow partial type annotations
-disallow_untyped_decorators = false  # FastAPI decorators don't have type stubs
-disallow_subclassing_any = false  # Allow subclassing Pydantic BaseModel
-warn_return_any = false  # Too many false positives with JSON parsing
-warn_unused_ignores = false  # Avoid issues with conditional type: ignore
-
-# Disable strict checks that are too verbose for existing codebase
-disable_error_code = [
-    "type-arg",        # Missing type parameters for generic type
-    "import-untyped",  # Library stubs not installed
-    "attr-defined",    # Module does not explicitly export attribute
-    "no-untyped-call", # Call to untyped function in typed context
-    "no-any-return",   # Returning Any from function
-    "misc",            # Miscellaneous errors
-]
 
 # Error output
 show_error_codes = true
@@ -166,23 +148,6 @@ module = [
     "pandas",
 ]
 ignore_missing_imports = true
-
-# Relax checks for main modules using FastAPI/Pydantic
-[[tool.mypy.overrides]]
-module = [
-    "main",
-    "catalog_engine",
-    "llm_service",
-    "llm_utils",
-    "widget_service",
-    "kpi_service",
-    "crypto",
-    "db",
-    "catalog",
-]
-disallow_untyped_defs = false
-disallow_untyped_decorators = false
-warn_return_any = false
 
 # ============================================================
 # BLACK - Code Formatter (backup, Ruff preferred)

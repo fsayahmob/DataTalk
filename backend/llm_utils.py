@@ -120,7 +120,8 @@ def parse_llm_json(content: str, context: str = "LLM") -> dict[str, Any]:
 
     # Parser le JSON
     try:
-        return json.loads(json_content)
+        parsed: dict[str, Any] = json.loads(json_content)
+        return parsed
     except json.JSONDecodeError as e:
         raise LLMJsonParseError(
             f"JSON {context} invalide: {e}. Contenu: {json_content[:200]}..."
@@ -194,7 +195,7 @@ def call_with_retry(
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=False,  # On gère nous-mêmes les exceptions
     )
-    def _attempt():
+    def _attempt() -> T:
         nonlocal last_error
         try:
             result = call_fn()
@@ -217,7 +218,8 @@ def call_with_retry(
             raise
 
     try:
-        return _attempt()
+        result: T = _attempt()
+        return result
     except Exception as e:
         # Convertir en error_class si ce n'en est pas déjà une
         if isinstance(e, error_class):
