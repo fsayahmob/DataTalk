@@ -66,9 +66,7 @@ def run_migrations() -> None:
     cursor = conn.cursor()
 
     # Vérifier si la table saved_reports existe (peut ne pas exister en CI/tests)
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='saved_reports'"
-    )
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='saved_reports'")
     if not cursor.fetchone():
         conn.close()
         return  # Pas de base initialisée, skip migrations
@@ -95,9 +93,7 @@ def run_migrations() -> None:
 
     # Migration 2: Mettre à jour le prompt analytics_system vers v3 (agrégation obligatoire)
     # Vérifier si la table llm_prompts existe
-    cursor.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='llm_prompts'"
-    )
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='llm_prompts'")
     if not cursor.fetchone():
         conn.close()
         return  # Table llm_prompts n'existe pas, skip
