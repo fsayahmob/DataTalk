@@ -452,6 +452,32 @@ def get_costs_by_model(days: int = 30) -> list[dict[str, Any]]:
     return results
 
 
+def get_costs_by_source(days: int = 30) -> list[dict[str, Any]]:
+    """Récupère les coûts groupés par source pour les N derniers jours."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT
+            source,
+            COUNT(*) as calls,
+            SUM(tokens_input) as tokens_input,
+            SUM(tokens_output) as tokens_output,
+            SUM(cost_total) as cost
+        FROM llm_costs
+        WHERE success = 1
+          AND created_at >= datetime('now', ?)
+        GROUP BY source
+        ORDER BY cost DESC
+    """,
+        (f"-{days} days",),
+    )
+
+    results = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return results
+
+
 # ========================================
 # CRUD PROMPTS
 # ========================================

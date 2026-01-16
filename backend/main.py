@@ -66,6 +66,7 @@ from llm_config import (
     get_api_key_hint,
     get_costs_by_hour,
     get_costs_by_model,
+    get_costs_by_source,
     get_default_model,
     get_models,
     get_prompts,
@@ -997,56 +998,44 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     """
     Retourne le catalogue actuel depuis SQLite.
     Structure: datasources → tables → columns
+    Optimisé: 4 requêtes au lieu de O(N*M*K) requêtes.
     """
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Récupérer les datasources
+    # 1. Récupérer toutes les datasources
     cursor.execute("SELECT * FROM datasources")
-    datasources = [dict(row) for row in cursor.fetchall()]
+    datasources = {row["id"]: dict(row) for row in cursor.fetchall()}
+    for ds in datasources.values():
+        ds["tables"] = []
 
-    result = []
-    for ds in datasources:
-        # Récupérer les tables de cette datasource
-        cursor.execute(
-            """
-            SELECT * FROM tables WHERE datasource_id = ?
-            ORDER BY name
-        """,
-            (ds["id"],),
-        )
-        tables = [dict(row) for row in cursor.fetchall()]
+    # 2. Récupérer toutes les tables en une requête
+    cursor.execute("SELECT * FROM tables ORDER BY name")
+    tables = {row["id"]: dict(row) for row in cursor.fetchall()}
+    for table in tables.values():
+        table["columns"] = []
+        ds_id = table["datasource_id"]
+        if ds_id in datasources:
+            datasources[ds_id]["tables"].append(table)
 
-        tables_with_columns = []
-        for table in tables:
-            # Récupérer les colonnes de cette table
-            cursor.execute(
-                """
-                SELECT * FROM columns WHERE table_id = ?
-                ORDER BY name
-            """,
-                (table["id"],),
-            )
-            columns = [dict(row) for row in cursor.fetchall()]
+    # 3. Récupérer toutes les colonnes en une requête
+    cursor.execute("SELECT * FROM columns ORDER BY name")
+    columns = {row["id"]: dict(row) for row in cursor.fetchall()}
+    for col in columns.values():
+        col["synonyms"] = []
+        table_id = col["table_id"]
+        if table_id in tables:
+            tables[table_id]["columns"].append(col)
 
-            # Récupérer les synonymes de chaque colonne
-            for col in columns:
-                cursor.execute(
-                    """
-                    SELECT term FROM synonyms WHERE column_id = ?
-                """,
-                    (col["id"],),
-                )
-                col["synonyms"] = [row["term"] for row in cursor.fetchall()]
-
-            table["columns"] = columns
-            tables_with_columns.append(table)
-
-        ds["tables"] = tables_with_columns
-        result.append(ds)
+    # 4. Récupérer tous les synonymes en une requête
+    cursor.execute("SELECT column_id, term FROM synonyms")
+    for row in cursor.fetchall():
+        col_id = row["column_id"]
+        if col_id in columns:
+            columns[col_id]["synonyms"].append(row["term"])
 
     conn.close()
-    return {"catalog": result}
+    return {"catalog": list(datasources.values())}
 
 
 @app.delete("/catalog")
@@ -1456,8 +1445,15 @@ async def get_llm_costs(days: int = 30) -> dict[str, Any]:
     total = get_total_costs(days)
     by_hour = get_costs_by_hour(days)
     by_model = get_costs_by_model(days)
+    by_source = get_costs_by_source(days)
 
-    return {"period_days": days, "total": total, "by_hour": by_hour, "by_model": by_model}
+    return {
+        "period_days": days,
+        "total": total,
+        "by_hour": by_hour,
+        "by_model": by_model,
+        "by_source": by_source,
+    }
 
 
 @app.get("/llm/status")

@@ -84,6 +84,13 @@ export interface LLMCosts {
     tokens_output: number;
     cost: number;
   }>;
+  by_source: Array<{
+    source: string;
+    calls: number;
+    tokens_input: number;
+    tokens_output: number;
+    cost: number;
+  }>;
 }
 
 // Health & Settings

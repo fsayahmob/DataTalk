@@ -316,6 +316,51 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
         </div>
       )}
 
+      {/* Tableau par source */}
+      {costs?.by_source && costs.by_source.length > 0 && (
+        <div className="border border-border/30 rounded-md">
+          <div className="px-3 py-2 border-b border-border/30">
+            <p className="text-xs text-muted-foreground">Usage by Source</p>
+          </div>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="text-xs">Source</TableHead>
+                <TableHead className="text-xs text-right">Calls</TableHead>
+                <TableHead className="text-xs text-right">Input</TableHead>
+                <TableHead className="text-xs text-right">Output</TableHead>
+                <TableHead className="text-xs text-right">Cost</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {costs.by_source.map((s, i) => (
+                <TableRow key={i}>
+                  <TableCell className="py-2">
+                    <code className="text-xs text-foreground">{s.source}</code>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <span className="text-xs font-mono text-muted-foreground">{s.calls}</span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {(s.tokens_input / 1000).toFixed(1)}k
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {(s.tokens_output / 1000).toFixed(1)}k
+                    </span>
+                  </TableCell>
+                  <TableCell className="py-2 text-right">
+                    <span className="text-xs font-mono text-primary">${s.cost.toFixed(4)}</span>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       {(!costs || costs.total.total_calls === 0) && (
         <p className="text-xs text-muted-foreground text-center py-8">No usage data</p>
       )}
