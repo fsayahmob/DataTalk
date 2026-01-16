@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { fetchSharedReport, SharedReportResponse } from "@/lib/api";
 import { ChartPanel, TablePanel } from "@/components/panels";
@@ -14,15 +14,21 @@ export default function SharedReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const loadReport = useCallback(async (reportToken: string) => {
+    try {
+      const data = await fetchSharedReport(reportToken);
+      setReport(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erreur inconnue");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!token) return;
-
-    setLoading(true);
-    fetchSharedReport(token)
-      .then(setReport)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [token]);
+    void loadReport(token);
+  }, [token, loadReport]);
 
   if (loading) {
     return (

@@ -125,7 +125,7 @@ export function AnalyticsZone({
                             onClick={(e) => {
                               e.stopPropagation();
                               const shareUrl = `${window.location.origin}/report/${report.share_token}`;
-                              navigator.clipboard.writeText(shareUrl);
+                              void navigator.clipboard.writeText(shareUrl);
                               toast.success("Lien copié", { description: shareUrl });
                             }}
                             className="text-[8px] text-primary hover:text-primary/80"

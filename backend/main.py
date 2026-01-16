@@ -1431,7 +1431,9 @@ class ProviderConfigRequest(BaseModel):
 
 
 @app.put("/llm/providers/{provider_name}/config")
-async def update_provider_config(provider_name: str, config: ProviderConfigRequest) -> dict[str, str]:
+async def update_provider_config(
+    provider_name: str, config: ProviderConfigRequest
+) -> dict[str, str]:
     """Met à jour la configuration d'un provider (base_url pour self-hosted)."""
     provider = get_provider_by_name(provider_name)
     if not provider:
@@ -1777,7 +1779,10 @@ async def stream_catalog_status() -> StreamingResponse:
                 is_running = any(j["status"] == "running" for j in recent_jobs)
                 current_run_id = get_latest_run_id() if is_running else None
 
-                status: dict[str, Any] = {"is_running": is_running, "current_run_id": current_run_id}
+                status: dict[str, Any] = {
+                    "is_running": is_running,
+                    "current_run_id": current_run_id,
+                }
 
                 # Envoyer seulement si changement (éviter spam)
                 if status != previous_status:

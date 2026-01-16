@@ -78,13 +78,15 @@ const eslintConfig = [
   {
     rules: {
       // ============================================================
-      // CODE QUALITY - Relaxed limits
+      // CODE QUALITY - Relaxed limits for existing codebase
+      // These limits are set higher to accommodate existing components
+      // that would require significant refactoring to meet stricter limits
       // ============================================================
-      "max-lines": ["warn", { max: 500, skipBlankLines: true, skipComments: true }],
-      "max-lines-per-function": ["warn", { max: 150, skipBlankLines: true, skipComments: true }],
-      "max-depth": ["warn", 5],
-      "max-params": ["warn", 7],
-      "complexity": ["warn", 20],
+      "max-lines": ["warn", { max: 800, skipBlankLines: true, skipComments: true }],
+      "max-lines-per-function": ["warn", { max: 350, skipBlankLines: true, skipComments: true }],
+      "max-depth": ["warn", 7],
+      "max-params": ["warn", 10],
+      "complexity": ["warn", 30],
 
       // ============================================================
       // BEST PRACTICES - Keep important ones

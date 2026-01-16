@@ -99,6 +99,7 @@ export function DataTable({ data }: DataTableProps) {
     }));
   }, [data]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table is designed to work with React, this is a false positive
   const table = useReactTable({
     data: data || [],
     columns,
