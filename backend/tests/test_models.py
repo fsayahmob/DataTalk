@@ -148,7 +148,9 @@ class TestExtractedCatalog:
             datasource="analytics.duckdb",
             tables=[
                 TableMetadata(
-                    name="users", row_count=1000, columns=[ColumnMetadata(name="id", data_type="INT")]
+                    name="users",
+                    row_count=1000,
+                    columns=[ColumnMetadata(name="id", data_type="INT")],
                 ),
                 TableMetadata(
                     name="orders",
