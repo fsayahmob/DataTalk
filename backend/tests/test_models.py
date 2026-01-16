@@ -90,12 +90,11 @@ class TestColumnMetadata:
 
     def test_deserialization(self) -> None:
         """Désérialisation depuis dict."""
-        data = {
-            "name": "test_col",
-            "data_type": "BIGINT",
-            "null_rate": 0.1,
-        }
-        col = ColumnMetadata(**data)
+        col = ColumnMetadata(
+            name="test_col",
+            data_type="BIGINT",
+            null_rate=0.1,
+        )
         assert col.name == "test_col"
         assert col.data_type == "BIGINT"
         assert col.null_rate == 0.1

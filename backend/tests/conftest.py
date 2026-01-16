@@ -4,8 +4,10 @@ Fixtures partagées pour tous les tests.
 Ces fixtures fournissent des mocks et données de test réutilisables.
 """
 
-import pytest
+from typing import Any
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture
@@ -36,7 +38,7 @@ def mock_sqlite_cursor() -> MagicMock:
 
 
 @pytest.fixture
-def sample_column_data() -> dict:
+def sample_column_data() -> dict[str, Any]:
     """Données d'exemple pour une colonne."""
     return {
         "name": "email",
@@ -51,7 +53,7 @@ def sample_column_data() -> dict:
 
 
 @pytest.fixture
-def sample_table_data() -> dict:
+def sample_table_data() -> dict[str, Any]:
     """Données d'exemple pour une table."""
     return {
         "name": "users",
@@ -65,7 +67,7 @@ def sample_table_data() -> dict:
 
 
 @pytest.fixture
-def sample_enrichment() -> dict:
+def sample_enrichment() -> dict[str, Any]:
     """Enrichissement LLM d'exemple."""
     return {
         "users": {
@@ -89,7 +91,7 @@ def sample_enrichment() -> dict:
 
 
 @pytest.fixture
-def sample_kpi_data() -> dict:
+def sample_kpi_data() -> dict[str, Any]:
     """Données d'exemple pour un KPI."""
     return {
         "id": "total-users",

@@ -180,7 +180,7 @@ class TestValidateCatalogEnrichmentContract:
                 )
             ],
         )
-        enrichment = {}  # Aucun enrichissement
+        enrichment: dict[str, object] = {}  # Aucun enrichissement
 
         result = validate_catalog_enrichment(catalog, enrichment)
 
