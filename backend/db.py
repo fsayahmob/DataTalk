@@ -12,6 +12,21 @@ from pathlib import Path
 from collections.abc import Generator
 
 CATALOG_PATH = str(Path(__file__).parent / "catalog.sqlite")
+SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+
+
+def init_database() -> None:
+    """Initialise la base de données avec schema.sql si elle n'existe pas."""
+    if Path(CATALOG_PATH).exists():
+        return  # Base déjà existante
+
+    if not SCHEMA_PATH.exists():
+        return  # Pas de schéma disponible
+
+    conn = sqlite3.connect(CATALOG_PATH)
+    conn.executescript(SCHEMA_PATH.read_text())
+    conn.commit()
+    conn.close()
 
 
 def get_connection() -> sqlite3.Connection:
@@ -50,6 +65,14 @@ def run_migrations() -> None:
     conn = get_connection()
     cursor = conn.cursor()
 
+    # Vérifier si la table saved_reports existe (peut ne pas exister en CI/tests)
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='saved_reports'"
+    )
+    if not cursor.fetchone():
+        conn.close()
+        return  # Pas de base initialisée, skip migrations
+
     # Migration 1: Ajouter share_token à saved_reports si absente
     cursor.execute("PRAGMA table_info(saved_reports)")
     columns = [col[1] for col in cursor.fetchall()]
@@ -71,6 +94,14 @@ def run_migrations() -> None:
         conn.commit()
 
     # Migration 2: Mettre à jour le prompt analytics_system vers v3 (agrégation obligatoire)
+    # Vérifier si la table llm_prompts existe
+    cursor.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='llm_prompts'"
+    )
+    if not cursor.fetchone():
+        conn.close()
+        return  # Table llm_prompts n'existe pas, skip
+
     cursor.execute(
         "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
     )
@@ -133,5 +164,6 @@ RÉPONSE: Un seul objet JSON (pas de tableau):
     conn.close()
 
 
-# Exécuter les migrations au chargement du module
+# Initialiser la base et exécuter les migrations au chargement du module
+init_database()
 run_migrations()
