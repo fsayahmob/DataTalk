@@ -14,16 +14,98 @@
     "ok": "OK",
     "rows": "lignes",
     "results": "résultats",
-    "tables_per_batch": "tables/batch"
+    "tables_per_batch": "tables/batch",
+    "close": "Fermer",
+    "collapse": "Réduire",
+    "copied": "Copié !",
+    "copy": "Copier",
+    "data": "Données",
+    "fullscreen": "Plein écran",
+    "exit_fullscreen": "Quitter plein écran",
+    "filters": "Filtres",
+    "reset": "Réinitialiser",
+    "page_of": "Page {current} sur {total}",
+    "per_page": "{size} / page",
+    "all": "Toutes",
+    "history": "Historique",
+    "deleting": "Suppression...",
+    "extracting": "Extraction...",
+    "enriching": "Enrichissement...",
+    "searching": "Recherche...",
+    "saving": "Enregistrement...",
+    "models": "modèles",
+    "connected": "Connecté",
+    "disconnected": "Déconnecté"
   },
   "home": {
     "welcome": "TalkData",
     "subtitle": "Text-to-SQL Dashboard",
     "ask_question": "Posez une question pour visualiser les données"
   },
+  "chat": {
+    "open": "Ouvrir le chat",
+    "history": "Historique des conversations",
+    "new_conversation": "Nouvelle conversation",
+    "no_conversations": "Aucune conversation",
+    "delete_all_history": "Supprimer tout l'historique",
+    "retry": "Relancer",
+    "analyzing": "Analyse en cours",
+    "placeholder": "Posez votre question...",
+    "stop_request": "Arrêter la requête",
+    "with_context": "Avec contexte",
+    "without_context": "Sans contexte",
+    "enter_to_send": "Entrée pour envoyer",
+    "untitled_conversation": "Conversation sans titre",
+    "ask_natural_language": "Posez une question en langage naturel",
+    "or_select_suggestion": "ou sélectionnez une suggestion ci-dessous"
+  },
+  "analytics": {
+    "open": "Ouvrir Analyse IA",
+    "title": "Analyse IA",
+    "reports": "Rapports",
+    "copy_share_link": "Copier le lien de partage",
+    "link_copied": "Lien copié",
+    "input_tokens": "Input tokens",
+    "output_tokens": "Output tokens"
+  },
   "visualization": {
     "title": "Visualisation",
-    "save": "Sauvegarder"
+    "save": "Sauvegarder",
+    "no_data": "Aucune donnée à afficher",
+    "chart": "Graphique",
+    "data_rows": "Données ({count} lignes)"
+  },
+  "sidebar": {
+    "open_menu": "Ouvrir le menu",
+    "close_menu": "Réduire le menu",
+    "collapse": "Réduire",
+    "analytics": "Analytics",
+    "catalog": "Catalogue",
+    "runs": "Runs",
+    "settings": "Paramètres",
+    "not_configured": "Non configuré"
+  },
+  "table": {
+    "filter_placeholder": "Filtrer...",
+    "no_results": "Aucun résultat",
+    "page_size": "{size} par page",
+    "no_data": "Aucune donnée à afficher"
+  },
+  "filters": {
+    "title": "Filtres",
+    "date_start": "Date début",
+    "date_end": "Date fin",
+    "note_min": "Note min",
+    "note_max": "Note max",
+    "reset": "Réinitialiser",
+    "apply_hint": "Les filtres s'appliquent à la prochaine question"
+  },
+  "error": {
+    "sql_execution": "Erreur d'exécution SQL",
+    "sql_execution_desc": "La requête générée n'a pas pu être exécutée sur la base de données.",
+    "sql_attempted": "Requête SQL tentée :",
+    "copy_details": "Copier les détails",
+    "try_suggestion": "Reformulez votre question ou essayez une question prédéfinie"
   },
   "catalog": {
     "title": "Catalogue",
@@ -71,17 +153,39 @@
     "click_to_edit": "Cliquer pour éditer",
     "value_analysis": "Analyse des valeurs",
     "full_stats_sent": "✓ Toutes les statistiques seront envoyées au LLM",
-    "compact_stats_sent": "⚠️ Seuls nom, type, description et range seront envoyés"
+    "compact_stats_sent": "⚠️ Seuls nom, type, description et range seront envoyés",
+    "no_catalog": "Aucun catalogue",
+    "extract_schema": "Extraire le schéma",
+    "delete_confirm_title": "Supprimer le catalogue ?",
+    "delete_confirm_desc": "Cette action est irréversible. Toutes les descriptions et métadonnées seront supprimées.",
+    "re_extract": "Ré-extraire",
+    "extract": "Extraire",
+    "enable_at_least_one": "Activez au moins une table",
+    "enrich_tables": "Enrichir {count} table(s)",
+    "tables": "tables",
+    "columns": "colonnes",
+    "with_description": "avec description",
+    "total_rows": "lignes totales",
+    "loading_run": "Chargement de la run...",
+    "no_run_executed": "Aucune run exécutée",
+    "zoom_in": "Zoom +",
+    "zoom_out": "Zoom -",
+    "fit_view": "Ajuster la vue"
   },
   "report": {
-    "saved": "Rapport sauvegard\u00e9",
-    "deleted": "Rapport supprim\u00e9",
+    "saved": "Rapport sauvegardé",
+    "deleted": "Rapport supprimé",
     "save_error": "Erreur lors de la sauvegarde",
-    "delete_error": "Erreur lors de la suppression"
+    "delete_error": "Erreur lors de la suppression",
+    "loading": "Chargement du rapport...",
+    "not_found": "Rapport non trouvé",
+    "shared_title": "TalkData - Rapport partagé",
+    "question": "Question:",
+    "generated_with": "Généré avec TalkData"
   },
   "conversation": {
     "new": "Nouvelle conversation",
-    "deleted": "Conversation supprim\u00e9e"
+    "deleted": "Conversation supprimée"
   },
   "settings": {
     "title": "Paramètres",
@@ -105,20 +209,25 @@
     "max_chart_rows_help": "Au-delà de cette limite, les graphiques sont désactivés. Le tableau paginé reste disponible.",
     "db_connected": "Connecté à: {path}",
     "batch_size_updated": "Batch size: {value} tables",
-    "chart_rows_updated": "Max chart rows: {value}"
+    "chart_rows_updated": "Max chart rows: {value}",
+    "db_path_placeholder": "data/g7_analytics.duckdb",
+    "search_models": "Rechercher des modèles...",
+    "all_providers": "Tous les providers",
+    "set_as_default": "Définir par défaut",
+    "all_models": "Tous les modèles",
+    "analytics_category": "Analytics",
+    "catalog_category": "Catalogue",
+    "enrichment_category": "Enrichissement",
+    "widgets_category": "Widgets"
   },
   "validation": {
     "range_error": "Valeur entre {min} et {max}",
     "required": "Ce champ est requis"
   },
-  "table": {
-    "filter_placeholder": "Filtrer...",
-    "no_results": "Aucun résultat",
-    "page_size": "{size} par page"
-  },
   "runs": {
     "title": "Historique des Runs",
-    "subtitle": "Visualisation des pipelines d'extraction et d'enrichissement"
+    "subtitle": "Visualisation des pipelines d'extraction et d'enrichissement",
+    "no_runs": "Aucun run exécuté"
   },
   "prompts": {
     "description": "Configurez les prompts utilisés par le LLM pour l'analyse et l'enrichissement du catalogue.",

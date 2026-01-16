@@ -4,6 +4,7 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import { Badge } from "@/components/ui/badge";
 import type { CatalogColumn } from "@/lib/api";
+import { t } from "@/hooks/useTranslation";
 
 export interface SchemaNodeData {
   label: string;
@@ -107,12 +108,12 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
           <span className={`font-mono font-bold text-sm ${!isEnabled ? "text-muted-foreground" : "text-foreground"}`}>{label}</span>
           {!isEnabled && (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted-foreground/20 text-muted-foreground uppercase">
-              Exclue
+              {t("catalog.excluded")}
             </span>
           )}
           {isEnabled && !isEnriched && (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 uppercase">
-              Non enrichie
+              {t("catalog.not_enriched")}
             </span>
           )}
         </div>
@@ -171,7 +172,7 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
         {/* Indicateur de colonnes supplémentaires */}
         {hasMoreColumns && (
           <div className="px-3 py-2 text-[10px] text-muted-foreground text-center bg-background/20">
-            +{columns.length - maxVisibleColumns} colonnes...
+            +{columns.length - maxVisibleColumns} {t("catalog.columns")}...
           </div>
         )}
       </div>

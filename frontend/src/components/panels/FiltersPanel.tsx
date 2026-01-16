@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { FilterIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 export interface Filters {
   dateStart: string;
@@ -39,7 +40,7 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <FilterIcon size={16} className={`transition-transform ${showFilters ? "rotate-180" : ""}`} />
-        Filtres
+        {t("common.filters")}
         {activeFiltersCount > 0 && (
           <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full">
             {activeFiltersCount}
@@ -51,7 +52,7 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
         <div className="mt-3 p-3 bg-secondary/30 rounded-lg space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Date début</label>
+              <label className="text-xs text-muted-foreground block mb-1">{t("filters.date_start")}</label>
               <Input
                 type="date"
                 value={dateStart}
@@ -60,7 +61,7 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Date fin</label>
+              <label className="text-xs text-muted-foreground block mb-1">{t("filters.date_end")}</label>
               <Input
                 type="date"
                 value={dateEnd}
@@ -72,13 +73,13 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Note min</label>
+              <label className="text-xs text-muted-foreground block mb-1">{t("filters.note_min")}</label>
               <select
                 value={noteMin}
                 onChange={(e) => setNoteMin(e.target.value)}
                 className="w-full h-8 text-sm rounded-md border border-input bg-background px-3"
               >
-                <option value="">Toutes</option>
+                <option value="">{t("common.all")}</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
@@ -87,13 +88,13 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Note max</label>
+              <label className="text-xs text-muted-foreground block mb-1">{t("filters.note_max")}</label>
               <select
                 value={noteMax}
                 onChange={(e) => setNoteMax(e.target.value)}
                 className="w-full h-8 text-sm rounded-md border border-input bg-background px-3"
               >
-                <option value="">Toutes</option>
+                <option value="">{t("common.all")}</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
                 <option value="3">3</option>
@@ -108,10 +109,10 @@ export function FiltersPanel({ filters, onFiltersChange }: FiltersPanelProps) {
               onClick={resetFilters}
               className="text-xs text-muted-foreground hover:text-foreground"
             >
-              Réinitialiser
+              {t("filters.reset")}
             </button>
             <div className="text-xs text-muted-foreground">
-              Les filtres s&apos;appliquent à la prochaine question
+              {t("filters.apply_hint")}
             </div>
           </div>
         </div>

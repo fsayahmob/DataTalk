@@ -3,6 +3,7 @@
 import { useReactFlow } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { ZoomInIcon, ZoomOutIcon, FitViewIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 export function CustomControls() {
   const { zoomIn, zoomOut, fitView } = useReactFlow();
@@ -14,7 +15,7 @@ export function CustomControls() {
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
         onClick={() => void zoomIn()}
-        title="Zoom +"
+        title={t("catalog.zoom_in")}
       >
         <ZoomInIcon size={16} />
       </Button>
@@ -23,7 +24,7 @@ export function CustomControls() {
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
         onClick={() => void zoomOut()}
-        title="Zoom -"
+        title={t("catalog.zoom_out")}
       >
         <ZoomOutIcon size={16} />
       </Button>
@@ -33,7 +34,7 @@ export function CustomControls() {
         size="sm"
         className="h-8 w-8 p-0 hover:bg-primary/20"
         onClick={() => void fitView({ padding: 0.2 })}
-        title="Ajuster la vue"
+        title={t("catalog.fit_view")}
       >
         <FitViewIcon size={16} />
       </Button>

@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import * as XLSX from "xlsx";
+import { t } from "@/hooks/useTranslation";
 
 interface DataTableProps {
   data: Record<string, unknown>[];
@@ -71,7 +72,7 @@ function formatValue(value: unknown): string {
   if (typeof value === "number") {
     return Number.isInteger(value) ? value.toLocaleString("fr-FR") : value.toFixed(2);
   }
-  if (typeof value === "boolean") return value ? "Oui" : "Non";
+  if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   const str = String(value);
   return str.length > 100 ? str.slice(0, 100) + "..." : str;
 }
@@ -123,7 +124,7 @@ export function DataTable({ data }: DataTableProps) {
   if (!data || data.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
-        Aucune donnée à afficher
+        {t("table.no_data")}
       </div>
     );
   }
@@ -154,7 +155,7 @@ export function DataTable({ data }: DataTableProps) {
             className="h-8"
           >
             <FilterIcon size={16} className="mr-1" />
-            Filtres
+            {t("common.filters")}
             {hasActiveFilters && (
               <span className="ml-1 bg-primary text-primary-foreground text-xs px-1.5 rounded-full">
                 {columnFilters.length}
@@ -168,20 +169,20 @@ export function DataTable({ data }: DataTableProps) {
               onClick={() => setColumnFilters([])}
               className="h-8 text-xs"
             >
-              Effacer
+              {t("common.clear")}
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{table.getFilteredRowModel().rows.length} résultats</span>
+          <span>{table.getFilteredRowModel().rows.length} {t("common.results")}</span>
 
           {/* Export dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8">
                 <DownloadIcon size={14} className="mr-1" />
-                Exporter
+                {t("common.export")}
                 <ChevronDownIcon size={12} className="ml-1" />
               </Button>
             </DropdownMenuTrigger>
@@ -254,7 +255,7 @@ export function DataTable({ data }: DataTableProps) {
                   <TableHead key={`filter-${column.id}`} className="p-1">
                     <Input
                       type="text"
-                      placeholder="Filtrer..."
+                      placeholder={t("table.filter_placeholder")}
                       value={(column.getFilterValue() as string) ?? ""}
                       onChange={(e) => column.setFilterValue(e.target.value)}
                       className="h-7 text-xs"
@@ -287,7 +288,7 @@ export function DataTable({ data }: DataTableProps) {
                   colSpan={columns.length}
                   className="h-24 text-center text-muted-foreground"
                 >
-                  Aucun résultat
+                  {t("table.no_results")}
                 </TableCell>
               </TableRow>
             )}
@@ -298,8 +299,7 @@ export function DataTable({ data }: DataTableProps) {
       {/* Pagination */}
       <div className="flex items-center justify-between py-3 flex-shrink-0">
         <div className="text-sm text-muted-foreground">
-          Page {table.getState().pagination.pageIndex + 1} sur{" "}
-          {table.getPageCount()}
+          {t("common.page_of", { current: table.getState().pagination.pageIndex + 1, total: table.getPageCount() })}
         </div>
         <div className="flex items-center gap-1">
           <Button

@@ -7,6 +7,7 @@ import { SavedReport } from "@/types";
 import { ChartIcon, ChevronRightIcon, SaveIcon, ShareIcon } from "@/components/icons";
 import { KpiGridCompact } from "@/components/KpiCardCompact";
 import { fetchKpis, KpiCompactData } from "@/lib/api";
+import { t } from "@/hooks/useTranslation";
 
 interface AnalyticsZoneProps {
   collapsed: boolean;
@@ -75,7 +76,7 @@ export function AnalyticsZone({
           <button
             onClick={() => onCollapse(false)}
             className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Ouvrir Analyse IA"
+            title={t("analytics.open")}
           >
             <ChartIcon size={16} />
           </button>
@@ -86,14 +87,14 @@ export function AnalyticsZone({
           <div className="h-12 px-3 border-b border-border/50 bg-secondary/30 flex items-center justify-between flex-shrink-0">
             <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-2">
               <ChartIcon size={14} />
-              Analyse IA
+              {t("analytics.title")}
             </h3>
             <Button
               variant="ghost"
               size="sm"
               className="h-7 w-7 p-0 hover:bg-amber-500/20"
               onClick={() => onCollapse(true)}
-              title="Réduire"
+              title={t("common.collapse")}
             >
               <ChevronRightIcon size={14} />
             </Button>
@@ -106,7 +107,7 @@ export function AnalyticsZone({
               <div className="pb-2 border-b border-amber-500/10">
                 <h4 className="text-[9px] text-amber-400/70 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                   <SaveIcon size={9} />
-                  Rapports
+                  {t("analytics.reports")}
                 </h4>
                 <div className="space-y-1">
                   {savedReports.slice(0, 5).map((report) => (
@@ -126,10 +127,10 @@ export function AnalyticsZone({
                               e.stopPropagation();
                               const shareUrl = `${window.location.origin}/report/${report.share_token}`;
                               void navigator.clipboard.writeText(shareUrl);
-                              toast.success("Lien copié", { description: shareUrl });
+                              toast.success(t("analytics.link_copied"), { description: shareUrl });
                             }}
                             className="text-[8px] text-primary hover:text-primary/80"
-                            title="Copier le lien de partage"
+                            title={t("analytics.copy_share_link")}
                           >
                             <ShareIcon size={10} />
                           </button>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Chart } from "@/components/Chart";
 import { ChartIcon, ExpandIcon, CollapseIcon } from "@/components/icons";
 import type { ChartConfig } from "@/types";
+import { t } from "@/hooks/useTranslation";
 
 interface ChartPanelProps {
   config: ChartConfig;
@@ -29,14 +30,14 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
         <div className="h-12 px-4 flex items-center justify-between border-b border-border">
           <span className="font-medium flex items-center gap-2">
             <ChartIcon size={16} className="text-primary" />
-            {config.title || "Graphique"}
+            {config.title || t("visualization.chart")}
           </span>
           <button
             onClick={() => setIsFullscreen(false)}
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
           >
             <CollapseIcon size={14} />
-            Quitter plein écran
+            {t("common.exit_fullscreen")}
           </button>
         </div>
         <div className="flex-1 p-4">
@@ -51,14 +52,14 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
       <div className="flex items-center justify-between mb-2 flex-shrink-0">
         <span className="text-sm font-medium flex items-center gap-2">
           <ChartIcon size={14} className="text-primary" />
-          {config.title || "Graphique"}
+          {config.title || t("visualization.chart")}
         </span>
         <button
           onClick={() => setIsFullscreen(true)}
           className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
         >
           <ExpandIcon size={12} />
-          Plein écran
+          {t("common.fullscreen")}
         </button>
       </div>
       <div className="flex-1 min-h-0">

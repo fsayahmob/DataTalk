@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CopyIcon, CodeIcon, ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 interface SQLPanelProps {
   sql: string;
@@ -36,7 +37,7 @@ export function SQLPanel({ sql }: SQLPanelProps) {
           className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
         >
           <CopyIcon size={12} />
-          {copied ? "Copié!" : "Copier"}
+          {copied ? t("common.copied") : t("common.copy")}
         </button>
       </div>
 

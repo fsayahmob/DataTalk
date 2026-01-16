@@ -17,6 +17,7 @@ import {
   StopIcon,
   TrashIcon,
 } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 // Formatage du timestamp relatif
 function formatTimestamp(dateStr: string): string {
@@ -121,7 +122,7 @@ export function ChatZone({
           <button
             onClick={() => onCollapse(false)}
             className="w-10 h-10 bg-secondary hover:bg-accent rounded-lg flex items-center justify-center transition-colors"
-            title="Ouvrir le chat"
+            title={t("chat.open")}
           >
             <ChatIcon size={16} />
           </button>
@@ -140,7 +141,7 @@ export function ChatZone({
                 size="sm"
                 className={`h-7 w-7 p-0 hover:bg-primary/20 ${showHistory ? 'bg-primary/20' : ''}`}
                 onClick={() => onShowHistoryChange(!showHistory)}
-                title="Historique des conversations"
+                title={t("chat.history")}
               >
                 <ClockIcon size={14} />
               </Button>
@@ -152,7 +153,7 @@ export function ChatZone({
                   onNewConversation();
                   onShowHistoryChange(false);
                 }}
-                title="Nouvelle conversation"
+                title={t("chat.new_conversation")}
               >
                 <PlusIcon size={14} />
               </Button>
@@ -161,7 +162,7 @@ export function ChatZone({
                 size="sm"
                 className="h-7 w-7 p-0 hover:bg-primary/20"
                 onClick={() => onCollapse(true)}
-                title="Réduire le panneau"
+                title={t("common.collapse")}
               >
                 <ChevronLeftIcon size={14} />
               </Button>
@@ -174,7 +175,7 @@ export function ChatZone({
               <div className="p-2 space-y-1">
                 {conversations.length === 0 ? (
                   <p className="text-[10px] text-muted-foreground text-center py-2">
-                    Aucune conversation
+                    {t("chat.no_conversations")}
                   </p>
                 ) : (
                   <>
@@ -184,7 +185,7 @@ export function ChatZone({
                       className="w-full text-left text-[10px] p-2 rounded-lg bg-destructive/10 hover:bg-destructive/20 text-destructive transition-colors flex items-center gap-2 mb-2"
                     >
                       <TrashIcon size={12} className="flex-shrink-0" />
-                      <span>Supprimer tout l&apos;historique</span>
+                      <span>{t("chat.delete_all_history")}</span>
                     </button>
                     {conversations.slice(0, 15).map((conv) => (
                     <button
@@ -196,7 +197,7 @@ export function ChatZone({
                     >
                       <ChatIcon size={12} className="flex-shrink-0 opacity-50" />
                       <div className="flex-1 min-w-0">
-                        <span className="block truncate">{conv.title || "Conversation sans titre"}</span>
+                        <span className="block truncate">{conv.title || t("chat.untitled_conversation")}</span>
                         <span className="text-[9px] opacity-50">{formatTimestamp(conv.created_at)}</span>
                       </div>
                     </button>
@@ -216,10 +217,10 @@ export function ChatZone({
                     <SearchIcon size={20} className="text-primary" />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Posez une question en langage naturel
+                    {t("chat.ask_natural_language")}
                   </p>
                   <p className="text-[10px] text-muted-foreground/70 mt-0.5">
-                    ou sélectionnez une suggestion ci-dessous
+                    {t("chat.or_select_suggestion")}
                   </p>
                 </div>
 
@@ -293,7 +294,7 @@ export function ChatZone({
                     className="mt-2 text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
                   >
                     <ReplayIcon size={12} />
-                    Relancer
+                    {t("chat.retry")}
                   </button>
                 )}
               </div>
@@ -304,7 +305,7 @@ export function ChatZone({
                 <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
                   <div className="w-3 h-3 bg-primary rounded-full animate-pulse" />
                 </div>
-                <span className="text-sm text-muted-foreground">Analyse en cours</span>
+                <span className="text-sm text-muted-foreground">{t("chat.analyzing")}</span>
                 <LoadingDots />
               </div>
             )}
@@ -326,7 +327,7 @@ export function ChatZone({
                     }
                   }
                 }}
-                placeholder="Posez votre question..."
+                placeholder={t("chat.placeholder")}
                 disabled={loading}
                 rows={3}
                 className="w-full resize-none rounded-xl border border-border/50 bg-secondary/30 pl-4 pr-12 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -336,7 +337,7 @@ export function ChatZone({
                   type="button"
                   onClick={onStop}
                   className="absolute right-3 bottom-3 w-8 h-8 rounded-lg flex items-center justify-center transition-all bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  title="Arrêter la requête"
+                  title={t("chat.stop_request")}
                 >
                   <StopIcon size={14} />
                 </button>
@@ -364,13 +365,13 @@ export function ChatZone({
                     ? "bg-primary/20 text-primary border border-primary/30"
                     : "bg-secondary/50 text-muted-foreground border border-border/30 hover:bg-secondary"
                 }`}
-                title={useContext ? "Mode avec contexte (historique inclus)" : "Mode sans contexte (économise les tokens)"}
+                title={useContext ? t("chat.with_context") : t("chat.without_context")}
               >
                 <span className={`w-1.5 h-1.5 rounded-full ${useContext ? "bg-primary" : "bg-muted-foreground"}`} />
-                {useContext ? "Avec contexte" : "Sans contexte"}
+                {useContext ? t("chat.with_context") : t("chat.without_context")}
               </button>
               <p className="text-[10px] text-muted-foreground">
-                Entrée pour envoyer
+                {t("chat.enter_to_send")}
               </p>
             </div>
           </div>

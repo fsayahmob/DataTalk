@@ -1,5 +1,7 @@
 "use client";
 
+import { t } from "@/hooks/useTranslation";
+
 interface CatalogFooterProps {
   tableCount: number;
   columnCount: number;
@@ -17,23 +19,23 @@ export function CatalogFooter({
     <div className="px-4 py-2 border-t border-border/30 bg-sidebar flex items-center gap-6 text-xs text-muted-foreground">
       <div className="flex items-center gap-2">
         <span className="font-medium text-foreground">{tableCount}</span>
-        <span>tables</span>
+        <span>{t("catalog.tables")}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="font-medium text-foreground">{columnCount}</span>
-        <span>colonnes</span>
+        <span>{t("catalog.columns")}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="font-medium text-foreground">
           {columnsWithDesc}/{columnCount}
         </span>
-        <span>avec description</span>
+        <span>{t("catalog.with_description")}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="font-medium text-foreground">
           {totalRows.toLocaleString()}
         </span>
-        <span>lignes totales</span>
+        <span>{t("catalog.total_rows")}</span>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DataTable } from "@/components/DataTable";
 import { TableIcon, ExpandIcon, CollapseIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 interface TablePanelProps {
   data: Record<string, unknown>[];
@@ -17,7 +18,7 @@ export function TablePanel({ data }: TablePanelProps) {
         <DataTable data={data} />
       ) : (
         <p className="text-sm text-muted-foreground text-center py-4">
-          Aucune donnée
+          {t("visualization.no_data")}
         </p>
       )}
     </div>
@@ -29,14 +30,14 @@ export function TablePanel({ data }: TablePanelProps) {
         <div className="h-12 px-4 flex items-center justify-between border-b border-border">
           <span className="font-medium flex items-center gap-2">
             <TableIcon size={16} className="text-primary" />
-            Données ({data?.length || 0} lignes)
+            {t("visualization.data_rows", { count: data?.length || 0 })}
           </span>
           <button
             onClick={() => setIsFullscreen(false)}
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors"
           >
             <CollapseIcon size={14} />
-            Quitter plein écran
+            {t("common.exit_fullscreen")}
           </button>
         </div>
         <div className="flex-1 p-4 overflow-auto">
@@ -51,14 +52,14 @@ export function TablePanel({ data }: TablePanelProps) {
       <div className="p-3 border-b border-border/50 flex items-center justify-between bg-secondary/20">
         <span className="text-sm font-medium flex items-center gap-2">
           <TableIcon size={14} className="text-primary" />
-          Données ({data?.length || 0} lignes)
+          {t("visualization.data_rows", { count: data?.length || 0 })}
         </span>
         <button
           onClick={() => setIsFullscreen(true)}
           className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors"
         >
           <ExpandIcon size={12} />
-          Plein écran
+          {t("common.fullscreen")}
         </button>
       </div>
       <div className="flex-1 overflow-auto p-3">

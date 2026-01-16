@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { fetchSharedReport, SharedReportResponse } from "@/lib/api";
 import { ChartPanel, TablePanel } from "@/components/panels";
 import { ChartIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 export default function SharedReportPage() {
   const params = useParams();
@@ -35,7 +36,7 @@ export default function SharedReportPage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement du rapport...</p>
+          <p className="text-muted-foreground">{t("report.loading")}</p>
         </div>
       </div>
     );
@@ -50,7 +51,7 @@ export default function SharedReportPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </div>
-          <h1 className="text-xl font-semibold text-foreground mb-2">Rapport non trouvé</h1>
+          <h1 className="text-xl font-semibold text-foreground mb-2">{t("report.not_found")}</h1>
           <p className="text-muted-foreground">{error || "Ce lien de partage n'est pas valide."}</p>
         </div>
       </div>
@@ -67,7 +68,7 @@ export default function SharedReportPage() {
           </div>
           <div>
             <h1 className="font-semibold text-foreground">{report.title}</h1>
-            <p className="text-xs text-muted-foreground">TalkData - Rapport partagé</p>
+            <p className="text-xs text-muted-foreground">{t("report.shared_title")}</p>
           </div>
         </div>
       </header>
@@ -77,7 +78,7 @@ export default function SharedReportPage() {
         {/* Question */}
         {report.question && report.question !== report.title && (
           <div className="mb-4 p-3 bg-secondary/30 rounded-lg border border-border/30">
-            <p className="text-sm text-muted-foreground">Question:</p>
+            <p className="text-sm text-muted-foreground">{t("report.question")}</p>
             <p className="text-foreground">{report.question}</p>
           </div>
         )}
@@ -98,7 +99,7 @@ export default function SharedReportPage() {
       {/* Footer */}
       <footer className="h-10 border-t border-border/50 px-6 flex items-center justify-center bg-sidebar">
         <p className="text-xs text-muted-foreground">
-          Généré avec TalkData
+          {t("report.generated_with")}
         </p>
       </footer>
     </div>

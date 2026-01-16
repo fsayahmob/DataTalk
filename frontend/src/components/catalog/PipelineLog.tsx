@@ -2,6 +2,7 @@
 
 import { useEffect, useState, startTransition } from "react";
 import type { CatalogJob } from "@/lib/api";
+import { t } from "@/hooks/useTranslation";
 
 interface PipelineLogProps {
   runId?: string | null;
@@ -55,7 +56,7 @@ export function PipelineLog({ runId }: PipelineLogProps) {
   if (loading) {
     return (
       <div className="text-xs text-muted-foreground animate-pulse">
-        Chargement de la run...
+        {t("catalog.loading_run")}
       </div>
     );
   }
@@ -63,7 +64,7 @@ export function PipelineLog({ runId }: PipelineLogProps) {
   if (runJobs.length === 0) {
     return (
       <div className="text-xs text-muted-foreground italic">
-        Aucune run exécutée
+        {t("catalog.no_run_executed")}
       </div>
     );
   }

@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { LLMProvider, LLMModel } from "@/lib/api";
+import { t } from "@/hooks/useTranslation";
 
 interface ModelsTabProps {
   providers: LLMProvider[];
@@ -75,7 +76,7 @@ export function ModelsTab({
     <div className="space-y-3">
       <div className="flex items-center gap-3">
         <Input
-          placeholder="Search models..."
+          placeholder={t("settings.search_models")}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="w-64 h-8 text-xs"
@@ -85,7 +86,7 @@ export function ModelsTab({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All providers</SelectItem>
+            <SelectItem value="all">{t("settings.all_providers")}</SelectItem>
             {providers.map((p) => (
               <SelectItem key={p.id} value={p.name}>
                 {p.display_name}
@@ -94,7 +95,7 @@ export function ModelsTab({
           </SelectContent>
         </Select>
         <span className="text-xs text-muted-foreground">
-          {filteredModels.length} models
+          {filteredModels.length} {t("common.models")}
         </span>
       </div>
 
@@ -170,7 +171,7 @@ export function ModelsTab({
                         size="sm"
                         className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                         onClick={() => onSetDefaultModel(model.model_id)}
-                        title="Set as default"
+                        title={t("settings.set_as_default")}
                       >
                         ○
                       </Button>

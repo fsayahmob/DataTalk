@@ -170,7 +170,7 @@ export function DatabaseTab() {
                     onClick={handleCancel}
                     disabled={saving}
                   >
-                    Annuler
+                    {t("common.cancel")}
                   </Button>
                 </div>
               ) : (
@@ -184,7 +184,7 @@ export function DatabaseTab() {
                     className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => setEditing(true)}
                   >
-                    Modifier
+                    {t("common.edit")}
                   </Button>
                 </div>
               )}
@@ -227,7 +227,7 @@ export function DatabaseTab() {
                     className="h-7 text-xs font-mono w-20"
                     disabled={savingBatch}
                   />
-                  <span className="text-[10px] text-muted-foreground">tables/batch</span>
+                  <span className="text-[10px] text-muted-foreground">{t("common.tables_per_batch")}</span>
                   <Button
                     size="sm"
                     className="h-7 text-xs"
@@ -243,7 +243,7 @@ export function DatabaseTab() {
                     onClick={handleCancelBatch}
                     disabled={savingBatch}
                   >
-                    Annuler
+                    {t("common.cancel")}
                   </Button>
                 </div>
               ) : (
@@ -257,7 +257,7 @@ export function DatabaseTab() {
                     className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => setEditingBatch(true)}
                   >
-                    Modifier
+                    {t("common.edit")}
                   </Button>
                 </div>
               )}
@@ -277,7 +277,7 @@ export function DatabaseTab() {
                     className="h-7 text-xs font-mono w-24"
                     disabled={savingChartRows}
                   />
-                  <span className="text-[10px] text-muted-foreground">lignes</span>
+                  <span className="text-[10px] text-muted-foreground">{t("common.rows")}</span>
                   <Button
                     size="sm"
                     className="h-7 text-xs"
@@ -293,13 +293,13 @@ export function DatabaseTab() {
                     onClick={handleCancelChartRows}
                     disabled={savingChartRows}
                   >
-                    Annuler
+                    {t("common.cancel")}
                   </Button>
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-mono text-foreground">
-                    {maxChartRows.toLocaleString()} lignes
+                    {maxChartRows.toLocaleString()} {t("common.rows")}
                   </span>
                   <Button
                     size="sm"
@@ -307,7 +307,7 @@ export function DatabaseTab() {
                     className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                     onClick={() => setEditingChartRows(true)}
                   >
-                    Modifier
+                    {t("common.edit")}
                   </Button>
                 </div>
               )}
@@ -317,12 +317,10 @@ export function DatabaseTab() {
       </Table>
       <div className="px-3 py-2 border-t border-border/20 space-y-1">
         <p className="text-[10px] text-muted-foreground">
-          <strong>Batch Size:</strong> nombre de tables envoyées au LLM par requête lors de l&apos;enrichissement.
-          Réduire si erreur &quot;too many states&quot; avec Vertex AI.
+          <strong>Batch Size:</strong> {t("settings.batch_size_help")}
         </p>
         <p className="text-[10px] text-muted-foreground">
-          <strong>Max Chart Rows:</strong> au-delà de cette limite, les graphiques sont désactivés.
-          Le tableau paginé reste disponible.
+          <strong>Max Chart Rows:</strong> {t("settings.max_chart_rows_help")}
         </p>
       </div>
     </div>

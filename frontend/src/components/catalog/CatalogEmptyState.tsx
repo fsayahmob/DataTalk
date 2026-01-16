@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { DatabaseIcon } from "@/components/icons";
+import { t } from "@/hooks/useTranslation";
 
 interface CatalogEmptyStateProps {
   isExtracting: boolean;
@@ -15,24 +16,20 @@ export function CatalogEmptyState({ isExtracting, onExtract }: CatalogEmptyState
         <div className="w-20 h-20 mx-auto mb-6 rounded-lg bg-secondary/30 flex items-center justify-center">
           <DatabaseIcon size={40} className="text-primary/60" />
         </div>
-        <h3 className="text-xl font-semibold mb-2">Aucun catalogue</h3>
+        <h3 className="text-xl font-semibold mb-2">{t("catalog.no_catalog")}</h3>
         <p className="text-sm text-muted-foreground mb-6">
-          Le catalogue de données n&apos;a pas encore été créé.
-          <br />
-          <span className="text-primary/80 font-medium">Étape 1:</span> Extraire le schéma depuis DuckDB (rapide, sans LLM)
-          <br />
-          <span className="text-primary/80 font-medium">Étape 2:</span> Sélectionner les tables puis enrichir avec l&apos;IA
+          {t("catalog.extract_schema")}
         </p>
         <Button onClick={onExtract} disabled={isExtracting} size="lg">
           {isExtracting ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Extraction...
+              {t("common.extracting")}
             </span>
           ) : (
             <>
               <DatabaseIcon size={16} className="mr-2" />
-              Extraire le schéma
+              {t("catalog.extract_schema")}
             </>
           )}
         </Button>

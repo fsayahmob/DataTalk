@@ -14,16 +14,98 @@
     "ok": "OK",
     "rows": "rows",
     "results": "results",
-    "tables_per_batch": "tables/batch"
+    "tables_per_batch": "tables/batch",
+    "close": "Close",
+    "collapse": "Collapse",
+    "copied": "Copied!",
+    "copy": "Copy",
+    "data": "Data",
+    "fullscreen": "Fullscreen",
+    "exit_fullscreen": "Exit fullscreen",
+    "filters": "Filters",
+    "reset": "Reset",
+    "page_of": "Page {current} of {total}",
+    "per_page": "{size} / page",
+    "all": "All",
+    "history": "History",
+    "deleting": "Deleting...",
+    "extracting": "Extracting...",
+    "enriching": "Enriching...",
+    "searching": "Searching...",
+    "saving": "Saving...",
+    "models": "models",
+    "connected": "Connected",
+    "disconnected": "Disconnected"
   },
   "home": {
     "welcome": "TalkData",
     "subtitle": "Text-to-SQL Dashboard",
     "ask_question": "Ask a question to visualize data"
   },
+  "chat": {
+    "open": "Open chat",
+    "history": "Conversation history",
+    "new_conversation": "New conversation",
+    "no_conversations": "No conversations",
+    "delete_all_history": "Delete all history",
+    "retry": "Retry",
+    "analyzing": "Analyzing",
+    "placeholder": "Ask your question...",
+    "stop_request": "Stop request",
+    "with_context": "With context",
+    "without_context": "Without context",
+    "enter_to_send": "Enter to send",
+    "untitled_conversation": "Untitled conversation",
+    "ask_natural_language": "Ask a question in natural language",
+    "or_select_suggestion": "or select a suggestion below"
+  },
+  "analytics": {
+    "open": "Open AI Analysis",
+    "title": "AI Analysis",
+    "reports": "Reports",
+    "copy_share_link": "Copy share link",
+    "link_copied": "Link copied",
+    "input_tokens": "Input tokens",
+    "output_tokens": "Output tokens"
+  },
   "visualization": {
     "title": "Visualization",
-    "save": "Save"
+    "save": "Save",
+    "no_data": "No data to display",
+    "chart": "Chart",
+    "data_rows": "Data ({count} rows)"
+  },
+  "sidebar": {
+    "open_menu": "Open menu",
+    "close_menu": "Close menu",
+    "collapse": "Collapse",
+    "analytics": "Analytics",
+    "catalog": "Catalog",
+    "runs": "Runs",
+    "settings": "Settings",
+    "not_configured": "Not configured"
+  },
+  "table": {
+    "filter_placeholder": "Filter...",
+    "no_results": "No results",
+    "page_size": "{size} per page",
+    "no_data": "No data to display"
+  },
+  "filters": {
+    "title": "Filters",
+    "date_start": "Start date",
+    "date_end": "End date",
+    "note_min": "Min rating",
+    "note_max": "Max rating",
+    "reset": "Reset",
+    "apply_hint": "Filters apply to the next question"
+  },
+  "error": {
+    "sql_execution": "SQL execution error",
+    "sql_execution_desc": "The generated query could not be executed on the database.",
+    "sql_attempted": "SQL query attempted:",
+    "copy_details": "Copy details",
+    "try_suggestion": "Rephrase your question or try a predefined question"
   },
   "catalog": {
     "title": "Catalog",
@@ -71,13 +153,35 @@
     "click_to_edit": "Click to edit",
     "value_analysis": "Value analysis",
     "full_stats_sent": "✓ All statistics will be sent to the LLM",
-    "compact_stats_sent": "⚠️ Only name, type, description and range will be sent"
+    "compact_stats_sent": "⚠️ Only name, type, description and range will be sent",
+    "no_catalog": "No catalog",
+    "extract_schema": "Extract schema",
+    "delete_confirm_title": "Delete catalog?",
+    "delete_confirm_desc": "This action is irreversible. All descriptions and metadata will be deleted.",
+    "re_extract": "Re-extract",
+    "extract": "Extract",
+    "enable_at_least_one": "Enable at least one table",
+    "enrich_tables": "Enrich {count} table(s)",
+    "tables": "tables",
+    "columns": "columns",
+    "with_description": "with description",
+    "total_rows": "total rows",
+    "loading_run": "Loading run...",
+    "no_run_executed": "No run executed",
+    "zoom_in": "Zoom in",
+    "zoom_out": "Zoom out",
+    "fit_view": "Fit view"
   },
   "report": {
     "saved": "Report saved",
     "deleted": "Report deleted",
     "save_error": "Error saving report",
-    "delete_error": "Error deleting report"
+    "delete_error": "Error deleting report",
+    "loading": "Loading report...",
+    "not_found": "Report not found",
+    "shared_title": "TalkData - Shared report",
+    "question": "Question:",
+    "generated_with": "Generated with TalkData"
   },
   "conversation": {
     "new": "New conversation",
@@ -105,20 +209,25 @@
     "max_chart_rows_help": "Beyond this limit, charts are disabled. The paginated table remains available.",
     "db_connected": "Connected to: {path}",
     "batch_size_updated": "Batch size: {value} tables",
-    "chart_rows_updated": "Max chart rows: {value}"
+    "chart_rows_updated": "Max chart rows: {value}",
+    "db_path_placeholder": "data/g7_analytics.duckdb",
+    "search_models": "Search models...",
+    "all_providers": "All providers",
+    "set_as_default": "Set as default",
+    "all_models": "All models",
+    "analytics_category": "Analytics",
+    "catalog_category": "Catalog",
+    "enrichment_category": "Enrichment",
+    "widgets_category": "Widgets"
   },
   "validation": {
     "range_error": "Value between {min} and {max}",
     "required": "This field is required"
   },
-  "table": {
-    "filter_placeholder": "Filter...",
-    "no_results": "No results",
-    "page_size": "{size} per page"
-  },
   "runs": {
     "title": "Runs History",
-    "subtitle": "Visualization of extraction and enrichment pipelines"
+    "subtitle": "Visualization of extraction and enrichment pipelines",
+    "no_runs": "No run executed"
   },
   "prompts": {
     "description": "Configure the prompts used by the LLM for analysis and catalog enrichment.",

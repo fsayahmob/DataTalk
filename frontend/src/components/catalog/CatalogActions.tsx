@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { t } from "@/hooks/useTranslation";
 
 interface CatalogActionsProps {
   hasContent: boolean;
@@ -51,30 +52,30 @@ export function CatalogActions({
               {isDeleting ? (
                 <span className="flex items-center gap-2">
                   <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Suppression...
+                  {t("common.deleting")}
                 </span>
               ) : (
                 <>
                   <TrashIcon size={16} className="mr-1" />
-                  Supprimer
+                  {t("common.delete")}
                 </>
               )}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer le catalogue ?</AlertDialogTitle>
+              <AlertDialogTitle>{t("catalog.delete_confirm_title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                Cette action est irréversible. Toutes les descriptions et métadonnées seront supprimées.
+                {t("catalog.delete_confirm_desc")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={onDelete}
                 className="bg-red-600 hover:bg-red-700"
               >
-                Supprimer
+                {t("common.delete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -91,12 +92,12 @@ export function CatalogActions({
         {isExtracting ? (
           <span className="flex items-center gap-2">
             <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            Extraction...
+            {t("common.extracting")}
           </span>
         ) : (
           <>
             <DatabaseIcon size={16} className="mr-1" />
-            {hasContent ? "Ré-extraire" : "Extraire"}
+            {hasContent ? t("catalog.re_extract") : t("catalog.extract")}
           </>
         )}
       </Button>
@@ -108,17 +109,17 @@ export function CatalogActions({
           disabled={isLoading || enabledTablesCount === 0}
           variant="default"
           size="sm"
-          title={enabledTablesCount === 0 ? "Activez au moins une table" : `Enrichir ${enabledTablesCount} table(s)`}
+          title={enabledTablesCount === 0 ? t("catalog.enable_at_least_one") : t("catalog.enrich_tables", { count: enabledTablesCount })}
         >
           {isEnriching ? (
             <span className="flex items-center gap-2">
               <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              Enrichissement...
+              {t("common.enriching")}
             </span>
           ) : (
             <>
               <SparklesIcon size={16} className="mr-1" />
-              Enrichir ({enabledTablesCount})
+              {t("catalog.enrich_tables", { count: enabledTablesCount })}
             </>
           )}
         </Button>

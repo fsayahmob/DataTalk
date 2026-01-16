@@ -13,6 +13,7 @@ import "@xyflow/react/dist/style.css";
 import * as api from "@/lib/api";
 import TurboNode, { type TurboNodeData } from "@/components/runs/TurboNode";
 import TurboEdge from "@/components/runs/TurboEdge";
+import { t } from "@/hooks/useTranslation";
 
 const nodeTypes = {
   turbo: TurboNode,
@@ -294,7 +295,7 @@ function RunsPageContent() {
       <div className="h-screen flex items-center justify-center bg-sidebar">
         <div className="text-center">
           <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Chargement des runs...</p>
+          <p className="text-muted-foreground">{t("common.loading")}</p>
         </div>
       </div>
     );
@@ -349,13 +350,13 @@ function RunsPageContent() {
       {/* Historique des runs (style GitHub) */}
       <div className="border-t border-border bg-sidebar overflow-hidden">
         <div className="px-3 py-1.5 border-b border-border/30">
-          <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Historique</h2>
+          <h2 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{t("common.history")}</h2>
         </div>
 
         {runs.length === 0 ? (
           <div className="py-3 px-4">
             <div className="text-xs text-muted-foreground italic">
-              Aucun run exécuté
+              {t("runs.no_runs")}
             </div>
           </div>
         ) : (
