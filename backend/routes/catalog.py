@@ -274,8 +274,8 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     # Calculer le nombre total de steps (dynamique selon batch size)
     max_tables_per_batch = int(get_setting("max_tables_per_batch") or "15")
     num_batches = (len(request.table_ids) + max_tables_per_batch - 1) // max_tables_per_batch
-    # total_steps = save_descriptions + llm_batch_1..N + generate_kpis + generate_questions
-    total_steps = 1 + num_batches + 2
+    # total_steps = update_enabled + fetch_tables + N*llm_batch + save_descriptions + generate_kpis + generate_questions
+    total_steps = 2 + num_batches + 3
 
     # Créer le job d'enrichissement
     job_id = create_catalog_job(

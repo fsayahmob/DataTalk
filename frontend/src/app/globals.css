@@ -236,6 +236,14 @@
 .run-edge-running .react-flow__edge-path {
   stroke: var(--primary) !important;
   stroke-opacity: 1 !important;
+  stroke-dasharray: 5 5 !important;
+  animation: flow-dash 0.5s linear infinite !important;
+}
+
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -10;
+  }
 }
 
 .run-edge-completed .react-flow__edge-path {
