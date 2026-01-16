@@ -1,0 +1,187 @@
+"""
+Routes pour la gestion des conversations.
+
+Endpoints:
+- POST /conversations - Créer une conversation
+- GET /conversations - Lister les conversations
+- DELETE /conversations/{id} - Supprimer une conversation
+- DELETE /conversations - Supprimer toutes les conversations
+- GET /conversations/{id}/messages - Messages d'une conversation
+- POST /conversations/{id}/analyze - Analyser dans une conversation
+"""
+
+import json
+import logging
+from typing import Any
+
+from fastapi import APIRouter, HTTPException
+
+from catalog import (
+    add_message,
+    create_conversation,
+    delete_all_conversations,
+    delete_conversation,
+    get_conversations,
+    get_messages,
+)
+from core.query import execute_query, should_disable_chart
+from i18n import t
+from routes.analytics import call_llm_for_analytics
+from routes.dependencies import QuestionRequest
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/conversations", tags=["conversations"])
+
+
+@router.post("")
+async def create_new_conversation() -> dict[str, Any]:
+    """Crée une nouvelle conversation."""
+    conversation_id = create_conversation()
+    return {"id": conversation_id, "message": t("conversation.created")}
+
+
+@router.get("")
+async def list_conversations(limit: int = 20) -> dict[str, list[dict[str, Any]]]:
+    """Liste les conversations récentes."""
+    conversations = get_conversations(limit)
+    return {"conversations": conversations}
+
+
+@router.delete("/{conversation_id}")
+async def remove_conversation(conversation_id: int) -> dict[str, str]:
+    """Supprime une conversation et ses messages."""
+    deleted = delete_conversation(conversation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=t("conversation.not_found"))
+    return {"message": t("conversation.deleted")}
+
+
+@router.delete("")
+async def remove_all_conversations() -> dict[str, Any]:
+    """Supprime toutes les conversations et leurs messages."""
+    deleted_count = delete_all_conversations()
+    return {"message": f"{deleted_count} conversation(s) supprimée(s)", "count": deleted_count}
+
+
+@router.get("/{conversation_id}/messages")
+async def get_conversation_messages(conversation_id: int) -> dict[str, list[dict[str, Any]]]:
+    """Récupère les messages d'une conversation."""
+    messages = get_messages(conversation_id)
+    return {"messages": messages}
+
+
+@router.post("/{conversation_id}/analyze")
+async def analyze_in_conversation(conversation_id: int, request: QuestionRequest) -> dict[str, Any]:
+    """
+    Analyse une question dans le contexte d'une conversation.
+    Sauvegarde le message user et la réponse assistant.
+    """
+    try:
+        # Sauvegarder le message user
+        add_message(conversation_id=conversation_id, role="user", content=request.question)
+
+        # Appeler le LLM avec les filtres et le mode contexte
+        llm_response = call_llm_for_analytics(
+            request.question, conversation_id, request.filters, use_context=request.use_context
+        )
+
+        sql = llm_response.get("sql", "")
+        message = llm_response.get("message", "")
+        chart = llm_response.get("chart") or {"type": "none", "x": None, "y": None, "title": ""}
+        metadata = llm_response.get("_metadata", {})
+
+        if not sql:
+            # Le LLM n'a pas généré de SQL - retourner quand même le message
+            message_id = add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=message or "Je n'ai pas compris votre demande.",
+                model_name=metadata.get("model_name"),
+                tokens_input=metadata.get("tokens_input"),
+                tokens_output=metadata.get("tokens_output"),
+                response_time_ms=metadata.get("response_time_ms"),
+            )
+            return {
+                "message_id": message_id,
+                "message": message or "Je n'ai pas compris votre demande.",
+                "sql": "",
+                "chart": {"type": "none", "x": None, "y": None, "title": ""},
+                "data": [],
+                "chart_disabled": False,
+                "chart_disabled_reason": None,
+                "model_name": metadata.get("model_name", "unknown"),
+                "tokens_input": metadata.get("tokens_input"),
+                "tokens_output": metadata.get("tokens_output"),
+                "response_time_ms": metadata.get("response_time_ms"),
+            }
+
+        # Exécuter le SQL
+        try:
+            data = execute_query(sql)
+        except Exception as sql_exec_error:
+            # Erreur SQL - retourner le message de Gemini + l'erreur séparément
+            sql_error_str = str(sql_exec_error)
+            message_id = add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=message,
+                sql_query=sql,
+                model_name=metadata.get("model_name"),
+                tokens_input=metadata.get("tokens_input"),
+                tokens_output=metadata.get("tokens_output"),
+                response_time_ms=metadata.get("response_time_ms"),
+            )
+            return {
+                "message_id": message_id,
+                "message": message,
+                "sql": sql,
+                "sql_error": sql_error_str,
+                "chart": {"type": "none", "x": None, "y": None, "title": ""},
+                "data": [],
+                "chart_disabled": False,
+                "chart_disabled_reason": None,
+                "model_name": metadata.get("model_name", "unknown"),
+                "tokens_input": metadata.get("tokens_input"),
+                "tokens_output": metadata.get("tokens_output"),
+                "response_time_ms": metadata.get("response_time_ms"),
+            }
+
+        # Vérifier si le chart doit être désactivé
+        chart_disabled, chart_disabled_reason = should_disable_chart(len(data), chart.get("type"))
+
+        # Limiter les données pour le stockage (max 100 lignes)
+        data_to_store = data[:100] if len(data) > 100 else data
+
+        # Sauvegarder la réponse assistant
+        message_id = add_message(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=message,
+            sql_query=sql,
+            chart_config=json.dumps(chart),
+            data_json=json.dumps(data_to_store),
+            model_name=metadata.get("model_name"),
+            tokens_input=metadata.get("tokens_input"),
+            tokens_output=metadata.get("tokens_output"),
+            response_time_ms=metadata.get("response_time_ms"),
+        )
+
+        return {
+            "message_id": message_id,
+            "message": message,
+            "sql": sql,
+            "chart": chart,
+            "data": data,
+            "chart_disabled": chart_disabled,
+            "chart_disabled_reason": chart_disabled_reason,
+            "model_name": metadata.get("model_name", "unknown"),
+            "tokens_input": metadata.get("tokens_input"),
+            "tokens_output": metadata.get("tokens_output"),
+            "response_time_ms": metadata.get("response_time_ms"),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
