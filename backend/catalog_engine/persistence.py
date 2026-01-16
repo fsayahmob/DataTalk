@@ -1,0 +1,203 @@
+"""
+Persistence du catalogue dans SQLite.
+
+Sauvegarde et mise à jour des descriptions, synonymes.
+"""
+
+from contextlib import suppress
+from pathlib import Path
+from typing import Any
+
+from catalog import add_column, add_datasource, add_synonym, add_table, get_setting
+from db import get_connection
+
+from .models import ExtractedCatalog
+
+# Configuration par défaut (fallback si settings non initialisé)
+DEFAULT_DB_PATH = str(Path(__file__).parent.parent / ".." / "data" / "g7_analytics.duckdb")
+
+
+def get_duckdb_path() -> str:
+    """Récupère le chemin DuckDB depuis les settings ou utilise le défaut."""
+    path = get_setting("duckdb_path")
+    if path:
+        # Si chemin relatif, le résoudre par rapport au dossier backend
+        if not Path(path).is_absolute():
+            path = str(Path(__file__).parent.parent / ".." / path)
+        return str(Path(path).resolve())
+    return DEFAULT_DB_PATH
+
+
+def save_to_catalog(
+    catalog: ExtractedCatalog, enrichment: dict[str, Any], db_path: str | None = None
+) -> dict[str, int]:
+    """
+    Sauvegarde le catalogue enrichi dans SQLite.
+
+    Retourne les statistiques: tables, columns, synonyms créés.
+    """
+    # Créer la datasource
+    datasource_id = add_datasource(
+        name=catalog.datasource.replace(".duckdb", ""),
+        ds_type="duckdb",
+        path=db_path,
+        description="Base analytique générée automatiquement",
+    )
+
+    if datasource_id is None:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT id FROM datasources WHERE name = ?",
+            (catalog.datasource.replace(".duckdb", ""),),
+        )
+        row = cursor.fetchone()
+        datasource_id = row["id"] if row else None
+        conn.close()
+
+    if datasource_id is None:
+        raise ValueError("Impossible de créer la datasource")
+
+    stats = {"tables": 0, "columns": 0, "synonyms": 0}
+
+    for table in catalog.tables:
+        # Récupérer l'enrichissement de la table
+        table_enrichment = enrichment.get(table.name, {})
+        table_description = table_enrichment.get("description")
+        columns_enrichment = table_enrichment.get("columns", {})
+
+        # Créer la table
+        table_id = add_table(
+            datasource_id=datasource_id,
+            name=table.name,
+            description=table_description,
+            row_count=table.row_count,
+        )
+
+        if table_id is None:
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT id FROM tables WHERE datasource_id = ? AND name = ?",
+                (datasource_id, table.name),
+            )
+            row = cursor.fetchone()
+            table_id = row["id"] if row else None
+            conn.close()
+
+        if table_id:
+            stats["tables"] += 1
+
+            for col in table.columns:
+                # Récupérer l'enrichissement de la colonne
+                col_enrichment = columns_enrichment.get(col.name, {})
+                col_description = col_enrichment.get("description")
+                synonyms = col_enrichment.get("synonyms", [])
+
+                # Créer la colonne
+                column_id = add_column(
+                    table_id=table_id,
+                    name=col.name,
+                    data_type=col.data_type,
+                    description=col_description,
+                    sample_values=", ".join(col.sample_values) if col.sample_values else None,
+                    value_range=col.value_range,
+                    is_primary_key=col.is_primary_key,
+                )
+
+                if column_id is None:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT id FROM columns WHERE table_id = ? AND name = ?",
+                        (table_id, col.name),
+                    )
+                    row = cursor.fetchone()
+                    column_id = row["id"] if row else None
+                    conn.close()
+
+                if column_id:
+                    stats["columns"] += 1
+
+                    # Ajouter les synonymes
+                    for synonym in synonyms:
+                        with suppress(Exception):  # Ignorer les doublons
+                            add_synonym(column_id, synonym)
+                            stats["synonyms"] += 1
+
+    return stats
+
+
+def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -> dict[str, int]:
+    """
+    Met à jour les descriptions des tables et colonnes existantes.
+    Utilise une seule connexion pour éviter les deadlocks SQLite.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    stats = {"tables": 0, "columns": 0, "synonyms": 0}
+
+    for table in catalog.tables:
+        table_enrichment = enrichment.get(table.name, {})
+        table_description = table_enrichment.get("description")
+        columns_enrichment = table_enrichment.get("columns", {})
+
+        # Mettre à jour la description de la table
+        if table_description:
+            cursor.execute(
+                """
+                UPDATE tables SET description = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE name = ?
+            """,
+                (table_description, table.name),
+            )
+            if cursor.rowcount > 0:
+                stats["tables"] += 1
+
+        # Récupérer l'ID de la table
+        cursor.execute("SELECT id FROM tables WHERE name = ?", (table.name,))
+        table_row = cursor.fetchone()
+        if not table_row:
+            continue
+        table_id = table_row["id"]
+
+        # Mettre à jour les colonnes
+        for col in table.columns:
+            col_enrichment = columns_enrichment.get(col.name, {})
+            col_description = col_enrichment.get("description")
+            synonyms = col_enrichment.get("synonyms", [])
+
+            if col_description:
+                cursor.execute(
+                    """
+                    UPDATE columns SET description = ?
+                    WHERE table_id = ? AND name = ?
+                """,
+                    (col_description, table_id, col.name),
+                )
+                if cursor.rowcount > 0:
+                    stats["columns"] += 1
+
+            # Ajouter les synonymes (directement, sans ouvrir une nouvelle connexion)
+            if synonyms:
+                cursor.execute(
+                    """
+                    SELECT id FROM columns WHERE table_id = ? AND name = ?
+                """,
+                    (table_id, col.name),
+                )
+                col_row = cursor.fetchone()
+                if col_row:
+                    column_id = col_row["id"]
+                    for synonym in synonyms:
+                        with suppress(Exception):
+                            cursor.execute(
+                                "INSERT INTO synonyms (column_id, term) VALUES (?, ?)",
+                                (column_id, synonym),
+                            )
+                            stats["synonyms"] += 1
+
+    conn.commit()
+    conn.close()
+    return stats
