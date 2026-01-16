@@ -43,12 +43,20 @@ from catalog import (
     update_job_result,
     update_job_status,
 )
+import duckdb
 from catalog_engine import (
     enrich_selected_tables,
     extract_only,
     generate_catalog_from_connection,
 )
 from core.state import app_state
+
+
+def get_db_connection() -> duckdb.DuckDBPyConnection:
+    """Get the active DB connection or raise 503 if not connected."""
+    if app_state.db_connection is None:
+        raise HTTPException(status_code=503, detail=t("db.not_connected"))
+    return app_state.db_connection
 from db import get_connection
 from i18n import t
 from llm_service import check_llm_status
@@ -200,8 +208,10 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
         conn.close()
 
     # 2. Extraction dans un thread séparé
+    db_conn = get_db_connection()
+
     def run_extraction() -> dict[str, Any]:
-        return extract_only(db_connection=app_state.db_connection, job_id=job_id)
+        return extract_only(db_connection=db_conn, job_id=job_id)
 
     try:
         loop = asyncio.get_event_loop()
@@ -290,9 +300,11 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     )
 
     # Enrichissement dans un thread séparé (full_context lu depuis SQLite)
+    db_conn = get_db_connection()
+
     def run_enrichment() -> dict[str, Any]:
         return enrich_selected_tables(
-            table_ids=request.table_ids, db_connection=app_state.db_connection, job_id=job_id
+            table_ids=request.table_ids, db_connection=db_conn, job_id=job_id
         )
 
     try:
@@ -379,8 +391,10 @@ async def generate_catalog_endpoint() -> dict[str, Any]:
     conn.close()
 
     # 2. Générer le catalogue dans un thread séparé pour ne pas bloquer les autres requêtes
+    db_conn = get_db_connection()
+
     def run_generation() -> dict[str, Any]:
-        return generate_catalog_from_connection(db_connection=app_state.db_connection)
+        return generate_catalog_from_connection(db_connection=db_conn)
 
     try:
         loop = asyncio.get_event_loop()
