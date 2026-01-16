@@ -12,11 +12,14 @@ Architecture:
 """
 
 import re
+from collections.abc import Generator
 from contextlib import contextmanager, suppress
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field, create_model
+
+from type_defs import DuckDBConnection
 from pydantic_core import PydanticUndefined
 
 from catalog import (
@@ -49,7 +52,7 @@ if TYPE_CHECKING:
 
 
 @contextmanager
-def _dummy_context() -> Any:
+def _dummy_context() -> Generator[None, None, None]:
     """Context manager vide pour compatibilité quand job_id est None."""
     yield
 
@@ -293,7 +296,7 @@ def detect_pattern(values: list[str]) -> tuple[str | None, float | None]:
 
 
 def extract_column_stats(
-    conn: Any, table_name: str, col_name: str, col_type: str, row_count: int
+    conn: DuckDBConnection, table_name: str, col_name: str, col_type: str, row_count: int
 ) -> ColumnMetadata:
     """
     Extrait les statistiques complètes d'une colonne.
@@ -341,6 +344,8 @@ def extract_column_stats(
             FROM "{table_name}"
         """).fetchone()  # noqa: S608
 
+        if base_stats is None:
+            return ColumnMetadata(**stats)
         null_count = base_stats[0] or 0
         distinct_count = base_stats[1] or 0
 
@@ -403,7 +408,7 @@ def extract_column_stats(
                     WHERE "{col_name}" IS NOT NULL
                 """).fetchone()  # noqa: S608
 
-                if num_stats[0] is not None:
+                if num_stats is not None and num_stats[0] is not None:
                     stats["value_range"] = f"{num_stats[0]} - {num_stats[1]}"
                     stats["mean"] = round(float(num_stats[2]), 4) if num_stats[2] else None
                     stats["median"] = round(float(num_stats[3]), 4) if num_stats[3] else None
@@ -420,7 +425,7 @@ def extract_column_stats(
                     WHERE "{col_name}" IS NOT NULL
                 """).fetchone()  # noqa: S608
 
-                if text_stats[0] is not None:
+                if text_stats is not None and text_stats[0] is not None:
                     stats["min_length"] = text_stats[0]
                     stats["max_length"] = text_stats[1]
                     stats["avg_length"] = round(float(text_stats[2]), 2) if text_stats[2] else None
@@ -447,7 +452,7 @@ def extract_column_stats(
     return ColumnMetadata(**stats)
 
 
-def extract_metadata_from_connection(conn: Any) -> ExtractedCatalog:
+def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog:
     """
     Extrait les métadonnées avancées depuis une connexion DuckDB.
 
@@ -475,9 +480,10 @@ def extract_metadata_from_connection(conn: Any) -> ExtractedCatalog:
 
     for (table_name,) in tables:
         # Nombre de lignes
-        row_count = conn.execute(
+        row_result = conn.execute(
             f'SELECT COUNT(*) FROM "{table_name}"'  # noqa: S608
-        ).fetchone()[0]
+        ).fetchone()
+        row_count = row_result[0] if row_result else 0
 
         # Colonnes via information_schema
         columns_info = conn.execute(f"""
@@ -1006,7 +1012,7 @@ def validate_all_kpis(result: KpisGenerationResult) -> dict[str, Any]:
     }
 
 
-def get_data_period(conn: Any) -> str:
+def get_data_period(conn: DuckDBConnection) -> str:
     """
     Récupère la période des données depuis la colonne de date principale.
     """
@@ -1030,7 +1036,7 @@ def get_data_period(conn: Any) -> str:
 
 
 def generate_kpis(
-    catalog: ExtractedCatalog, db_connection: Any, max_retries: int = 2
+    catalog: ExtractedCatalog, db_connection: DuckDBConnection, max_retries: int = 2
 ) -> KpisGenerationResult:
     """
     Génère les 4 KPIs via LLM avec retry.
@@ -1244,7 +1250,7 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
 # =============================================================================
 
 
-def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any]:
+def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> dict[str, Any]:
     """
     Extrait le schéma depuis DuckDB et sauvegarde dans SQLite SANS enrichissement LLM.
 
@@ -1360,7 +1366,7 @@ def extract_only(db_connection: Any, job_id: int | None = None) -> dict[str, Any
 
 
 def enrich_selected_tables(
-    table_ids: list[int], db_connection: Any, job_id: int | None = None
+    table_ids: list[int], db_connection: DuckDBConnection, job_id: int | None = None
 ) -> dict[str, Any]:
     """
     Enrichit les tables sélectionnées par l'utilisateur.
@@ -1447,7 +1453,7 @@ def enrich_selected_tables(
     return _enrich_tables(selected_tables, db_connection, workflow, datasource_name)
 
 
-def enrich_enabled_tables(db_connection: Any) -> dict[str, Any]:
+def enrich_enabled_tables(db_connection: DuckDBConnection) -> dict[str, Any]:
     """
     [LEGACY] Enrichit SEULEMENT les tables avec is_enabled=1.
 
@@ -1492,7 +1498,7 @@ def enrich_enabled_tables(db_connection: Any) -> dict[str, Any]:
 
 def _enrich_tables(
     tables_rows: list[Any],
-    db_connection: Any,
+    db_connection: DuckDBConnection,
     workflow: "WorkflowManager | None" = None,
     datasource_name: str = "DuckDB",
 ) -> dict[str, Any]:
@@ -1789,7 +1795,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
 # =============================================================================
 
 
-def generate_catalog_from_connection(db_connection: Any) -> dict[str, Any]:
+def generate_catalog_from_connection(db_connection: DuckDBConnection) -> dict[str, Any]:
     """
     Génère le catalogue complet depuis une connexion DuckDB existante.
 

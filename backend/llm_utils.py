@@ -10,6 +10,7 @@ import json
 from collections.abc import Callable
 from typing import Any, TypeVar
 
+
 from tenacity import (
     retry,
     stop_after_attempt,

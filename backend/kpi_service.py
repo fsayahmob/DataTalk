@@ -3,21 +3,22 @@ Service pour les KPIs dynamiques.
 Gère l'exécution des 3 requêtes SQL par KPI et la construction des données.
 """
 
-import json
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 import duckdb
 import numpy as np
 import pandas as pd
 
+
 from db import get_connection
 
 logger = logging.getLogger(__name__)
 
 
-def execute_kpi_sql(db_connection: duckdb.DuckDBPyConnection, sql_query: str) -> Any:
+def execute_kpi_sql(
+    db_connection: duckdb.DuckDBPyConnection, sql_query: str
+) -> Any:  # Returns KpiValue | SparklineData | None
     """
     Exécute une requête SQL de KPI sur DuckDB.
     Retourne la valeur brute (scalar ou liste).
