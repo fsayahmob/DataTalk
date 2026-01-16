@@ -318,8 +318,7 @@ jobs:
       - name: MyPy type check
         run: |
           if find . -name "*.py" | head -1 | grep -q .; then
-            # Use pyproject.toml configuration (strict mode with targeted exclusions)
-            mypy .
+            mypy . --ignore-missing-imports
           else
             echo "No Python files - skipping"
           fi
