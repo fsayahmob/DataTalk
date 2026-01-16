@@ -68,3 +68,36 @@ def _handle_litellm_exception(e: Exception, provider: str) -> LLMError:
 
     # Fallback: erreur générique avec détails
     return LLMError(LLMErrorCode.GENERIC_ERROR, provider, str(e))
+
+
+# =============================================================================
+# CLASSIFICATION DES ERREURS POUR CIRCUIT BREAKER
+# =============================================================================
+
+
+class ErrorSeverity:
+    """Classification des erreurs pour le circuit breaker."""
+
+    TRANSIENT = "transient"  # Erreurs temporaires (retry possible)
+    PERMANENT = "permanent"  # Erreurs de config (pas de retry)
+    UNKNOWN = "unknown"
+
+
+ERROR_SEVERITY_MAP: dict[LLMErrorCode, str] = {
+    # Transient: peuvent se résoudre avec le temps
+    LLMErrorCode.TIMEOUT: ErrorSeverity.TRANSIENT,
+    LLMErrorCode.QUOTA_EXCEEDED: ErrorSeverity.TRANSIENT,
+    LLMErrorCode.CONNECTION_ERROR: ErrorSeverity.TRANSIENT,
+    LLMErrorCode.SERVICE_UNAVAILABLE: ErrorSeverity.TRANSIENT,
+    # Permanent: nécessitent une intervention
+    LLMErrorCode.API_KEY_INVALID: ErrorSeverity.PERMANENT,
+    LLMErrorCode.API_KEY_MISSING: ErrorSeverity.PERMANENT,
+    LLMErrorCode.NOT_CONFIGURED: ErrorSeverity.PERMANENT,
+    LLMErrorCode.CONTEXT_TOO_LONG: ErrorSeverity.PERMANENT,
+    LLMErrorCode.CONTENT_POLICY: ErrorSeverity.PERMANENT,
+}
+
+
+def get_error_severity(code: LLMErrorCode) -> str:
+    """Retourne la sévérité d'une erreur LLM."""
+    return ERROR_SEVERITY_MAP.get(code, ErrorSeverity.UNKNOWN)

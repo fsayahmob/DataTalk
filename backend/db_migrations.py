@@ -1,0 +1,231 @@
+"""
+Migrations de base de données atomiques.
+
+Chaque migration est exécutée dans une transaction.
+En cas d'échec, le rollback est automatique.
+"""
+
+import logging
+import sqlite3
+import uuid
+
+logger = logging.getLogger(__name__)
+
+
+class MigrationError(Exception):
+    """Erreur lors d'une migration."""
+
+    pass
+
+
+def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
+    """Vérifie si une colonne existe dans une table."""
+    cursor.execute(f"PRAGMA table_info({table})")  # noqa: S608
+    return column in [col[1] for col in cursor.fetchall()]
+
+
+def _table_exists(cursor: sqlite3.Cursor, table: str) -> bool:
+    """Vérifie si une table existe."""
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+    return cursor.fetchone() is not None
+
+
+# =============================================================================
+# MIGRATIONS
+# =============================================================================
+
+
+def _migration_001_share_token(cursor: sqlite3.Cursor) -> None:
+    """Ajoute share_token à saved_reports."""
+    if not _table_exists(cursor, "saved_reports"):
+        return
+    if _column_exists(cursor, "saved_reports", "share_token"):
+        return
+
+    cursor.execute("ALTER TABLE saved_reports ADD COLUMN share_token TEXT")
+    cursor.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_share_token ON saved_reports(share_token)"
+    )
+    # Générer des tokens pour les rapports existants
+    cursor.execute("SELECT id FROM saved_reports WHERE share_token IS NULL")
+    for row in cursor.fetchall():
+        cursor.execute(
+            "UPDATE saved_reports SET share_token = ? WHERE id = ?",
+            (str(uuid.uuid4()), row[0]),
+        )
+
+
+def _migration_002_chart_config(cursor: sqlite3.Cursor) -> None:
+    """Ajoute chart_config à messages."""
+    if not _table_exists(cursor, "messages"):
+        return
+    if not _column_exists(cursor, "messages", "chart_config"):
+        cursor.execute("ALTER TABLE messages ADD COLUMN chart_config TEXT")
+
+
+def _migration_003_costs_columns(cursor: sqlite3.Cursor) -> None:
+    """Ajoute colonnes à llm_costs."""
+    if not _table_exists(cursor, "llm_costs"):
+        return
+    columns = [
+        ("conversation_id", "INTEGER"),
+        ("success", "INTEGER DEFAULT 1"),
+        ("error_message", "TEXT"),
+    ]
+    for col, typ in columns:
+        if not _column_exists(cursor, "llm_costs", col):
+            cursor.execute(f"ALTER TABLE llm_costs ADD COLUMN {col} {typ}")  # noqa: S608
+
+
+def _migration_004_full_context(cursor: sqlite3.Cursor) -> None:
+    """Ajoute full_context à columns."""
+    if not _table_exists(cursor, "columns"):
+        return
+    if not _column_exists(cursor, "columns", "full_context"):
+        cursor.execute("ALTER TABLE columns ADD COLUMN full_context TEXT")
+
+
+def _migration_005_datasource_fields(cursor: sqlite3.Cursor) -> None:
+    """Ajoute champs à datasources."""
+    if not _table_exists(cursor, "datasources"):
+        return
+    columns = [
+        ("is_active", "INTEGER DEFAULT 1"),
+        ("file_size_bytes", "INTEGER"),
+        ("last_modified", "TIMESTAMP"),
+    ]
+    for col, typ in columns:
+        if not _column_exists(cursor, "datasources", col):
+            cursor.execute(f"ALTER TABLE datasources ADD COLUMN {col} {typ}")  # noqa: S608
+
+
+def _migration_006_prompt_v3(cursor: sqlite3.Cursor) -> None:
+    """Met à jour le prompt analytics_system vers v3."""
+    if not _table_exists(cursor, "llm_prompts"):
+        return
+
+    cursor.execute(
+        "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
+    )
+    row = cursor.fetchone()
+    if not row or row[0] == "v3":
+        return
+
+    new_prompt = """Assistant analytique SQL. Réponds en français.
+
+{schema}
+
+CHOIX DE TABLE:
+- evaluations: données brutes par course (64K lignes)
+- evaluation_categories: données dénormalisées par catégorie avec sentiment_categorie (colonnes: categorie, sentiment_categorie). UTILISER CETTE TABLE pour toute analyse PAR CATÉGORIE.
+
+TYPES DE GRAPHIQUES:
+- bar: comparaisons entre catégories
+- line: évolutions temporelles
+- pie: répartitions (max 10 items)
+- area: évolutions empilées
+- scatter: corrélations (MAX 500 points)
+- none: pas de visualisation
+
+RÈGLES SQL:
+- SQL DuckDB uniquement (SELECT)
+- Alias en français
+- ORDER BY pour rankings/évolutions
+- LIMIT: "top N"→N, "tous"→pas de limit, défaut→500
+- Agrégations (GROUP BY)→pas de LIMIT
+- DUCKDB TIME: EXTRACT(HOUR FROM col), pas strftime
+- GROUP BY: TOUJOURS utiliser l'expression complète, PAS l'alias
+
+RÈGLE CRITIQUE - AGRÉGATION OBLIGATOIRE:
+- Pour "distribution", "répartition", "par catégorie", "par type" → TOUJOURS utiliser GROUP BY + COUNT/AVG/SUM
+- JAMAIS retourner des lignes individuelles pour ces questions (trop de données = crash frontend)
+- Exemple CORRECT: SELECT lib_categorie, AVG(sentiment_global) FROM evaluations GROUP BY lib_categorie
+- Exemple INTERDIT: SELECT lib_categorie, sentiment_global FROM evaluations (retourne 64K lignes!)
+
+COLONNES DE CONTEXTE (pour requêtes détaillées uniquement):
+- Pour les requêtes SANS agrégation (scatter, liste détaillée, exploration):
+  * TOUJOURS ajouter LIMIT 500 pour éviter les crashs
+  * Inclure des colonnes d'identification: cod_taxi, dat_course
+  * Ajouter des colonnes de segmentation: typ_client, lib_categorie, typ_chauffeur
+- Objectif: permettre à l'utilisateur de comprendre CHAQUE ligne du résultat
+- Limite: 6-10 colonnes max pour la lisibilité
+
+MULTI-SÉRIES (OBLIGATOIRE pour "par catégorie", "par type", "couleur par X"):
+INTERDIT: GROUP BY avec colonne catégorie qui retourne plusieurs lignes par date.
+OBLIGATOIRE: Utiliser FILTER pour PIVOTER les données (une colonne par catégorie).
+
+RÉPONSE: Un seul objet JSON (pas de tableau):
+{{"sql":"SELECT...","message":"Explication...","chart":{{"type":"...","x":"col","y":"col|[cols]","title":"..."}}}}"""
+
+    cursor.execute(
+        """UPDATE llm_prompts
+           SET content = ?, version = 'v3', tokens_estimate = 750,
+               description = 'Prompt système pour l''analyse Text-to-SQL. V3: règle agrégation obligatoire.'
+           WHERE key = 'analytics_system' AND is_active = 1""",
+        (new_prompt,),
+    )
+
+
+# =============================================================================
+# EXECUTION
+# =============================================================================
+
+# Liste des migrations dans l'ordre
+MIGRATIONS = [
+    ("001", _migration_001_share_token),
+    ("002", _migration_002_chart_config),
+    ("003", _migration_003_costs_columns),
+    ("004", _migration_004_full_context),
+    ("005", _migration_005_datasource_fields),
+    ("006", _migration_006_prompt_v3),
+]
+
+
+def run_migrations(conn: sqlite3.Connection) -> int:
+    """
+    Exécute les migrations de manière atomique.
+
+    Args:
+        conn: Connexion SQLite
+
+    Returns:
+        Nombre de migrations appliquées
+
+    Raises:
+        MigrationError: Si une migration échoue
+    """
+    cursor = conn.cursor()
+
+    # Créer la table de tracking si elle n'existe pas
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS _migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+
+    # Récupérer les migrations déjà appliquées
+    cursor.execute("SELECT version FROM _migrations")
+    applied = {row[0] for row in cursor.fetchall()}
+
+    applied_count = 0
+
+    for version, migration_fn in MIGRATIONS:
+        if version in applied:
+            continue
+
+        logger.info("Applying migration %s", version)
+        try:
+            # Chaque migration dans une transaction
+            migration_fn(cursor)
+            cursor.execute("INSERT INTO _migrations (version) VALUES (?)", (version,))
+            conn.commit()
+            applied_count += 1
+            logger.info("Migration %s OK", version)
+        except Exception as e:
+            conn.rollback()
+            logger.error("Migration %s FAILED: %s", version, e)
+            raise MigrationError(f"Migration {version} failed: {e}") from e
+
+    return applied_count

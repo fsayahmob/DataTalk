@@ -14,7 +14,7 @@ import contextlib
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from catalog import (
     delete_report,
@@ -24,6 +24,7 @@ from catalog import (
     toggle_pin_report,
 )
 from core.query import execute_query
+from core.rate_limit import limiter
 from i18n import t
 from routes.dependencies import SaveReportRequest
 
@@ -107,10 +108,12 @@ async def execute_report(report_id: int) -> dict[str, Any]:
 
 
 @router.get("/shared/{share_token}")
-async def get_shared_report(share_token: str) -> dict[str, Any]:
+@limiter.limit("10/minute")
+async def get_shared_report(request: Request, share_token: str) -> dict[str, Any]:
     """
     Accès public à un rapport partagé via son token.
     Exécute la requête SQL et retourne les données.
+    Rate-limité à 10 requêtes par minute par IP.
     """
     report = get_report_by_token(share_token)
     if not report:

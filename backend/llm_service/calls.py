@@ -14,7 +14,7 @@ from llm_config import get_default_model, get_model, log_cost
 from pydantic import BaseModel
 
 from .circuit_breaker import _circuit_breaker
-from .errors import LLMError, LLMErrorCode, _handle_litellm_exception
+from .errors import ErrorSeverity, LLMError, LLMErrorCode, _handle_litellm_exception, get_error_severity
 from .helpers import _get_api_key_for_model, _get_litellm_model_name
 from .models import LLMResponse
 
@@ -152,8 +152,12 @@ def call_llm(
     except Exception as e:
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        # Circuit breaker: enregistrer l'échec
-        _circuit_breaker.record_failure()
+        # Convertir en LLMError typé
+        llm_error = _handle_litellm_exception(e, provider_name)
+
+        # Circuit breaker: enregistrer l'échec avec classification
+        is_transient = get_error_severity(llm_error.code) == ErrorSeverity.TRANSIENT
+        _circuit_breaker.record_failure(is_transient=is_transient)
 
         # Logger l'erreur
         log_cost(
@@ -167,8 +171,7 @@ def call_llm(
             error_message=str(e),
         )
 
-        # Convertir en LLMError typé
-        raise _handle_litellm_exception(e, provider_name) from e
+        raise llm_error from e
 
 
 def call_llm_structured(
@@ -301,8 +304,12 @@ def call_llm_structured(
     except Exception as e:
         response_time_ms = int((time.time() - start_time) * 1000)
 
-        # Circuit breaker: enregistrer l'échec
-        _circuit_breaker.record_failure()
+        # Convertir en LLMError typé
+        llm_error = _handle_litellm_exception(e, provider_name)
+
+        # Circuit breaker: enregistrer l'échec avec classification
+        is_transient = get_error_severity(llm_error.code) == ErrorSeverity.TRANSIENT
+        _circuit_breaker.record_failure(is_transient=is_transient)
 
         # Logger l'erreur
         log_cost(
@@ -316,8 +323,7 @@ def call_llm_structured(
             error_message=str(e),
         )
 
-        # Convertir en LLMError typé
-        raise _handle_litellm_exception(e, provider_name) from e
+        raise llm_error from e
 
 
 def check_llm_status() -> dict[str, Any]:

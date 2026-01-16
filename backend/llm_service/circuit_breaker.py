@@ -44,6 +44,10 @@ class CircuitBreaker:
         self._state = "CLOSED"
         self._half_open_calls = 0
         self._lock = threading.Lock()
+        # Tracking des erreurs transientes (fenêtre glissante)
+        self._transient_timestamps: list[float] = []
+        self._transient_window = 300  # 5 minutes
+        self._transient_threshold = 3  # 3 transients = 1 failure
 
     def allow_request(self) -> bool:
         """Vérifie si une requête est autorisée."""
@@ -80,11 +84,45 @@ class CircuitBreaker:
                 # Reset progressif des failures
                 self._failures = max(0, self._failures - 1)
 
-    def record_failure(self) -> None:
-        """Enregistre un échec."""
+    def record_failure(self, is_transient: bool = False) -> None:
+        """
+        Enregistre un échec.
+
+        Args:
+            is_transient: True si erreur transiente (timeout, rate limit).
+                          Les transients nécessitent plusieurs occurrences
+                          dans une fenêtre de temps avant de compter comme failure.
+        """
         with self._lock:
-            self._failures += 1
-            self._last_failure_time = time.time()
+            now = time.time()
+
+            if is_transient:
+                # Nettoyer les vieux timestamps (fenêtre glissante)
+                self._transient_timestamps = [
+                    ts for ts in self._transient_timestamps if ts > now - self._transient_window
+                ]
+                self._transient_timestamps.append(now)
+
+                # N transients dans la fenêtre = 1 failure
+                if len(self._transient_timestamps) >= self._transient_threshold:
+                    self._failures += 1
+                    self._transient_timestamps.clear()
+                    logger.warning(
+                        "Circuit breaker: %d transient errors → 1 failure",
+                        self._transient_threshold,
+                    )
+                else:
+                    logger.debug(
+                        "Circuit breaker: transient %d/%d",
+                        len(self._transient_timestamps),
+                        self._transient_threshold,
+                    )
+                    return  # Ne pas compter encore comme failure
+            else:
+                # Erreur permanente = failure directe
+                self._failures += 1
+
+            self._last_failure_time = now
 
             if self._state == "HALF_OPEN":
                 # Échec en half-open = retour à open
@@ -115,6 +153,7 @@ class CircuitBreaker:
             self._state = "CLOSED"
             self._last_failure_time = None
             self._half_open_calls = 0
+            self._transient_timestamps.clear()
             logger.info("Circuit breaker: manual reset")
 
 

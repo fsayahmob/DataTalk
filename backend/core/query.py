@@ -7,6 +7,7 @@ Contient:
 - should_disable_chart: Protection contre les gros volumes de données
 """
 
+import logging
 from typing import Any
 
 from fastapi import HTTPException
@@ -16,17 +17,54 @@ from core.state import app_state
 from i18n import t
 from type_defs import convert_df_to_json
 
+logger = logging.getLogger(__name__)
+
 # Configuration par défaut
 DEFAULT_MAX_CHART_ROWS = 5000
+DEFAULT_QUERY_TIMEOUT_MS = 30000  # 30 secondes
 
 
-def execute_query(sql: str) -> list[dict[str, Any]]:
-    """Exécute une requête SQL sur DuckDB."""
+class QueryTimeoutError(Exception):
+    """Erreur de timeout de requête DuckDB."""
+
+    pass
+
+
+def execute_query(sql: str, timeout_ms: int | None = None) -> list[dict[str, Any]]:
+    """
+    Exécute une requête SQL sur DuckDB avec timeout.
+
+    Args:
+        sql: Requête SQL à exécuter
+        timeout_ms: Timeout en millisecondes (défaut: 30s)
+
+    Returns:
+        Liste de dictionnaires (données)
+
+    Raises:
+        HTTPException: Si pas de connexion DB
+        QueryTimeoutError: Si la requête dépasse le timeout
+    """
     if not app_state.db_connection:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
 
-    result = app_state.db_connection.execute(sql).fetchdf()
-    return convert_df_to_json(result)
+    # Récupérer le timeout depuis les settings ou utiliser le défaut
+    if timeout_ms is None:
+        timeout_str = get_setting("query_timeout_ms")
+        timeout_ms = int(timeout_str) if timeout_str else DEFAULT_QUERY_TIMEOUT_MS
+
+    try:
+        # Configurer le timeout DuckDB (par requête)
+        app_state.db_connection.execute(f"SET statement_timeout = {timeout_ms}")
+
+        result = app_state.db_connection.execute(sql).fetchdf()
+        return convert_df_to_json(result)
+    except Exception as e:
+        error_str = str(e).lower()
+        if "timeout" in error_str or "interrupt" in error_str:
+            logger.warning("Query timeout (%dms): %s...", timeout_ms, sql[:80])
+            raise QueryTimeoutError(t("db.query_timeout")) from e
+        raise
 
 
 def build_filter_context(filters: Any) -> str:

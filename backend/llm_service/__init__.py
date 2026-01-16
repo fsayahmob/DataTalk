@@ -25,7 +25,13 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 litellm.set_verbose = False  # type: ignore[attr-defined]
 
 # Errors
-from .errors import LLMError, LLMErrorCode, _handle_litellm_exception
+from .errors import (
+    ErrorSeverity,
+    LLMError,
+    LLMErrorCode,
+    _handle_litellm_exception,
+    get_error_severity,
+)
 
 # Circuit Breaker
 from .circuit_breaker import (
@@ -48,6 +54,7 @@ __all__ = [
     # Circuit Breaker
     "CircuitBreaker",
     # Errors
+    "ErrorSeverity",
     "LLMError",
     "LLMErrorCode",
     # Models
@@ -58,6 +65,7 @@ __all__ = [
     "_get_api_key_for_model",
     "_get_litellm_model_name",
     "_handle_litellm_exception",
+    "get_error_severity",
     # Calls
     "call_llm",
     "call_llm_structured",

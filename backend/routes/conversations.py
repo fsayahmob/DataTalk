@@ -25,6 +25,7 @@ from catalog import (
     get_messages,
 )
 from core.error_sanitizer import sanitize_sql_error
+from core.pagination import validate_pagination
 from core.query import execute_query, should_disable_chart
 from i18n import t
 from routes.analytics import call_llm_for_analytics
@@ -43,10 +44,11 @@ async def create_new_conversation() -> dict[str, Any]:
 
 
 @router.get("")
-async def list_conversations(limit: int = 20) -> dict[str, list[dict[str, Any]]]:
-    """Liste les conversations récentes."""
+async def list_conversations(limit: int = 20, offset: int = 0) -> dict[str, Any]:
+    """Liste les conversations récentes avec pagination."""
+    limit, offset = validate_pagination(limit, offset)
     conversations = get_conversations(limit)
-    return {"conversations": conversations}
+    return {"conversations": conversations, "limit": limit, "offset": offset}
 
 
 @router.delete("/{conversation_id}")
