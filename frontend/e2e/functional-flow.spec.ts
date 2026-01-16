@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * TESTS FONCTIONNELS E2E - G7 Analytics
+ * TESTS FONCTIONNELS E2E - TalkData
  *
  * Ces tests utilisent le VRAI backend (pas de mocks)
  * Ils vérifient le comportement réel de l'application
@@ -12,7 +12,7 @@ test.describe("Tests Fonctionnels - Scénarios Métier", () => {
   test("Analyse des scores sentimentaux par catégorie par jour", async ({ page }) => {
     // Charger l'application
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
     console.log("✓ Application chargée");
 
     // Taper la question
@@ -56,7 +56,7 @@ test.describe("Tests Fonctionnels - Scénarios Métier", () => {
 
   test("Top 10 chauffeurs - graphique bar", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
 
     // Poser la question
     await page.locator("textarea").fill("Top 10 chauffeurs avec les meilleures notes");
@@ -82,7 +82,7 @@ test.describe("Tests Fonctionnels - Scénarios Métier", () => {
 
   test("Répartition des notes - graphique", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
 
     // Poser la question
     await page.locator("textarea").fill("Répartition des notes de 1 à 5");
@@ -110,7 +110,7 @@ test.describe("Tests Fonctionnels - Gestion des erreurs", () => {
 
   test("Message non-SQL (bonjour) - affiche message Gemini + erreur SQL dans Zone 2", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
     console.log("✓ Application chargée");
 
     // Envoyer "bonjour"
@@ -171,7 +171,7 @@ test.describe("Tests Fonctionnels - Gestion des erreurs", () => {
 
   test("Message 'salut' - même comportement que 'bonjour'", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
 
     // Envoyer "salut"
     await page.locator("textarea").fill("salut");
@@ -203,7 +203,7 @@ test.describe("Tests Fonctionnels - Gestion des erreurs", () => {
 
   test("Question ambiguë - affiche erreur SQL proprement", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { name: "G7 Analytics" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "TalkData" })).toBeVisible();
 
     // Question qui va probablement générer un SQL invalide
     await page.locator("textarea").fill("montre moi tout");
