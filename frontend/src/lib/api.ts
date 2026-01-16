@@ -340,12 +340,14 @@ export async function analyzeInConversation(
   conversationId: number,
   question: string,
   filters?: AnalysisFilters,
-  useContext = false
+  useContext = false,
+  signal?: AbortSignal
 ): Promise<AnalysisResponse> {
   const res = await fetch(`${API_BASE}/conversations/${conversationId}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, filters, use_context: useContext }),
+    signal,
   });
 
   const data = await res.json();

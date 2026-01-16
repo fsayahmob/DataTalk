@@ -47,6 +47,7 @@ export default function Home() {
     loadConversations,
     restoreSession,
     handleSubmit: submitConversation,
+    handleStop,
     handleLoadConversation,
     handleNewConversation,
     handleReplayMessage,
@@ -224,6 +225,7 @@ export default function Home() {
           predefinedQuestions={predefinedQuestions}
           onQuestionClick={handleQuestionClick}
           onReplayMessage={(msg) => void handleReplayMessage(msg)}
+          onStop={handleStop}
           useContext={useContext}
           onUseContextChange={setUseContext}
           onDeleteAllConversations={() => void handleDeleteAllConversations()}

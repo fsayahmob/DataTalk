@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import * as api from "@/lib/api";
 import { Message, Conversation } from "@/types";
 
@@ -34,6 +34,7 @@ interface UseConversationReturn {
   loadConversations: () => Promise<void>;
   restoreSession: () => Promise<void>;
   handleSubmit: (e: React.FormEvent, filters: Filters) => Promise<void>;
+  handleStop: () => void;
   handleLoadConversation: (conv: Conversation) => Promise<void>;
   handleNewConversation: () => void;
   handleReplayMessage: (msg: Message) => void;
@@ -49,6 +50,7 @@ export function useConversation(): UseConversationReturn {
   const [showHistory, setShowHistory] = useState(false);
   const [useContext, setUseContext] = useState(false);  // Stateless par défaut
   const [error, setError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -124,12 +126,17 @@ export function useConversation(): UseConversationReturn {
 
     setLoading(true);
 
+    // Créer un AbortController pour permettre l'annulation
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     // Créer une conversation si nécessaire
     let convId = currentConversationId;
     if (!convId) {
       convId = await createNewConversation();
       if (!convId) {
         setLoading(false);
+        abortControllerRef.current = null;
         return;
       }
     }
@@ -147,7 +154,7 @@ export function useConversation(): UseConversationReturn {
     setQuestion("");
 
     try {
-      const data = await api.analyzeInConversation(convId, question, apiFilters, useContext);
+      const data = await api.analyzeInConversation(convId, question, apiFilters, useContext, abortController.signal);
 
       const assistantMessage: Message = {
         id: data.message_id,
@@ -169,14 +176,27 @@ export function useConversation(): UseConversationReturn {
       setSelectedMessage(assistantMessage);
       await loadConversations();
     } catch (e) {
-      // Erreur technique → affichée dans le footer, pas dans la conversation
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
-      // Supprimer le message user qui n'a pas abouti
-      setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      // Si annulé par l'utilisateur, ne pas afficher d'erreur
+      if (e instanceof Error && e.name === "AbortError") {
+        // Supprimer le message user qui a été annulé
+        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      } else {
+        // Erreur technique → affichée dans le footer, pas dans la conversation
+        setError(e instanceof Error ? e.message : "Erreur inconnue");
+        // Supprimer le message user qui n'a pas abouti
+        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
+      }
     } finally {
       setLoading(false);
+      abortControllerRef.current = null;
     }
   }, [question, loading, currentConversationId, createNewConversation, toApiFilters, loadConversations, useContext]);
+
+  const handleStop = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }, []);
 
   const handleLoadConversation = useCallback(async (conv: Conversation) => {
     setCurrentConversationId(conv.id);
@@ -223,6 +243,7 @@ export function useConversation(): UseConversationReturn {
     loadConversations,
     restoreSession,
     handleSubmit,
+    handleStop,
     handleLoadConversation,
     handleNewConversation,
     handleReplayMessage,

@@ -10,6 +10,7 @@ import logging
 import re
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -211,7 +212,7 @@ class SettingsUpdateRequest(BaseModel):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application"""
     # Startup: ouvrir la connexion DuckDB
     _app_state.current_db_path = get_duckdb_path()
@@ -371,7 +372,7 @@ def call_llm_for_analytics(
     conversation_id: int | None = None,
     filters: AnalysisFilters | None = None,
     use_context: bool = False,
-) -> dict:
+) -> dict[str, Any]:
     """Appelle le LLM pour générer SQL + message + config chart + métadonnées.
 
     Args:
@@ -480,7 +481,7 @@ def call_llm_for_analytics(
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, Any]:
     """Vérifie que l'API est opérationnelle"""
     llm_status = check_llm_status()
     return {
@@ -491,7 +492,7 @@ async def health_check():
 
 
 @app.get("/database/status")
-async def get_database_status():
+async def get_database_status() -> dict[str, Any]:
     """Retourne le statut et la configuration de la base DuckDB."""
     return {
         "status": "connected" if _app_state.db_connection else "disconnected",
@@ -502,7 +503,7 @@ async def get_database_status():
 
 
 @app.post("/refresh-schema")
-async def refresh_schema():
+async def refresh_schema() -> dict[str, Any]:
     """Rafraîchit le cache du schéma depuis le catalogue SQLite."""
     _app_state.db_schema_cache = get_schema_for_llm()
     return {
@@ -513,13 +514,13 @@ async def refresh_schema():
 
 
 @app.get("/schema")
-async def get_schema():
+async def get_schema() -> dict[str, str]:
     """Retourne le schéma actuel utilisé par le LLM."""
     return {"schema": get_system_instruction()}
 
 
 @app.post("/analyze", response_model=AnalysisResponse)
-async def analyze(request: QuestionRequest):
+async def analyze(request: QuestionRequest) -> AnalysisResponse:
     """
     Analyse une question en langage naturel:
     1. Appelle le LLM pour générer SQL + message + config chart
@@ -571,21 +572,21 @@ async def analyze(request: QuestionRequest):
 
 
 @app.post("/conversations")
-async def create_new_conversation():
+async def create_new_conversation() -> dict[str, Any]:
     """Crée une nouvelle conversation."""
     conversation_id = create_conversation()
     return {"id": conversation_id, "message": t("conversation.created")}
 
 
 @app.get("/conversations")
-async def list_conversations(limit: int = 20):
+async def list_conversations(limit: int = 20) -> dict[str, list[dict[str, Any]]]:
     """Liste les conversations récentes."""
     conversations = get_conversations(limit)
     return {"conversations": conversations}
 
 
 @app.delete("/conversations/{conversation_id}")
-async def remove_conversation(conversation_id: int):
+async def remove_conversation(conversation_id: int) -> dict[str, str]:
     """Supprime une conversation et ses messages."""
     deleted = delete_conversation(conversation_id)
     if not deleted:
@@ -594,21 +595,21 @@ async def remove_conversation(conversation_id: int):
 
 
 @app.delete("/conversations")
-async def remove_all_conversations():
+async def remove_all_conversations() -> dict[str, Any]:
     """Supprime toutes les conversations et leurs messages."""
     deleted_count = delete_all_conversations()
     return {"message": f"{deleted_count} conversation(s) supprimée(s)", "count": deleted_count}
 
 
 @app.get("/conversations/{conversation_id}/messages")
-async def get_conversation_messages(conversation_id: int):
+async def get_conversation_messages(conversation_id: int) -> dict[str, list[dict[str, Any]]]:
     """Récupère les messages d'une conversation."""
     messages = get_messages(conversation_id)
     return {"messages": messages}
 
 
 @app.post("/conversations/{conversation_id}/analyze")
-async def analyze_in_conversation(conversation_id: int, request: QuestionRequest):
+async def analyze_in_conversation(conversation_id: int, request: QuestionRequest) -> dict[str, Any]:
     """
     Analyse une question dans le contexte d'une conversation.
     Sauvegarde le message user et la réponse assistant.
@@ -729,14 +730,14 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
 
 
 @app.get("/reports")
-async def list_reports():
+async def list_reports() -> dict[str, list[dict[str, Any]]]:
     """Liste les rapports sauvegardés."""
     reports = get_saved_reports()
     return {"reports": reports}
 
 
 @app.post("/reports")
-async def create_report(request: SaveReportRequest):
+async def create_report(request: SaveReportRequest) -> dict[str, Any]:
     """Sauvegarde un nouveau rapport avec token de partage."""
     result = save_report(
         title=request.title,
@@ -749,7 +750,7 @@ async def create_report(request: SaveReportRequest):
 
 
 @app.delete("/reports/{report_id}")
-async def remove_report(report_id: int):
+async def remove_report(report_id: int) -> dict[str, str]:
     """Supprime un rapport."""
     deleted = delete_report(report_id)
     if not deleted:
@@ -758,7 +759,7 @@ async def remove_report(report_id: int):
 
 
 @app.patch("/reports/{report_id}/pin")
-async def pin_report(report_id: int):
+async def pin_report(report_id: int) -> dict[str, str]:
     """Toggle l'état épinglé d'un rapport."""
     updated = toggle_pin_report(report_id)
     if not updated:
@@ -767,7 +768,7 @@ async def pin_report(report_id: int):
 
 
 @app.post("/reports/{report_id}/execute")
-async def execute_report(report_id: int):
+async def execute_report(report_id: int) -> dict[str, Any]:
     """
     Exécute la requête SQL d'un rapport sauvegardé.
     Retourne les données fraîches + la config du graphique.
@@ -805,7 +806,7 @@ async def execute_report(report_id: int):
 
 
 @app.get("/reports/shared/{share_token}")
-async def get_shared_report(share_token: str):
+async def get_shared_report(share_token: str) -> dict[str, Any]:
     """
     Accès public à un rapport partagé via son token.
     Exécute la requête SQL et retourne les données.
@@ -843,7 +844,7 @@ async def get_shared_report(share_token: str):
 
 
 @app.get("/settings")
-async def get_settings():
+async def get_settings() -> dict[str, Any]:
     """Récupère toutes les configurations + statut LLM."""
     settings = get_all_settings()
 
@@ -879,7 +880,7 @@ async def get_settings():
 
 
 @app.put("/settings")
-async def update_settings(request: SettingsUpdateRequest):
+async def update_settings(request: SettingsUpdateRequest) -> dict[str, str]:
     """Met à jour les configurations LLM."""
     messages = []
 
@@ -905,7 +906,7 @@ async def update_settings(request: SettingsUpdateRequest):
 
 
 @app.get("/settings/{key}")
-async def get_single_setting(key: str):
+async def get_single_setting(key: str) -> dict[str, str]:
     """Récupère une configuration spécifique."""
     value = get_setting(key)
     if value is None:
@@ -923,7 +924,7 @@ class UpdateSettingRequest(BaseModel):
 
 
 @app.put("/settings/{key}")
-async def update_single_setting(key: str, request: UpdateSettingRequest):
+async def update_single_setting(key: str, request: UpdateSettingRequest) -> dict[str, Any]:
     """Met à jour une configuration spécifique."""
     # Liste des clés autorisées
     allowed_keys = ["catalog_context_mode", "duckdb_path", "max_tables_per_batch", "max_chart_rows"]
@@ -991,7 +992,7 @@ async def update_single_setting(key: str, request: UpdateSettingRequest):
 
 
 @app.get("/catalog")
-async def get_catalog():
+async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     """
     Retourne le catalogue actuel depuis SQLite.
     Structure: datasources → tables → columns
@@ -1048,7 +1049,7 @@ async def get_catalog():
 
 
 @app.delete("/catalog")
-async def delete_catalog():
+async def delete_catalog() -> dict[str, str]:
     """
     Supprime tout le catalogue (pour permettre de retester la génération).
     Supprime aussi les widgets et questions suggérées associées.
@@ -1079,7 +1080,7 @@ async def delete_catalog():
 
 
 @app.patch("/catalog/tables/{table_id}/toggle")
-async def toggle_table_enabled_endpoint(table_id: int):
+async def toggle_table_enabled_endpoint(table_id: int) -> dict[str, Any]:
     """
     Toggle l'état is_enabled d'une table.
     Une table désactivée n'apparaîtra plus dans le prompt LLM.
@@ -1108,7 +1109,7 @@ async def toggle_table_enabled_endpoint(table_id: int):
 
 
 @app.post("/catalog/extract")
-async def extract_catalog_endpoint():
+async def extract_catalog_endpoint() -> dict[str, Any]:
     """
     ÉTAPE 1: Extraction du schéma depuis DuckDB SANS enrichissement LLM.
 
@@ -1143,7 +1144,7 @@ async def extract_catalog_endpoint():
         conn.close()
 
     # 2. Extraction dans un thread séparé
-    def run_extraction():
+    def run_extraction() -> dict[str, Any]:
         return extract_only(db_connection=_app_state.db_connection, job_id=job_id)
 
     try:
@@ -1187,7 +1188,7 @@ class EnrichCatalogRequest(BaseModel):
 
 
 @app.post("/catalog/enrich")
-async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
+async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, Any]:
     """
     ÉTAPE 2: Enrichissement LLM des tables sélectionnées.
 
@@ -1221,7 +1222,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
     run_id = str(uuid.uuid4())
 
     # Calculer le nombre total de steps (dynamique selon batch size)
-    max_tables_per_batch = int(get_setting("max_tables_per_batch", "15"))
+    max_tables_per_batch = int(get_setting("max_tables_per_batch") or "15")
     num_batches = (len(request.table_ids) + max_tables_per_batch - 1) // max_tables_per_batch
     # total_steps = save_descriptions + llm_batch_1..N + generate_kpis + generate_questions
     total_steps = 1 + num_batches + 2
@@ -1239,7 +1240,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
     )
 
     # Enrichissement dans un thread séparé (full_context lu depuis SQLite)
-    def run_enrichment():
+    def run_enrichment() -> dict[str, Any]:
         return enrich_selected_tables(
             table_ids=request.table_ids, db_connection=_app_state.db_connection, job_id=job_id
         )
@@ -1298,7 +1299,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest):
 
 
 @app.post("/catalog/generate")
-async def generate_catalog_endpoint():
+async def generate_catalog_endpoint() -> dict[str, Any]:
     """
     [LEGACY] Génère le catalogue complet en une seule étape.
 
@@ -1328,7 +1329,7 @@ async def generate_catalog_endpoint():
     conn.close()
 
     # 2. Générer le catalogue dans un thread séparé pour ne pas bloquer les autres requêtes
-    def run_generation():
+    def run_generation() -> dict[str, Any]:
         return generate_catalog_from_connection(db_connection=_app_state.db_connection)
 
     try:
@@ -1358,7 +1359,7 @@ async def generate_catalog_endpoint():
 
 
 @app.get("/llm/providers")
-async def list_llm_providers():
+async def list_llm_providers() -> dict[str, list[dict[str, Any]]]:
     """Liste tous les providers LLM disponibles."""
     providers = get_providers()
     result = []
@@ -1390,7 +1391,7 @@ async def list_llm_providers():
 
 
 @app.get("/llm/models")
-async def list_llm_models(provider_name: str | None = None):
+async def list_llm_models(provider_name: str | None = None) -> dict[str, list[dict[str, Any]]]:
     """Liste les modèles LLM disponibles (optionnellement filtrés par provider)."""
     if provider_name:
         provider = get_provider_by_name(provider_name)
@@ -1403,7 +1404,7 @@ async def list_llm_models(provider_name: str | None = None):
 
 
 @app.get("/llm/models/default")
-async def get_llm_default_model():
+async def get_llm_default_model() -> dict[str, Any]:
     """Récupère le modèle LLM par défaut."""
     model = get_default_model()
     if not model:
@@ -1412,7 +1413,7 @@ async def get_llm_default_model():
 
 
 @app.put("/llm/models/default/{model_id}")
-async def set_llm_default_model(model_id: str):
+async def set_llm_default_model(model_id: str) -> dict[str, str]:
     """Définit le modèle LLM par défaut."""
     # Chercher le modèle par model_id
     models = get_models()
@@ -1430,7 +1431,7 @@ class ProviderConfigRequest(BaseModel):
 
 
 @app.put("/llm/providers/{provider_name}/config")
-async def update_provider_config(provider_name: str, config: ProviderConfigRequest):
+async def update_provider_config(provider_name: str, config: ProviderConfigRequest) -> dict[str, str]:
     """Met à jour la configuration d'un provider (base_url pour self-hosted)."""
     provider = get_provider_by_name(provider_name)
     if not provider:
@@ -1447,7 +1448,7 @@ async def update_provider_config(provider_name: str, config: ProviderConfigReque
 
 
 @app.get("/llm/costs")
-async def get_llm_costs(days: int = 30):
+async def get_llm_costs(days: int = 30) -> dict[str, Any]:
     """Récupère les coûts LLM des N derniers jours."""
     total = get_total_costs(days)
     by_hour = get_costs_by_hour(days)
@@ -1457,7 +1458,7 @@ async def get_llm_costs(days: int = 30):
 
 
 @app.get("/llm/status")
-async def get_llm_status_endpoint():
+async def get_llm_status_endpoint() -> dict[str, Any]:
     """Vérifie le statut du LLM."""
     return check_llm_status()
 
@@ -1468,14 +1469,14 @@ async def get_llm_status_endpoint():
 
 
 @app.get("/llm/prompts")
-async def list_llm_prompts(category: str | None = None):
+async def list_llm_prompts(category: str | None = None) -> dict[str, list[dict[str, Any]]]:
     """Liste tous les prompts LLM."""
     prompts = get_prompts(category=category)
     return {"prompts": prompts}
 
 
 @app.get("/llm/prompts/{key}")
-async def get_llm_prompt(key: str):
+async def get_llm_prompt(key: str) -> dict[str, dict[str, Any]]:
     """Récupère le prompt actif pour une clé."""
     prompt = get_active_prompt(key)
     if not prompt:
@@ -1488,7 +1489,7 @@ class SetActivePromptRequest(BaseModel):
 
 
 @app.put("/llm/prompts/{key}/active")
-async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
+async def set_llm_active_prompt(key: str, request: SetActivePromptRequest) -> dict[str, str]:
     """Active une version spécifique d'un prompt."""
     success = set_active_prompt(key, request.version)
     if not success:
@@ -1504,7 +1505,7 @@ async def set_llm_active_prompt(key: str, request: SetActivePromptRequest):
 
 
 @app.get("/widgets")
-async def list_widgets(use_cache: bool = True):
+async def list_widgets(use_cache: bool = True) -> dict[str, list[dict[str, Any]]]:
     """
     Récupère tous les widgets actifs avec leurs données.
     Les données sont cachées pour éviter 100 clients = 100 requêtes identiques.
@@ -1525,7 +1526,7 @@ async def list_widgets(use_cache: bool = True):
 
 
 @app.post("/widgets/refresh")
-async def refresh_widgets():
+async def refresh_widgets() -> dict[str, Any]:
     """
     Force le recalcul du cache de tous les widgets.
     Utile après une mise à jour des données ou du catalogue.
@@ -1537,7 +1538,7 @@ async def refresh_widgets():
 
 
 @app.post("/widgets/{widget_id}/refresh")
-async def refresh_widget(widget_id: str):
+async def refresh_widget(widget_id: str) -> dict[str, Any]:
     """
     Force le recalcul du cache d'un widget spécifique.
     """
@@ -1556,7 +1557,7 @@ async def refresh_widget(widget_id: str):
 
 
 @app.get("/kpis")
-async def list_kpis():
+async def list_kpis() -> dict[str, list[dict[str, Any]]]:
     """
     Récupère les 4 KPIs avec leurs données calculées.
     Exécute les 3 requêtes SQL par KPI (value, trend, sparkline).
@@ -1578,7 +1579,7 @@ async def list_kpis():
 
 
 @app.get("/suggested-questions")
-async def list_suggested_questions():
+async def list_suggested_questions() -> dict[str, list[dict[str, Any]]]:
     """
     Récupère les questions suggérées (générées par LLM lors de l'enrichissement).
     Retourne une liste vide si le catalogue est vide ou si aucune question n'a été générée.
@@ -1606,7 +1607,7 @@ async def list_suggested_questions():
 
 
 @app.get("/prompts")
-async def list_prompts():
+async def list_prompts() -> dict[str, list[dict[str, Any]]]:
     """Liste tous les prompts avec leur version active."""
     try:
         prompts = get_all_prompts()
@@ -1617,7 +1618,7 @@ async def list_prompts():
 
 
 @app.get("/prompts/{key}")
-async def get_prompt(key: str):
+async def get_prompt(key: str) -> dict[str, Any]:
     """Récupère un prompt spécifique par sa clé."""
     try:
         prompt = get_active_prompt(key)
@@ -1638,7 +1639,7 @@ class PromptUpdateRequest(BaseModel):
 
 
 @app.put("/prompts/{key}")
-async def update_prompt(key: str, request: PromptUpdateRequest):
+async def update_prompt(key: str, request: PromptUpdateRequest) -> dict[str, str]:
     """Met à jour le contenu d'un prompt actif."""
     try:
         success = update_prompt_content(key, request.content)
@@ -1658,7 +1659,7 @@ async def update_prompt(key: str, request: PromptUpdateRequest):
 
 
 @app.get("/catalog/jobs")
-async def list_catalog_jobs(limit: int = 50):
+async def list_catalog_jobs(limit: int = 50) -> dict[str, list[dict[str, Any]]]:
     """Récupère l'historique des jobs (extraction + enrichment)."""
     try:
         jobs = get_catalog_jobs(limit=limit)
@@ -1669,7 +1670,7 @@ async def list_catalog_jobs(limit: int = 50):
 
 
 @app.get("/catalog/jobs/{job_id}")
-async def get_catalog_job_by_id(job_id: int):
+async def get_catalog_job_by_id(job_id: int) -> dict[str, Any]:
     """Récupère un job spécifique par son ID."""
     try:
         job = get_catalog_job(job_id)
@@ -1684,7 +1685,7 @@ async def get_catalog_job_by_id(job_id: int):
 
 
 @app.get("/catalog/run/{run_id}")
-async def get_run(run_id: str):
+async def get_run(run_id: str) -> dict[str, list[dict[str, Any]]]:
     """Récupère tous les jobs d'une run (extraction + enrichments)."""
     try:
         jobs = get_run_jobs(run_id)
@@ -1699,7 +1700,7 @@ async def get_run(run_id: str):
 
 
 @app.get("/catalog/latest-run")
-async def get_latest_run():
+async def get_latest_run() -> dict[str, list[dict[str, Any]]]:
     """Récupère la dernière run complète (extraction + enrichments)."""
     try:
         run_id = get_latest_run_id()
@@ -1720,13 +1721,13 @@ async def get_latest_run():
 
 
 @app.get("/catalog/job-stream/{run_id}")
-async def stream_run_jobs(run_id: str):
+async def stream_run_jobs(run_id: str) -> StreamingResponse:
     """
     Stream SSE des jobs d'un run spécifique (extraction + enrichissement).
     Se ferme automatiquement quand tous les jobs sont terminés.
     """
 
-    async def event_generator():
+    async def event_generator() -> AsyncGenerator[str, None]:
         try:
             while True:
                 # Récupérer les jobs du run
@@ -1760,14 +1761,14 @@ async def stream_run_jobs(run_id: str):
 
 
 @app.get("/catalog/status-stream")
-async def stream_catalog_status():
+async def stream_catalog_status() -> StreamingResponse:
     """
     Stream SSE de l'état global du catalogue (running ou pas).
     Permet de bloquer les boutons Extract/Enrich pendant un run.
     """
 
-    async def event_generator():
-        previous_status = None
+    async def event_generator() -> AsyncGenerator[str, None]:
+        previous_status: dict[str, Any] | None = None
 
         try:
             while True:
@@ -1776,7 +1777,7 @@ async def stream_catalog_status():
                 is_running = any(j["status"] == "running" for j in recent_jobs)
                 current_run_id = get_latest_run_id() if is_running else None
 
-                status = {"is_running": is_running, "current_run_id": current_run_id}
+                status: dict[str, Any] = {"is_running": is_running, "current_run_id": current_run_id}
 
                 # Envoyer seulement si changement (éviter spam)
                 if status != previous_status:
@@ -1801,7 +1802,7 @@ async def stream_catalog_status():
 
 
 @app.get("/catalog/runs")
-async def list_all_runs():
+async def list_all_runs() -> dict[str, list[dict[str, Any]]]:
     """
     Liste tous les jobs individuellement (extraction ET enrichissement séparés).
     Chaque job = 1 run dans l'historique.
@@ -1863,7 +1864,7 @@ async def list_all_runs():
 
 
 @app.patch("/catalog/columns/{column_id}/description")
-async def update_column_description(column_id: int, request: dict):
+async def update_column_description(column_id: int, request: dict[str, Any]) -> dict[str, Any]:
     """
     Met à jour la description d'une colonne du catalogue.
 

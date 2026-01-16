@@ -69,6 +69,8 @@ interface ChatZoneProps {
   predefinedQuestions: PredefinedQuestion[];
   onQuestionClick: (q: string) => void;
   onReplayMessage: (msg: Message) => void;
+  // Stop requête
+  onStop: () => void;
   // Mode contexte
   useContext: boolean;
   onUseContextChange: (use: boolean) => void;
@@ -97,6 +99,7 @@ export function ChatZone({
   predefinedQuestions,
   onQuestionClick,
   onReplayMessage,
+  onStop,
   useContext,
   onUseContextChange,
   onDeleteAllConversations,
@@ -328,19 +331,28 @@ export function ChatZone({
                 rows={3}
                 className="w-full resize-none rounded-xl border border-border/50 bg-secondary/30 pl-4 pr-12 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 disabled:cursor-not-allowed disabled:opacity-50"
               />
-              <button
-                type="submit"
-                disabled={loading || !question.trim()}
-                className={`absolute right-3 bottom-3 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
-                  loading
-                    ? "bg-destructive text-destructive-foreground"
-                    : question.trim()
+              {loading ? (
+                <button
+                  type="button"
+                  onClick={onStop}
+                  className="absolute right-3 bottom-3 w-8 h-8 rounded-lg flex items-center justify-center transition-all bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  title="Arrêter la requête"
+                >
+                  <StopIcon size={14} />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!question.trim()}
+                  className={`absolute right-3 bottom-3 w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    question.trim()
                       ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/25"
                       : "bg-muted text-muted-foreground cursor-not-allowed"
-                }`}
-              >
-                {loading ? <StopIcon size={14} /> : <SendIcon size={16} />}
-              </button>
+                  }`}
+                >
+                  <SendIcon size={16} />
+                </button>
+              )}
             </form>
             {/* Mode toggle + instructions */}
             <div className="mt-2 flex items-center justify-between">
