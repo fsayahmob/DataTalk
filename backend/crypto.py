@@ -48,11 +48,16 @@ def _get_encryption_key() -> bytes:
     return base64.urlsafe_b64encode(key_hash)
 
 
+class CryptoUnavailableError(RuntimeError):
+    """Raised when cryptography library is not available."""
+
+
 def encrypt(plaintext: str) -> bytes:
-    """Chiffre une chaîne de caractères."""
+    """Chiffre une chaîne de caractères avec AES-256 (Fernet)."""
     if not CRYPTO_AVAILABLE:
-        # Fallback: encodage simple (pas sécurisé, pour dev)
-        return base64.b64encode(plaintext.encode())
+        raise CryptoUnavailableError(
+            "cryptography library not installed. Run: pip install cryptography"
+        )
 
     key = _get_encryption_key()
     f = Fernet(key)
@@ -61,16 +66,14 @@ def encrypt(plaintext: str) -> bytes:
 
 
 def decrypt(ciphertext: bytes) -> str | None:
-    """Déchiffre des données."""
+    """Déchiffre des données chiffrées avec encrypt()."""
     if not ciphertext:
         return None
 
     if not CRYPTO_AVAILABLE:
-        # Fallback: décodage simple
-        try:
-            return base64.b64decode(ciphertext).decode()
-        except Exception:
-            return None
+        raise CryptoUnavailableError(
+            "cryptography library not installed. Run: pip install cryptography"
+        )
 
     try:
         key = _get_encryption_key()
