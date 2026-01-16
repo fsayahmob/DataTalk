@@ -540,9 +540,9 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
                 Field(description=f"Enrichissement pour la colonne {col.name}"),
             )
 
-        ColumnsModel = create_model(  # noqa: N806
+        ColumnsModel = create_model(  # type: ignore[call-overload] # noqa: N806
             f"{table.name}_Columns",
-            **column_fields,  # type: ignore
+            **column_fields,
         )
 
         # Créer le modèle de la table
