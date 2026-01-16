@@ -389,7 +389,7 @@ jobs:
       - name: Run tests
         run: |
           if find . -name "test_*.py" | head -1 | grep -q .; then
-            pytest --cov=. --cov-report=term-missing --cov-fail-under=15
+            pytest --cov=. --cov-report=term-missing --cov-fail-under=20
           else
             echo "No test files - skipping"
           fi

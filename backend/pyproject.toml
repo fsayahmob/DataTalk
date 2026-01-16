@@ -193,6 +193,7 @@ source = ["."]
 branch = true
 omit = [
     "tests/*",
+    "test_*.py",
     "*/__pycache__/*",
     ".venv/*",
     "venv/*",
