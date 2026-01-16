@@ -221,5 +221,3 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
         "kpis_count": result.get("stats", {}).get("kpis", 0),
         "run_id": run_id,
     }
-
-

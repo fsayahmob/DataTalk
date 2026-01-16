@@ -40,20 +40,31 @@ from llm_config import (
 
 @pytest.fixture
 def mock_db_connection() -> Any:
-    """Mock la connexion DB pour isoler les tests."""
-    with patch("llm_config.get_connection") as mock_conn:
-        mock_cursor = MagicMock()
-        mock_conn.return_value.cursor.return_value = mock_cursor
-        mock_conn.return_value.close = MagicMock()
-        yield mock_conn, mock_cursor
+    """Mock la connexion DB pour isoler les tests.
+
+    Patch tous les sous-modules qui importent get_connection depuis db.
+    """
+    mock_cursor = MagicMock()
+    mock_conn_instance = MagicMock()
+    mock_conn_instance.cursor.return_value = mock_cursor
+    mock_conn_instance.close = MagicMock()
+
+    with (
+        patch("llm_config.providers.get_connection", return_value=mock_conn_instance),
+        patch("llm_config.models.get_connection", return_value=mock_conn_instance),
+        patch("llm_config.secrets.get_connection", return_value=mock_conn_instance),
+        patch("llm_config.costs.get_connection", return_value=mock_conn_instance),
+        patch("llm_config.prompts.get_connection", return_value=mock_conn_instance),
+    ):
+        yield mock_conn_instance, mock_cursor
 
 
 @pytest.fixture
 def mock_crypto() -> Any:
     """Mock le chiffrement/déchiffrement."""
     with (
-        patch("llm_config.encrypt") as mock_enc,
-        patch("llm_config.decrypt") as mock_dec,
+        patch("llm_config.secrets.encrypt") as mock_enc,
+        patch("llm_config.secrets.decrypt") as mock_dec,
     ):
         mock_enc.return_value = "encrypted_key"
         mock_dec.return_value = "decrypted_key"
@@ -234,7 +245,7 @@ class TestCosts:
 
         # Mock get_model pour éviter l'appel DB supplémentaire
         with patch(
-            "llm_config.get_model",
+            "llm_config.costs.get_model",
             return_value={"cost_per_1m_input": 0.1, "cost_per_1m_output": 0.2},
         ):
             result = log_cost(
