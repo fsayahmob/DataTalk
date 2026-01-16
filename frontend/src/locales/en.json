@@ -8,6 +8,7 @@
     "export": "Export",
     "loading": "Loading...",
     "error": "Error",
+    "unknown_error": "Unknown error",
     "success": "Success",
     "yes": "Yes",
     "no": "No",
@@ -179,6 +180,8 @@
     "delete_error": "Error deleting report",
     "loading": "Loading report...",
     "not_found": "Report not found",
+    "invalid_link": "This share link is invalid.",
+    "execution_error": "Execution error",
     "shared_title": "TalkData - Shared report",
     "question": "Question:",
     "generated_with": "Generated with TalkData"
@@ -218,7 +221,8 @@
     "analytics_category": "Analytics",
     "catalog_category": "Catalog",
     "enrichment_category": "Enrichment",
-    "widgets_category": "Widgets"
+    "widgets_category": "Widgets",
+    "theme": "Theme"
   },
   "validation": {
     "range_error": "Value between {min} and {max}",

@@ -10,6 +10,9 @@ venv/
 .env.local
 .env*.local
 
+# Encryption key (dev only)
+.encryption_key
+
 # Build outputs
 .next/
 out/

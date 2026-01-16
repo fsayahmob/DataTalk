@@ -105,11 +105,11 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
   const isRatingScale = yKeys.some(y => typeof y === "string" && y.includes("note")) || (minY >= 0 && maxY <= 5.5);
   const yDomain = isRatingScale ? [0, 5] : undefined;
 
-  // Styles communs pour dark mode - couleurs explicites car Recharts n'interprète pas les variables CSS
-  const axisStyle = { fill: "#a1a1aa", fontSize: 11 }; // zinc-400
-  const gridStyle = { stroke: "#3f3f46", strokeDasharray: "3 3" }; // zinc-700
-  const axisLineStyle = { stroke: "#52525b" }; // zinc-600
-  const legendStyle = { paddingTop: 20, color: "#a1a1aa" }; // zinc-400
+  // Styles communs - utilise currentColor pour s'adapter au thème light/dark
+  const axisStyle = { fill: "currentColor", fontSize: 11, opacity: 0.6 };
+  const gridStyle = { stroke: "currentColor", strokeDasharray: "3 3", opacity: 0.15 };
+  const axisLineStyle = { stroke: "currentColor", opacity: 0.3 };
+  const legendStyle = { paddingTop: 20, color: "currentColor", opacity: 0.6 };
 
   switch (config.type) {
     case "bar":
@@ -151,7 +151,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               axisLine={axisLineStyle}
               tickLine={axisLineStyle}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ fill: "#3f3f46", fillOpacity: 0.5 }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: "currentColor", fillOpacity: 0.1 }} />
             {isMultiSeries && <Legend wrapperStyle={legendStyle} />}
             {yKeys.map((yKey, yIdx) => (
               <Bar
@@ -200,7 +200,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
                 stroke={COLORS[idx % COLORS.length]}
                 strokeWidth={3}
                 dot={{ r: 4, fill: COLORS[idx % COLORS.length], strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: COLORS[idx % COLORS.length], stroke: "#1c1c22", strokeWidth: 2 }}
+                activeDot={{ r: 6, fill: COLORS[idx % COLORS.length], stroke: "hsl(var(--background))", strokeWidth: 2 }}
               />
             ))}
           </LineChart>
@@ -236,7 +236,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
                   backgroundColor: entry.color,
                   flexShrink: 0,
                 }} />
-                <span style={{ color: "#a1a1aa", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                <span style={{ color: "inherit", opacity: 0.6, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                   {String(entry.value).length > 18 ? `${String(entry.value).slice(0, 18)}...` : entry.value}
                 </span>
               </div>
@@ -266,13 +266,13 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               outerRadius={hasManyItems ? 85 : 120}
               paddingAngle={1}
               label={hasManyItems ? false : ({ name, percent }) => `${name}: ${((percent || 0) * 100).toFixed(1)}%`}
-              labelLine={hasManyItems ? false : { stroke: "#a1a1aa", strokeWidth: 1 }}
+              labelLine={hasManyItems ? false : { stroke: "currentColor", strokeWidth: 1, opacity: 0.4 }}
             >
               {data.map((_, index) => (
                 <Cell
                   key={index}
                   fill={`url(#${chartId}-pie-${index % COLORS.length})`}
-                  stroke="#1c1c22"
+                  stroke="hsl(var(--background))"
                   strokeWidth={1}
                 />
               ))}
@@ -356,12 +356,12 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               axisLine={axisLineStyle}
               tickLine={axisLineStyle}
             />
-            <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "#a1a1aa" }} />
+            <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: "3 3", stroke: "currentColor", opacity: 0.4 }} />
             <Legend wrapperStyle={legendStyle} />
             <Scatter
               name="Données"
               data={data}
-              fill="#a78bfa"
+              fill={COLORS[0]}
             >
               {data.map((_, index) => (
                 <Cell key={index} fill={COLORS[index % COLORS.length]} />

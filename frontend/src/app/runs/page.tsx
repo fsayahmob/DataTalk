@@ -6,6 +6,8 @@ import {
   useEdgesState,
   useNodesState,
   ReactFlowProvider,
+  Background,
+  BackgroundVariant,
   type Node,
   type Edge,
 } from "@xyflow/react";
@@ -25,7 +27,6 @@ const edgeTypes = {
 
 const defaultEdgeOptions = {
   type: 'turbo',
-  markerEnd: 'edge-circle',
 };
 
 // Helper functions pour le style des jobs (réduit la complexité)
@@ -150,10 +151,7 @@ function RunsPageContent() {
             source: prevNodeId,
             target: nodeId,
             animated: status === 'running',
-            style: {
-              stroke: status === 'completed' ? '#22c55e' : status === 'running' ? '#3b82f6' : '#6b7280',
-              strokeWidth: 2,
-            },
+            className: `run-edge run-edge-${status}`,
           });
         }
 
@@ -230,10 +228,7 @@ function RunsPageContent() {
             source: prevNodeId,
             target: nodeId,
             animated: status === 'running',
-            style: {
-              stroke: status === 'completed' ? '#22c55e' : status === 'running' ? '#3b82f6' : '#6b7280',
-              strokeWidth: 2,
-            },
+            className: `run-edge run-edge-${status}`,
           });
         }
 
@@ -304,7 +299,7 @@ function RunsPageContent() {
   return (
     <div className="h-screen flex flex-col bg-sidebar">
       {/* ReactFlow: Visualisation du job */}
-      <div className="h-[40vh] bg-background">
+      <div className="h-[40vh]">
         {selectedJobId ? (
           <ReactFlow
             nodes={nodes}
@@ -317,31 +312,17 @@ function RunsPageContent() {
             fitView
             fitViewOptions={{ padding: 0.2 }}
             proOptions={{ hideAttribution: true }}
+            className="bg-secondary/30"
           >
-            <svg>
-              <defs>
-                <linearGradient id="edge-gradient">
-                  <stop offset="0%" stopColor="#ae53ba" />
-                  <stop offset="100%" stopColor="#2a8af6" />
-                </linearGradient>
-
-                <marker
-                  id="edge-circle"
-                  viewBox="-5 -5 10 10"
-                  refX="0"
-                  refY="0"
-                  markerUnits="strokeWidth"
-                  markerWidth="10"
-                  markerHeight="10"
-                  orient="auto"
-                >
-                  <circle stroke="#2a8af6" strokeOpacity="0.75" r="2" cx="0" cy="0" />
-                </marker>
-              </defs>
-            </svg>
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={20}
+              size={1}
+              className="[&>pattern>circle]:fill-muted-foreground/20"
+            />
           </ReactFlow>
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
+          <div className="flex items-center justify-center h-full bg-secondary/30 text-muted-foreground">
             Sélectionnez un job dans la liste
           </div>
         )}

@@ -8,6 +8,7 @@
     "export": "Exporter",
     "loading": "Chargement...",
     "error": "Erreur",
+    "unknown_error": "Erreur inconnue",
     "success": "Succès",
     "yes": "Oui",
     "no": "Non",
@@ -179,6 +180,8 @@
     "delete_error": "Erreur lors de la suppression",
     "loading": "Chargement du rapport...",
     "not_found": "Rapport non trouvé",
+    "invalid_link": "Ce lien de partage n'est pas valide.",
+    "execution_error": "Erreur d'exécution",
     "shared_title": "TalkData - Rapport partagé",
     "question": "Question:",
     "generated_with": "Généré avec TalkData"
@@ -218,7 +221,8 @@
     "analytics_category": "Analytics",
     "catalog_category": "Catalogue",
     "enrichment_category": "Enrichissement",
-    "widgets_category": "Widgets"
+    "widgets_category": "Widgets",
+    "theme": "Thème"
   },
   "validation": {
     "range_error": "Valeur entre {min} et {max}",

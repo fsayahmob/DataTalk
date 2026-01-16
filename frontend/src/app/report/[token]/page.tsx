@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { fetchSharedReport, SharedReportResponse } from "@/lib/api";
-import { ChartPanel, TablePanel } from "@/components/panels";
-import { ChartIcon } from "@/components/icons";
+import { TablePanel } from "@/components/panels";
+import { Chart } from "@/components/Chart";
+import { ChartIcon, ExpandIcon } from "@/components/icons";
 import { t } from "@/hooks/useTranslation";
 
 export default function SharedReportPage() {
@@ -20,7 +21,7 @@ export default function SharedReportPage() {
       const data = await fetchSharedReport(reportToken);
       setReport(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erreur inconnue");
+      setError(e instanceof Error ? e.message : t("common.unknown_error"));
     } finally {
       setLoading(false);
     }
@@ -52,7 +53,7 @@ export default function SharedReportPage() {
             </svg>
           </div>
           <h1 className="text-xl font-semibold text-foreground mb-2">{t("report.not_found")}</h1>
-          <p className="text-muted-foreground">{error || "Ce lien de partage n'est pas valide."}</p>
+          <p className="text-muted-foreground">{error || t("report.invalid_link")}</p>
         </div>
       </div>
     );
@@ -84,9 +85,17 @@ export default function SharedReportPage() {
         )}
 
         {/* Chart */}
-        {report.chart && report.chart.type !== "none" && report.data && (
-          <div className="mb-4">
-            <ChartPanel config={report.chart} data={report.data} />
+        {report.chart && report.chart.type !== "none" && report.data && report.data.length > 0 && (
+          <div className="mb-4 rounded-lg border border-border/30 bg-secondary/5 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium flex items-center gap-2">
+                <ChartIcon size={14} className="text-primary" />
+                {report.chart.title || t("visualization.chart")}
+              </span>
+            </div>
+            <div className="h-[350px]">
+              <Chart config={report.chart} data={report.data} height={350} />
+            </div>
           </div>
         )}
 

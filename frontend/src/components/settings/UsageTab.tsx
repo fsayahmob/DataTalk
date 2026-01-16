@@ -35,8 +35,9 @@ interface UsageTabProps {
 
 type ChartMetric = "tokens" | "cost";
 
-const AXIS_STYLE = { fill: "#71717a", fontSize: 10 };
-const GRID_STYLE = { stroke: "#27272a", strokeDasharray: "2 2" };
+// Use CSS variables for theme-aware colors
+const AXIS_STYLE = { fill: "currentColor", fontSize: 10, opacity: 0.6 };
+const GRID_STYLE = { stroke: "currentColor", strokeDasharray: "2 2", opacity: 0.1 };
 
 export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) {
   const [chartMetric, setChartMetric] = useState<ChartMetric>("tokens");
@@ -186,12 +187,12 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
             <AreaChart data={chartData} margin={{ top: 5, right: 5, left: 0, bottom: 20 }}>
               <defs>
                 <linearGradient id="gradientTokens" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--color-chart-1)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--color-chart-1)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gradientCost" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--color-chart-4)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--color-chart-4)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid {...GRID_STYLE} vertical={false} />
@@ -219,12 +220,13 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
               />
               <Tooltip
                 contentStyle={{
-                  background: "#18181b",
-                  border: "1px solid #27272a",
+                  background: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
                   fontSize: 11,
                   borderRadius: 6,
+                  color: "hsl(var(--popover-foreground))",
                 }}
-                labelStyle={{ color: "#a1a1aa" }}
+                labelStyle={{ color: "hsl(var(--muted-foreground))" }}
                 formatter={(value) => {
                   const numValue = typeof value === "number" ? value : 0;
                   return [
@@ -239,7 +241,7 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
                     type="monotone"
                     dataKey="tokens_input"
                     stackId="1"
-                    stroke="#a78bfa"
+                    stroke="var(--color-chart-1)"
                     fill="url(#gradientTokens)"
                     strokeWidth={1.5}
                     name="Input"
@@ -248,7 +250,7 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
                     type="monotone"
                     dataKey="tokens_output"
                     stackId="1"
-                    stroke="#c4b5fd"
+                    stroke="var(--color-chart-2)"
                     fill="url(#gradientTokens)"
                     strokeWidth={1.5}
                     name="Output"
@@ -258,7 +260,7 @@ export function UsageTab({ costs, costsPeriod, onPeriodChange }: UsageTabProps) 
                 <Area
                   type="monotone"
                   dataKey="cost"
-                  stroke="#22d3ee"
+                  stroke="var(--color-chart-4)"
                   fill="url(#gradientCost)"
                   strokeWidth={1.5}
                 />

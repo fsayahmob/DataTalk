@@ -5,7 +5,6 @@ Gère le tracking des coûts automatiquement.
 """
 
 import logging
-import os
 import time
 from enum import Enum
 from typing import Any, TypeVar
@@ -160,30 +159,17 @@ def _get_litellm_model_name(model: dict[str, Any]) -> str:
     return model_id
 
 
-def _configure_api_key(model: dict[str, Any]) -> bool:
-    """Configure la clé API pour le provider."""
+def _get_api_key_for_model(model: dict[str, Any]) -> str | None:
+    """
+    Récupère la clé API pour un modèle.
+    Retourne None si pas de clé requise ou non configurée.
+    """
     provider_id = model.get("provider_id")
     if not provider_id:
-        return False
+        return None
 
     # Récupérer la clé (env var ou SQLite)
-    api_key = get_api_key(provider_id)
-    if not api_key:
-        # Pas de clé requise (ex: Ollama)
-        return not model.get("requires_api_key", True)
-
-    # Configurer la clé pour LiteLLM
-    provider_name = model.get("provider_name", "")
-    if provider_name == "google":
-        os.environ["GEMINI_API_KEY"] = api_key
-    elif provider_name == "openai":
-        os.environ["OPENAI_API_KEY"] = api_key
-    elif provider_name == "anthropic":
-        os.environ["ANTHROPIC_API_KEY"] = api_key
-    elif provider_name == "mistral":
-        os.environ["MISTRAL_API_KEY"] = api_key
-
-    return True
+    return get_api_key(provider_id)
 
 
 def call_llm(
@@ -221,8 +207,9 @@ def call_llm(
 
     provider_name = model.get("provider_display_name", "")
 
-    # Configurer la clé API
-    if not _configure_api_key(model):
+    # Récupérer la clé API
+    api_key = _get_api_key_for_model(model)
+    if not api_key and model.get("requires_api_key", True):
         raise LLMError(LLMErrorCode.API_KEY_MISSING, provider_name)
 
     # Construire les messages
@@ -236,12 +223,16 @@ def call_llm(
     start_time = time.time()
 
     # Construire les kwargs pour LiteLLM
-    completion_kwargs = {
+    completion_kwargs: dict[str, Any] = {
         "model": litellm_model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+
+    # Passer la clé API directement (pas dans os.environ)
+    if api_key:
+        completion_kwargs["api_key"] = api_key
 
     # Ajouter api_base pour les providers self-hosted
     base_url = model.get("base_url")
@@ -351,8 +342,9 @@ def call_llm_structured(
 
     provider_name = model.get("provider_display_name", "")
 
-    # Configurer la clé API
-    if not _configure_api_key(model):
+    # Récupérer la clé API
+    api_key = _get_api_key_for_model(model)
+    if not api_key and model.get("requires_api_key", True):
         raise LLMError(LLMErrorCode.API_KEY_MISSING, provider_name)
 
     # Construire les messages
@@ -366,13 +358,17 @@ def call_llm_structured(
     client = instructor.from_litellm(litellm.completion)
 
     # Construire les kwargs
-    completion_kwargs = {
+    completion_kwargs: dict[str, Any] = {
         "model": litellm_model,
         "messages": messages,
         "response_model": response_model,
         "temperature": temperature,
         "max_tokens": max_tokens,
     }
+
+    # Passer la clé API directement (pas dans os.environ)
+    if api_key:
+        completion_kwargs["api_key"] = api_key
 
     # Ajouter api_base pour les providers self-hosted
     base_url = model.get("base_url")
@@ -455,9 +451,9 @@ def check_llm_status() -> dict[str, Any]:
             "model": None,
         }
 
-    has_key = _configure_api_key(model)
+    api_key = _get_api_key_for_model(model)
 
-    if not has_key and model.get("requires_api_key", True):
+    if not api_key and model.get("requires_api_key", True):
         return {
             "status": "error",
             "message": f"Clé API non configurée pour {model.get('provider_display_name')}",

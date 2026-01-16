@@ -169,3 +169,81 @@
 .dark *::-webkit-scrollbar-thumb:hover {
   background: oklch(0.35 0.01 220);
 }
+
+/* ReactFlow MiniMap theme support - light mode */
+.react-flow__minimap {
+  background-color: oklch(1 0 0) !important;
+  border: 1px solid oklch(0.9 0 0) !important;
+  border-radius: 0.5rem;
+}
+
+.react-flow__minimap-mask {
+  fill: oklch(1 0 0 / 0.8) !important;
+}
+
+/* ReactFlow MiniMap theme support - dark mode */
+.dark .react-flow__minimap {
+  background-color: oklch(0.14 0.008 220) !important;
+  border: 1px solid oklch(1 0 0 / 0.12) !important;
+}
+
+.dark .react-flow__minimap-mask {
+  fill: oklch(0.12 0.01 220 / 0.8) !important;
+}
+
+/* ReactFlow edge styling - light mode */
+.react-flow__edge-path {
+  stroke: oklch(0.5 0 0) !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: none !important;
+}
+
+/* ReactFlow edge styling - dark mode */
+.dark .react-flow__edge-path {
+  stroke: oklch(0.6 0.15 250) !important;
+  stroke-dasharray: none !important;
+}
+
+.react-flow__edge-text {
+  fill: oklch(0.3 0 0) !important;
+  font-size: 10px !important;
+}
+
+.dark .react-flow__edge-text {
+  fill: oklch(0.85 0 0) !important;
+}
+
+.react-flow__edge-textbg {
+  fill: oklch(0.97 0 0) !important;
+  rx: 3px !important;
+  ry: 3px !important;
+}
+
+.dark .react-flow__edge-textbg {
+  fill: oklch(0.16 0.008 220) !important;
+}
+
+/* Run pipeline edge styling */
+.run-edge .react-flow__edge-path {
+  stroke-width: 2px !important;
+}
+
+.run-edge-pending .react-flow__edge-path {
+  stroke: var(--muted-foreground) !important;
+  stroke-opacity: 0.5 !important;
+}
+
+.run-edge-running .react-flow__edge-path {
+  stroke: var(--primary) !important;
+  stroke-opacity: 1 !important;
+}
+
+.run-edge-completed .react-flow__edge-path {
+  stroke: var(--accent) !important;
+  stroke-opacity: 1 !important;
+}
+
+.run-edge-failed .react-flow__edge-path {
+  stroke: var(--destructive) !important;
+  stroke-opacity: 1 !important;
+}

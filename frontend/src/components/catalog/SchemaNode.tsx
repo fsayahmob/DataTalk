@@ -58,14 +58,14 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
   // Déterminer les classes de style selon l'état
   const getContainerClasses = () => {
     if (isPreview) {
-      return "border-amber-500/60 bg-amber-950/30";
+      return "border-amber-500/60 bg-amber-500/10 dark:bg-amber-950/30";
     }
     if (!isEnabled) {
       return "border-muted-foreground/30 bg-muted opacity-60";
     }
     if (!isEnriched) {
       // Table activée mais non enrichie (en attente d'enrichissement)
-      return "border-amber-500/40 bg-amber-950/30";
+      return "border-amber-500/40 bg-amber-500/10 dark:bg-amber-950/30";
     }
     return "border-primary/40 bg-card";
   };

@@ -6,7 +6,6 @@ Utilise la bibliothèque cryptography.
 import base64
 import hashlib
 import os
-import socket
 from typing import Optional
 
 try:
@@ -20,9 +19,8 @@ except ImportError:
 def _get_encryption_key() -> bytes:
     """
     Récupère la clé de chiffrement.
-    Priorité:
-    1. Variable d'environnement ENCRYPTION_KEY
-    2. Clé dérivée du hostname (fallback pour dev)
+    ENCRYPTION_KEY doit être définie en production.
+    En dev, une clé aléatoire est générée et persistée dans un fichier local.
     """
     env_key = os.getenv("ENCRYPTION_KEY")
 
@@ -30,9 +28,22 @@ def _get_encryption_key() -> bytes:
         # Utiliser la clé fournie (doit être 32 bytes en base64)
         key_bytes = env_key.encode()
     else:
-        # Fallback: dériver une clé du hostname (dev uniquement)
-        hostname = socket.gethostname()
-        key_bytes = hostname.encode()
+        # Dev only: générer/charger une clé persistée localement
+        key_file = os.path.join(os.path.dirname(__file__), ".encryption_key")
+        if os.path.exists(key_file):
+            with open(key_file, "rb") as f:
+                key_bytes = f.read()
+        else:
+            # Générer une clé aléatoire unique pour cette installation
+            key_bytes = os.urandom(32)
+            with open(key_file, "wb") as f:
+                f.write(key_bytes)
+            # Avertissement en dev
+            import sys
+            print(
+                "WARNING: ENCRYPTION_KEY not set. Generated random key for dev.",
+                file=sys.stderr,
+            )
 
     # Créer une clé Fernet valide (32 bytes base64-encoded)
     key_hash = hashlib.sha256(key_bytes).digest()

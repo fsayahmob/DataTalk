@@ -39,7 +39,53 @@ export function CatalogActions({
   const isLoading = isExtracting || isEnriching || isDeleting;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-col gap-2 p-2 bg-card/80 backdrop-blur-sm border border-border/50 rounded-lg shadow-lg">
+      {/* Bouton Extraire - Étape 1 */}
+      <Button
+        onClick={onExtract}
+        disabled={isLoading}
+        variant="outline"
+        size="sm"
+        className="justify-start"
+      >
+        {isExtracting ? (
+          <span className="flex items-center gap-2">
+            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            {t("common.extracting")}
+          </span>
+        ) : (
+          <>
+            <DatabaseIcon size={16} className="mr-1" />
+            {hasContent ? t("catalog.re_extract") : t("catalog.extract")}
+          </>
+        )}
+      </Button>
+
+      {/* Bouton Enrichir - Étape 2 (seulement si contenu existe) */}
+      {hasContent && (
+        <Button
+          onClick={onEnrich}
+          disabled={isLoading || enabledTablesCount === 0}
+          variant="default"
+          size="sm"
+          className="justify-start"
+          title={enabledTablesCount === 0 ? t("catalog.enable_at_least_one") : t("catalog.enrich_tables", { count: enabledTablesCount })}
+        >
+          {isEnriching ? (
+            <span className="flex items-center gap-2">
+              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              {t("common.enriching")}
+            </span>
+          ) : (
+            <>
+              <SparklesIcon size={16} className="mr-1" />
+              {t("catalog.enrich_tables", { count: enabledTablesCount })}
+            </>
+          )}
+        </Button>
+      )}
+
+      {/* Bouton Supprimer */}
       {hasContent && (
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -47,7 +93,7 @@ export function CatalogActions({
               disabled={isLoading}
               variant="outline"
               size="sm"
-              className="text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30"
+              className="justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30"
             >
               {isDeleting ? (
                 <span className="flex items-center gap-2">
@@ -80,49 +126,6 @@ export function CatalogActions({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-      )}
-
-      {/* Bouton Extraire - Étape 1 */}
-      <Button
-        onClick={onExtract}
-        disabled={isLoading}
-        variant="outline"
-        size="sm"
-      >
-        {isExtracting ? (
-          <span className="flex items-center gap-2">
-            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-            {t("common.extracting")}
-          </span>
-        ) : (
-          <>
-            <DatabaseIcon size={16} className="mr-1" />
-            {hasContent ? t("catalog.re_extract") : t("catalog.extract")}
-          </>
-        )}
-      </Button>
-
-      {/* Bouton Enrichir - Étape 2 (seulement si contenu existe) */}
-      {hasContent && (
-        <Button
-          onClick={onEnrich}
-          disabled={isLoading || enabledTablesCount === 0}
-          variant="default"
-          size="sm"
-          title={enabledTablesCount === 0 ? t("catalog.enable_at_least_one") : t("catalog.enrich_tables", { count: enabledTablesCount })}
-        >
-          {isEnriching ? (
-            <span className="flex items-center gap-2">
-              <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              {t("common.enriching")}
-            </span>
-          ) : (
-            <>
-              <SparklesIcon size={16} className="mr-1" />
-              {t("catalog.enrich_tables", { count: enabledTablesCount })}
-            </>
-          )}
-        </Button>
       )}
     </div>
   );

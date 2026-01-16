@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon } from "@/components/icons";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import * as api from "@/lib/api";
 import type { LLMStatus } from "@/lib/api";
 import { t } from "@/hooks/useTranslation";
@@ -57,11 +58,11 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         collapsed ? "w-14" : "w-48"
       } transition-all duration-300 ease-in-out`}
     >
-      {/* Logo TalkData + Toggle */}
-      <div className="h-14 flex items-center justify-center border-b border-border/30">
+      {/* Logo TalkData + Title */}
+      <div className="h-14 flex items-center border-b border-border/30 px-2">
         <button
           onClick={() => onCollapse(!collapsed)}
-          className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity overflow-hidden"
+          className="w-10 h-10 rounded-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity overflow-hidden flex-shrink-0"
           title={collapsed ? t("sidebar.open_menu") : t("sidebar.close_menu")}
         >
           <Image
@@ -72,6 +73,11 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
             className="object-contain"
           />
         </button>
+        {!collapsed && (
+          <span className="ml-2 font-semibold text-foreground whitespace-nowrap">
+            TalkData
+          </span>
+        )}
       </div>
 
       {/* Navigation */}
@@ -129,8 +135,12 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         </div>
       </div>
 
-      {/* Toggle button en bas */}
-      <div className="p-2 border-t border-border/30">
+      {/* Theme toggle + Collapse button */}
+      <div className="p-2 border-t border-border/30 space-y-1">
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-2"}`}>
+          {!collapsed && <span className="text-xs text-muted-foreground">{t("settings.theme")}</span>}
+          <ThemeToggle />
+        </div>
         <button
           onClick={() => onCollapse(!collapsed)}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition-colors"

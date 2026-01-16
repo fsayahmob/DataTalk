@@ -15,20 +15,20 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
     switch (data.status) {
       case 'completed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
-            <span className="text-white text-xs">✓</span>
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent border-2 border-card flex items-center justify-center">
+            <span className="text-accent-foreground text-xs">✓</span>
           </div>
         );
       case 'running':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-blue-500 border-2 border-background flex items-center justify-center animate-pulse">
-            <span className="text-white text-xs animate-spin">⟳</span>
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary border-2 border-card flex items-center justify-center animate-pulse">
+            <span className="text-primary-foreground text-xs animate-spin">⟳</span>
           </div>
         );
       case 'failed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 border-2 border-background flex items-center justify-center">
-            <span className="text-white text-xs">✗</span>
+          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive border-2 border-card flex items-center justify-center">
+            <span className="text-destructive-foreground text-xs">✗</span>
           </div>
         );
       default:
@@ -38,16 +38,20 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
 
   const getBorderColor = () => {
     switch (data.status) {
+      case 'completed':
+        return 'border-accent/50';
       case 'running':
-        return 'border-blue-500/50';
+        return 'border-primary/50';
+      case 'failed':
+        return 'border-destructive/50';
       default:
-        return 'border-border/50';
+        return 'border-border';
     }
   };
 
   return (
     <>
-      <div className={`relative px-4 py-3 rounded-lg border-2 ${getBorderColor()} transition-all min-w-[180px] bg-background shadow-sm`}>
+      <div className={`relative px-4 py-3 rounded-lg border-2 ${getBorderColor()} transition-all min-w-[180px] bg-card shadow-md`}>
         {/* Status Badge */}
         {getStatusBadge()}
 
@@ -77,7 +81,7 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
           <div className="mt-2">
             <div className="h-1 bg-secondary rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
+                className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${data.progress}%` }}
               />
             </div>
@@ -101,12 +105,12 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
               </span>
             )}
             {data.result.synonyms !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">
+              <span className="px-1.5 py-0.5 rounded bg-accent/10 text-accent">
                 {String(data.result.synonyms)} syn
               </span>
             )}
             {data.result.kpis !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
                 {String(data.result.kpis)} KPIs
               </span>
             )}
