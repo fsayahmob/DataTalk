@@ -24,7 +24,9 @@ class TestLLMJsonParsing:
 
     def test_parse_markdown_wrapped_json(self) -> None:
         """Bug réel: Gemini wrappe souvent le JSON dans ```json."""
-        content = '```json\n{"sql": "SELECT * FROM users", "message": "Voici les utilisateurs"}\n```'
+        content = (
+            '```json\n{"sql": "SELECT * FROM users", "message": "Voici les utilisateurs"}\n```'
+        )
         result = parse_llm_json(content)
         assert result["sql"] == "SELECT * FROM users"
         assert result["message"] == "Voici les utilisateurs"

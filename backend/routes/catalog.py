@@ -57,6 +57,8 @@ def get_db_connection() -> duckdb.DuckDBPyConnection:
     if app_state.db_connection is None:
         raise HTTPException(status_code=503, detail=t("db.not_connected"))
     return app_state.db_connection
+
+
 from db import get_connection
 from i18n import t
 from llm_service import check_llm_status
