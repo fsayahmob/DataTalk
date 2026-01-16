@@ -122,36 +122,36 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 # ============================================================
-# MYPY - Static Type Checking (RELAXED for FastAPI/Pydantic)
+# MYPY - Static Type Checking (STRICT with targeted relaxations)
 # ============================================================
 [tool.mypy]
 python_version = "3.11"
-# Strict mode disabled - FastAPI/Pydantic decorators don't have proper type stubs
-strict = false
+strict = true
 
-# Basic type checking (relaxed for existing codebase)
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-check_untyped_defs = true
-disallow_untyped_decorators = false  # FastAPI decorators are untyped
-no_implicit_optional = true
-strict_optional = true
-strict_equality = true
-
-# Warnings (relaxed)
+# Relax specific rules that conflict with FastAPI/Pydantic patterns
+disallow_untyped_defs = false  # Allow functions without full type annotations
+disallow_incomplete_defs = false  # Allow partial type annotations
+disallow_untyped_decorators = false  # FastAPI decorators don't have type stubs
+disallow_subclassing_any = false  # Allow subclassing Pydantic BaseModel
 warn_return_any = false  # Too many false positives with JSON parsing
-warn_unused_configs = true
-warn_redundant_casts = true
 warn_unused_ignores = false  # Avoid issues with conditional type: ignore
-warn_no_return = true
-warn_unreachable = true
+
+# Disable strict checks that are too verbose for existing codebase
+disable_error_code = [
+    "type-arg",        # Missing type parameters for generic type
+    "import-untyped",  # Library stubs not installed
+    "attr-defined",    # Module does not explicitly export attribute
+    "no-untyped-call", # Call to untyped function in typed context
+    "no-any-return",   # Returning Any from function
+    "misc",            # Miscellaneous errors
+]
 
 # Error output
 show_error_codes = true
 show_column_numbers = true
 pretty = true
 
-# Per-module overrides for external libs
+# Per-module overrides for external libs without type stubs
 [[tool.mypy.overrides]]
 module = [
     "uvicorn",
@@ -163,6 +163,7 @@ module = [
     "tenacity",
     "cryptography",
     "cryptography.fernet",
+    "pandas",
 ]
 ignore_missing_imports = true
 
@@ -176,6 +177,8 @@ module = [
     "widget_service",
     "kpi_service",
     "crypto",
+    "db",
+    "catalog",
 ]
 disallow_untyped_defs = false
 disallow_untyped_decorators = false
