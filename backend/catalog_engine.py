@@ -630,7 +630,7 @@ def build_column_full_context(col: ColumnMetadata) -> str:
         )
 
     # Pattern détecté
-    if col.detected_pattern:
+    if col.detected_pattern and col.pattern_match_rate is not None:
         parts.append(f"Pattern: {col.detected_pattern} ({col.pattern_match_rate * 100:.0f}% match)")
 
     return " | ".join(parts) if parts else ""
@@ -689,7 +689,7 @@ def _build_full_context(catalog: ExtractedCatalog) -> str:
                 col_info += f"\n      Longueur: {col.min_length}-{col.max_length} chars (avg: {col.avg_length})"
 
             # Pattern détecté
-            if col.detected_pattern:
+            if col.detected_pattern and col.pattern_match_rate is not None:
                 col_info += f"\n      Pattern détecté: {col.detected_pattern} ({col.pattern_match_rate * 100:.0f}% match)"
 
             cols_desc.append(col_info)
@@ -909,12 +909,12 @@ class KpiDefinition(BaseModel):
         for field_name, field_info in cls.model_fields.items():
             # Type du champ
             annotation = field_info.annotation
-            if hasattr(annotation, "__origin__"):  # Pour Union, Optional, etc.
+            if annotation is None:
+                type_str = "Any"
+            elif hasattr(annotation, "__origin__"):  # Pour Union, Optional, etc.
                 type_str = str(annotation).replace("typing.", "")
             else:
-                type_str = (
-                    annotation.__name__ if hasattr(annotation, "__name__") else str(annotation)
-                )
+                type_str = getattr(annotation, "__name__", str(annotation))
 
             # Description
             desc = field_info.description or "Non documenté"
@@ -1652,7 +1652,13 @@ Colonnes:
     # Step: Mise à jour des descriptions dans SQLite
     with workflow.step("save_descriptions") if workflow else _dummy_context():
         print("Mise à jour des descriptions...")
-        stats = update_descriptions(full_catalog, all_enrichments)
+        desc_stats = update_descriptions(full_catalog, all_enrichments)
+        # Créer un dict flexible pour inclure potentiellement les erreurs
+        stats: dict[str, int | str] = {
+            "tables": desc_stats["tables"],
+            "columns": desc_stats["columns"],
+            "synonyms": desc_stats["synonyms"],
+        }
         print(
             f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
         )

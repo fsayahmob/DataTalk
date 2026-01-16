@@ -92,7 +92,7 @@ def parse_llm_json(content: str, context: str = "LLM") -> dict[str, Any]:
             json_char = char
             break
 
-    if json_start == -1:
+    if json_start == -1 or json_char is None:
         raise LLMJsonParseError(
             f"Réponse {context} ne contient pas de JSON valide: {cleaned[:100]}..."
         )
@@ -101,7 +101,7 @@ def parse_llm_json(content: str, context: str = "LLM") -> dict[str, Any]:
     json_content = cleaned[json_start:]
 
     # Trouver la fin du JSON (bracket matching)
-    bracket_map = {"{": "}", "[": "]"}
+    bracket_map: dict[str, str] = {"{": "}", "[": "]"}
     closing_char = bracket_map[json_char]
     depth = 0
     json_end = -1
