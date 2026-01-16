@@ -7,8 +7,11 @@ Utilitaires pour les appels LLM.
 """
 
 import json
+import logging
 from collections.abc import Callable
 from typing import Any, TypeVar
+
+logger = logging.getLogger(__name__)
 
 
 from tenacity import (
@@ -251,7 +254,7 @@ def call_with_retry(
             raise  # Re-lever les erreurs déjà typées
         except Exception as e:
             last_error = e
-            print(f"    [WARN] {context}: {e}")
+            logger.warning("%s: %s", context, e)
             raise
 
     try:

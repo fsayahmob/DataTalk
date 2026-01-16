@@ -4,8 +4,11 @@ Génération et validation des KPIs.
 Appels LLM pour génération, validation, persistence.
 """
 
+import logging
 from contextlib import suppress
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from type_defs import DuckDBConnection
 
@@ -144,7 +147,7 @@ def generate_kpis(
 
     # Vérifier la taille du prompt avant l'appel
     is_ok, token_count, token_msg = check_token_limit(prompt)
-    print(f"    → Tokens input: {token_msg}")
+    logger.info("  Tokens input: %s", token_msg)
     if not is_ok:
         raise KpiGenerationError(f"Prompt trop volumineux: {token_count:,} tokens")
 
@@ -204,7 +207,7 @@ def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
             )
             stats["kpis"] += 1
         except Exception as e:
-            print(f"  [WARN] Erreur KPI {kpi.id}: {e}")
+            logger.warning("Erreur KPI %s: %s", kpi.id, e)
 
     conn.commit()
     conn.close()

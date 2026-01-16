@@ -16,6 +16,8 @@ from catalog import (
     get_widgets,
     set_widget_cache,
 )
+from core.error_sanitizer import sanitize_sql_error
+from i18n import t
 from type_defs import convert_df_to_json
 
 logger = logging.getLogger(__name__)
@@ -79,8 +81,8 @@ def get_widget_with_data(
             "from_cache": False,
         }
     except Exception as e:
-        logger.error("Erreur SQL widget %s: %s", widget_id, e)
-        return {**widget, "data": [], "error": str(e), "from_cache": False}
+        error_key = sanitize_sql_error(e)
+        return {**widget, "data": [], "error": t(error_key), "from_cache": False}
 
 
 def get_all_widgets_with_data(

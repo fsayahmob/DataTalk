@@ -2,13 +2,13 @@
 État applicatif global pour G7 Analytics.
 
 Contient:
-- _AppState: Singleton pour les connexions DuckDB et le cache
+- _AppState: Singleton thread-safe pour les connexions DuckDB et le cache
 - get_duckdb_path: Résolution du chemin DuckDB
 - get_system_instruction: Génération du prompt système LLM
 """
 
+import threading
 from pathlib import Path
-from typing import Any
 
 import duckdb
 
@@ -20,11 +20,59 @@ DEFAULT_DB_PATH = str(Path(__file__).parent.parent / ".." / "data" / "g7_analyti
 
 
 class _AppState:
-    """Container for mutable application state."""
+    """
+    État global thread-safe de l'application.
 
-    db_connection: duckdb.DuckDBPyConnection | None = None
-    current_db_path: str | None = None
-    db_schema_cache: str | None = None
+    Utilise un RLock pour permettre les appels ré-entrants
+    (ex: get_connection() appelé depuis set_connection()).
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.RLock()
+        self._db_connection: duckdb.DuckDBPyConnection | None = None
+        self._db_schema_cache: str | None = None
+        self._current_db_path: str | None = None
+
+    @property
+    def db_connection(self) -> duckdb.DuckDBPyConnection | None:
+        with self._lock:
+            return self._db_connection
+
+    @db_connection.setter
+    def db_connection(self, conn: duckdb.DuckDBPyConnection | None) -> None:
+        with self._lock:
+            # Fermer l'ancienne connexion si elle existe
+            if self._db_connection is not None:
+                try:
+                    self._db_connection.close()
+                except Exception:
+                    pass  # Ignorer les erreurs de fermeture
+            self._db_connection = conn
+
+    @property
+    def db_schema_cache(self) -> str | None:
+        with self._lock:
+            return self._db_schema_cache
+
+    @db_schema_cache.setter
+    def db_schema_cache(self, schema: str | None) -> None:
+        with self._lock:
+            self._db_schema_cache = schema
+
+    @property
+    def current_db_path(self) -> str | None:
+        with self._lock:
+            return self._current_db_path
+
+    @current_db_path.setter
+    def current_db_path(self, path: str | None) -> None:
+        with self._lock:
+            self._current_db_path = path
+
+    def invalidate_cache(self) -> None:
+        """Invalide le cache schéma (après changement de datasource)."""
+        with self._lock:
+            self._db_schema_cache = None
 
 
 # Instance singleton

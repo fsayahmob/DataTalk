@@ -12,11 +12,14 @@ Ce module réexporte toutes les fonctions et classes publiques
 pour maintenir la compatibilité avec l'ancien catalog_engine.py.
 """
 
+import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 from type_defs import DuckDBConnection
+
+logger = logging.getLogger(__name__)
 
 from catalog import WorkflowManager, add_column, add_datasource, add_table, get_setting
 from db import get_connection
@@ -101,22 +104,24 @@ def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> 
     Returns:
         Stats d'extraction (tables, colonnes)
     """
-    print("EXTRACTION SEULE (sans LLM)...")
+    logger.info("Extraction seule (sans LLM)")
 
     # Initialiser le workflow si job_id fourni
     workflow = WorkflowManager(job_id, total_steps=2) if job_id else None
 
     # Step 1: Extraction métadonnées
     with workflow.step("extract_metadata") if workflow else _dummy_context():
-        print("1/2 - Extraction des métadonnées depuis DuckDB...")
+        logger.info("1/2 - Extraction des métadonnées depuis DuckDB")
         catalog = extract_metadata_from_connection(db_connection)
-        print(
-            f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes"
+        logger.info(
+            "  %d tables, %d colonnes",
+            len(catalog.tables),
+            sum(len(t.columns) for t in catalog.tables),
         )
 
     # Step 2: Sauvegarde dans SQLite
     with workflow.step("save_to_catalog") if workflow else _dummy_context():
-        print("2/2 - Sauvegarde dans SQLite (sans descriptions)...")
+        logger.info("2/2 - Sauvegarde dans SQLite (sans descriptions)")
 
         # Créer la datasource
         datasource_id = add_datasource(
@@ -184,9 +189,9 @@ def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> 
                     if column_id:
                         stats["columns"] += 1
 
-        print(f"    → {stats['tables']} tables, {stats['columns']} colonnes extraites")
-    print("\n[INFO] Vous pouvez maintenant désactiver les tables non souhaitées,")
-    print("       puis lancer l'enrichissement LLM sur les tables activées.")
+        logger.info("  %d tables, %d colonnes extraites", stats["tables"], stats["columns"])
+    logger.info("Vous pouvez maintenant désactiver les tables non souhaitées")
+    logger.info("puis lancer l'enrichissement LLM sur les tables activées")
 
     return {
         "status": "ok",
@@ -221,7 +226,7 @@ def enrich_selected_tables(
     Returns:
         Stats d'enrichissement + validation
     """
-    print("ENRICHISSEMENT LLM (tables sélectionnées)...")
+    logger.info("Enrichissement LLM (tables sélectionnées)")
 
     if not table_ids:
         return {
@@ -242,7 +247,7 @@ def enrich_selected_tables(
 
     # Step 1: Mettre à jour l'état is_enabled dans SQLite
     with workflow.step("update_enabled") if workflow else _dummy_context():
-        print("1/N - Mise à jour des états is_enabled...")
+        logger.info("1/N - Mise à jour des états is_enabled")
         conn = get_connection()
         cursor = conn.cursor()
 
@@ -257,11 +262,11 @@ def enrich_selected_tables(
         )
         conn.commit()
 
-        print(f"    → {len(table_ids)} tables activées")
+        logger.info("  %d tables activées", len(table_ids))
 
     # Step 2: Récupérer les tables sélectionnées + nom datasource
     with workflow.step("fetch_tables") if workflow else _dummy_context():
-        print("2/N - Récupération des tables sélectionnées...")
+        logger.info("2/N - Récupération des tables sélectionnées")
         cursor.execute(
             f"""
             SELECT t.id, t.name, t.row_count, d.id as datasource_id, d.name as datasource_name
@@ -284,7 +289,7 @@ def enrich_selected_tables(
                 "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
             }
 
-        print(f"    → {len(selected_tables)} tables à enrichir")
+        logger.info("  %d tables à enrichir", len(selected_tables))
 
     # Suite: construire le catalogue et enrichir
     return _enrich_tables(selected_tables, db_connection, workflow, datasource_name)
@@ -342,7 +347,7 @@ def _enrich_tables(
         )
         columns_rows = cursor.fetchall()
 
-        print(f"    → Lecture depuis SQLite: {table_name} ({len(columns_rows)} colonnes)")
+        logger.info("  Lecture depuis SQLite: %s (%d colonnes)", table_name, len(columns_rows))
 
         # Construire le contexte pour cette table
         cols_desc = []
@@ -390,8 +395,10 @@ Colonnes:
         batch = all_tables_info[i : i + max_tables_per_batch]
         batches.append(batch)
 
-    print(
-        f"Enrichissement avec LLM ({len(batches)} batch(es) de {max_tables_per_batch} tables max)..."
+    logger.info(
+        "Enrichissement avec LLM (%d batch(es) de %d tables max)",
+        len(batches),
+        max_tables_per_batch,
     )
 
     # Enrichir par batch
@@ -404,7 +411,7 @@ Colonnes:
 
         # Step N: LLM Batch N
         with workflow.step(f"llm_batch_{batch_idx + 1}") if workflow else _dummy_context():
-            print(f"    → Batch {batch_idx + 1}/{len(batches)}: {[t.name for t in batch_tables]}")
+            logger.info("  Batch %d/%d: %s", batch_idx + 1, len(batches), [t.name for t in batch_tables])
 
             batch_catalog = ExtractedCatalog(datasource="g7_analytics.duckdb", tables=batch_tables)
 
@@ -447,13 +454,13 @@ Colonnes:
     # Résumé des validations
     total_issues = sum(len(v.issues) for v in all_validations)
     if total_issues == 0:
-        print("    → Validation: [OK]")
+        logger.info("  Validation: [OK]")
     else:
-        print(f"    → Validation: [WARNING] {total_issues} problèmes")
+        logger.warning("  Validation: %d problèmes", total_issues)
 
     # Step: Mise à jour des descriptions dans SQLite
     with workflow.step("save_descriptions") if workflow else _dummy_context():
-        print("Mise à jour des descriptions...")
+        logger.info("Mise à jour des descriptions")
         desc_stats = update_descriptions(full_catalog, all_enrichments)
         # Créer un dict flexible pour inclure potentiellement les erreurs
         stats: dict[str, int | str] = {
@@ -461,35 +468,38 @@ Colonnes:
             "columns": desc_stats["columns"],
             "synonyms": desc_stats["synonyms"],
         }
-        print(
-            f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
+        logger.info(
+            "  %d tables, %d colonnes, %d synonymes",
+            stats["tables"],
+            stats["columns"],
+            stats["synonyms"],
         )
 
     # Step: Génération des KPIs
     with workflow.step("generate_kpis") if workflow else _dummy_context():
-        print("Génération des KPIs...")
+        logger.info("Génération des KPIs")
         try:
             kpis_result = generate_kpis(full_catalog, db_connection)
             kpis_stats = save_kpis(kpis_result)
             stats["kpis"] = kpis_stats["kpis"]
-            print(f"    → {kpis_stats['kpis']} KPIs générés")
+            logger.info("  %d KPIs générés", kpis_stats["kpis"])
         except KpiGenerationError as e:
             stats["kpis"] = 0
             stats["kpis_error"] = str(e)
-            print(f"    [ERROR] KPIs non générés: {e}")
+            logger.error("  KPIs non générés: %s", e)
 
     # Step: Génération des questions suggérées
     with workflow.step("generate_questions") if workflow else _dummy_context():
-        print("Génération des questions suggérées...")
+        logger.info("Génération des questions suggérées")
         try:
             questions = generate_suggested_questions(full_catalog)
             questions_stats = save_suggested_questions(questions)
             stats["questions"] = questions_stats["questions"]
-            print(f"    → {questions_stats['questions']} questions générées")
+            logger.info("  %d questions générées", questions_stats["questions"])
         except QuestionGenerationError as e:
             stats["questions"] = 0
             stats["questions_error"] = str(e)
-            print(f"    [ERROR] Questions non générées: {e}")
+            logger.error("  Questions non générées: %s", e)
 
     # Fusionner les validations pour le retour
     combined_validation = CatalogValidationResult()

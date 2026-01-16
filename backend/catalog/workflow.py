@@ -2,7 +2,11 @@
 Workflow manager for catalog operations.
 """
 
+import logging
+
 from .jobs import update_job_status
+
+logger = logging.getLogger(__name__)
 
 
 class WorkflowManager:
@@ -46,8 +50,11 @@ class WorkflowStep:
             current_step=self.name,
             step_index=self.manager.current_step_index,
         )
-        print(
-            f"[WORKFLOW] Step {self.manager.current_step_index + 1}/{self.manager.total_steps}: {self.name}"
+        logger.info(
+            "Step %d/%d: %s",
+            self.manager.current_step_index + 1,
+            self.manager.total_steps,
+            self.name,
         )
         return self
 
@@ -69,6 +76,6 @@ class WorkflowStep:
             # Erreur: marquer le job comme failed
             error_msg = f"{exc_type.__name__}: {str(exc_val)[:200]}"
             update_job_status(job_id=self.manager.job_id, status="failed", error_message=error_msg)
-            print(f"[WORKFLOW] ✗ Step failed: {error_msg}")
+            logger.error("Step failed: %s", error_msg)
 
         # Ne pas supprimer l'exception (return None = propagate)

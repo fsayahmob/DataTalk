@@ -5,9 +5,11 @@ Utilise la bibliothèque cryptography.
 
 import base64
 import hashlib
+import logging
 import os
-import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 try:
     from cryptography.fernet import Fernet
@@ -17,17 +19,36 @@ except ImportError:
     CRYPTO_AVAILABLE = False
 
 
+def _is_production() -> bool:
+    """Détecte si on est en environnement de production."""
+    env = os.getenv("ENVIRONMENT", "").lower()
+    return env in ("production", "prod")
+
+
 def _get_encryption_key() -> bytes:
     """
     Récupère la clé de chiffrement.
-    ENCRYPTION_KEY doit être définie en production.
-    En dev, une clé aléatoire est générée et persistée dans un fichier local.
+
+    En production (ENVIRONMENT=production):
+        - ENCRYPTION_KEY DOIT être définie
+        - Erreur fatale si absente
+
+    En développement:
+        - Utilise ENCRYPTION_KEY si définie
+        - Sinon génère/charge une clé locale (.encryption_key)
     """
     env_key = os.getenv("ENCRYPTION_KEY")
 
     if env_key:
         # Utiliser la clé fournie (doit être 32 bytes en base64)
         key_bytes = env_key.encode()
+    elif _is_production():
+        # Production sans clé = erreur fatale
+        logger.critical("ENCRYPTION_KEY must be set in production environment!")
+        raise RuntimeError(
+            "ENCRYPTION_KEY environment variable is required in production. "
+            "Generate one with: python -c \"import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())\""
+        )
     else:
         # Dev only: générer/charger une clé persistée localement
         key_file = Path(__file__).parent / ".encryption_key"
@@ -37,11 +58,9 @@ def _get_encryption_key() -> bytes:
             # Générer une clé aléatoire unique pour cette installation
             key_bytes = os.urandom(32)
             key_file.write_bytes(key_bytes)
-            # Avertissement en dev
-            print(
-                "WARNING: ENCRYPTION_KEY not set. Generated random key for dev.",
-                file=sys.stderr,
-            )
+            # Sécuriser les permissions (lecture/écriture owner only)
+            key_file.chmod(0o600)
+            logger.warning("ENCRYPTION_KEY not set. Generated random key for dev.")
 
     # Créer une clé Fernet valide (32 bytes base64-encoded)
     key_hash = hashlib.sha256(key_bytes).digest()

@@ -24,6 +24,7 @@ from catalog import (
     get_conversations,
     get_messages,
 )
+from core.error_sanitizer import sanitize_sql_error
 from core.query import execute_query, should_disable_chart
 from i18n import t
 from routes.analytics import call_llm_for_analytics
@@ -120,8 +121,9 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
         try:
             data = execute_query(sql)
         except Exception as sql_exec_error:
-            # Erreur SQL - retourner le message de Gemini + l'erreur séparément
-            sql_error_str = str(sql_exec_error)
+            # Erreur SQL - sanitizer pour éviter d'exposer des infos sensibles
+            error_key = sanitize_sql_error(sql_exec_error)
+            sql_error_str = t(error_key)
             message_id = add_message(
                 conversation_id=conversation_id,
                 role="assistant",

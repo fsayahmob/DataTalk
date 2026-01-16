@@ -17,10 +17,21 @@
   },
   "db": {
     "not_connected": "Base de données non connectée.",
-    "query_error": "Erreur d'exécution SQL: {error}",
+    "query_error": "Erreur lors de l'exécution de la requête.",
     "connection_error": "Impossible de se connecter à la base de données.",
     "file_not_found": "Fichier non trouvé: {path}",
-    "schema_refreshed": "Schéma rafraîchi."
+    "schema_refreshed": "Schéma rafraîchi.",
+    "table_not_found": "Table non trouvée dans la base de données.",
+    "column_not_found": "Colonne non trouvée.",
+    "catalog_error": "Erreur d'accès au catalogue.",
+    "syntax_error": "Erreur de syntaxe dans la requête.",
+    "binding_error": "Erreur de liaison des paramètres.",
+    "constraint_violated": "Contrainte de données violée.",
+    "permission_denied": "Accès refusé.",
+    "query_timeout": "La requête a pris trop de temps.",
+    "out_of_memory": "Mémoire insuffisante pour exécuter la requête.",
+    "division_by_zero": "Division par zéro dans la requête.",
+    "invalid_input": "Données d'entrée invalides."
   },
   "catalog": {
     "empty": "Le catalogue est vide. Générez-le depuis Paramètres > Base de données.",

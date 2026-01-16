@@ -4,7 +4,10 @@ Génération des questions suggérées.
 Appels LLM pour génération, persistence.
 """
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from catalog import get_schema_for_llm
 from db import get_connection
@@ -38,7 +41,7 @@ def generate_suggested_questions(
     # qui lit depuis SQLite (après que les descriptions aient été sauvegardées)
     _ = catalog  # Pour éviter l'avertissement unused
 
-    print("    Génération des questions suggérées...")
+    logger.info("Génération des questions suggérées")
 
     # Récupérer le schéma formaté
     schema = get_schema_for_llm()
@@ -68,7 +71,7 @@ def generate_suggested_questions(
         if not questions:
             raise QuestionGenerationError("Aucune question dans la réponse JSON")
 
-        print(f"    → {len(questions)} questions générées")
+        logger.info("  %d questions générées", len(questions))
         return questions
 
     return call_with_retry(
@@ -112,7 +115,7 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
             )
             stats["questions"] += 1
         except Exception as e:
-            print(f"    [WARN] Erreur sauvegarde question: {e}")
+            logger.warning("Erreur sauvegarde question: %s", e)
 
     conn.commit()
     conn.close()

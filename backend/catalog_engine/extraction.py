@@ -4,9 +4,12 @@ Extraction des métadonnées depuis DuckDB.
 Lecture du schéma, statistiques des colonnes, détection de patterns.
 """
 
+import logging
 import re
 from contextlib import suppress
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from type_defs import DuckDBConnection
 
@@ -211,7 +214,7 @@ def extract_column_stats(
                     stats["pattern_match_rate"] = round(rate, 4) if rate else None
 
     except Exception as e:
-        print(f"    [WARN] Erreur extraction stats {table_name}.{col_name}: {e}")
+        logger.warning("Erreur extraction stats %s.%s: %s", table_name, col_name, e)
 
     return ColumnMetadata(**stats)
 
@@ -240,7 +243,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
         ORDER BY table_name
     """).fetchall()
 
-    print(f"  Extraction avancée de {len(tables)} tables...")
+    logger.info("Extraction avancée de %d tables", len(tables))
 
     for (table_name,) in tables:
         # Nombre de lignes
@@ -257,7 +260,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
             ORDER BY ordinal_position
         """).fetchall()  # noqa: S608
 
-        print(f"    → {table_name}: {len(columns_info)} colonnes, {row_count:,} lignes")
+        logger.info("  %s: %d colonnes, %d lignes", table_name, len(columns_info), row_count)
 
         columns_result: list[ColumnMetadata] = []
 

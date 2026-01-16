@@ -4,9 +4,12 @@ Enrichissement LLM du catalogue.
 Appels LLM pour descriptions, modèle de réponse dynamique, validation.
 """
 
+import logging
 from typing import Any
 
 from pydantic import BaseModel, Field, create_model
+
+logger = logging.getLogger(__name__)
 
 from llm_config import get_active_prompt
 from llm_service import call_llm_structured
@@ -232,9 +235,9 @@ def enrich_with_llm(
     # Utiliser le contexte fourni ou fallback sur _build_full_context
     if tables_context is None:
         tables_context = _build_full_context(catalog)
-        print("    → Contexte construit depuis catalogue (fallback)")
+        logger.info("  Contexte construit depuis catalogue (fallback)")
     else:
-        print("    → Contexte lu depuis SQLite (full_context)")
+        logger.info("  Contexte lu depuis SQLite (full_context)")
 
     # Récupérer le prompt depuis la DB (erreur si non trouvé)
     prompt_data = get_active_prompt("catalog_enrichment")
@@ -245,7 +248,7 @@ def enrich_with_llm(
 
     # Vérifier la taille du prompt avant l'appel
     is_ok, token_count, token_msg = check_token_limit(prompt)
-    print(f"    → Tokens input: {token_msg}")
+    logger.info("  Tokens input: %s", token_msg)
     if not is_ok:
         raise EnrichmentError(f"Prompt trop volumineux pour le LLM: {token_count:,} tokens")
 

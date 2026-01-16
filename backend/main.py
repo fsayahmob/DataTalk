@@ -43,27 +43,27 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application"""
     # Startup: ouvrir la connexion DuckDB
     app_state.current_db_path = get_duckdb_path()
-    print(f"Connexion à DuckDB: {app_state.current_db_path}")
+    logger.info("Connexion à DuckDB: %s", app_state.current_db_path)
     app_state.db_connection = duckdb.connect(app_state.current_db_path, read_only=True)
-    print("DuckDB connecté")
+    logger.info("DuckDB connecté")
 
     # Vérifier le statut LLM
     llm_status = check_llm_status()
     if llm_status["status"] == "ok":
-        print(f"LLM configuré: {llm_status.get('model')}")
+        logger.info("LLM configuré: %s", llm_status.get("model"))
     else:
-        print(f"ATTENTION: {llm_status.get('message')}")
+        logger.warning("LLM non configuré: %s", llm_status.get("message"))
 
     # Pré-charger le schéma du catalogue au démarrage
     app_state.db_schema_cache = get_schema_for_llm()
-    print(f"Schéma chargé ({len(app_state.db_schema_cache)} caractères)")
+    logger.info("Schéma chargé (%d caractères)", len(app_state.db_schema_cache))
 
     yield
 
     # Shutdown: fermer la connexion
     if app_state.db_connection:
         app_state.db_connection.close()
-        print("DuckDB déconnecté")
+        logger.info("DuckDB déconnecté")
 
 
 app = FastAPI(
