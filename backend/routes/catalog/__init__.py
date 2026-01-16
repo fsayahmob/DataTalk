@@ -24,7 +24,6 @@ from .jobs import (
 from .operations import (
     enrich_catalog_endpoint,
     extract_catalog_endpoint,
-    generate_catalog_endpoint,
 )
 from .streams import stream_catalog_status, stream_run_jobs
 
@@ -42,7 +41,6 @@ router.add_api_route(
 # Operations routes
 router.add_api_route("/extract", extract_catalog_endpoint, methods=["POST"])
 router.add_api_route("/enrich", enrich_catalog_endpoint, methods=["POST"])
-router.add_api_route("/generate", generate_catalog_endpoint, methods=["POST"])
 
 # Jobs routes
 router.add_api_route("/jobs", list_catalog_jobs, methods=["GET"])

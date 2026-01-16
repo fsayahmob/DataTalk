@@ -290,49 +290,6 @@ def enrich_selected_tables(
     return _enrich_tables(selected_tables, db_connection, workflow, datasource_name)
 
 
-def enrich_enabled_tables(db_connection: DuckDBConnection) -> dict[str, Any]:
-    """
-    [LEGACY] Enrichit SEULEMENT les tables avec is_enabled=1.
-
-    Lit le full_context depuis SQLite (calculé à l'extraction).
-
-    Génère:
-    - Descriptions de tables et colonnes
-    - Synonymes pour la recherche NLP
-    - KPIs (basés sur les tables activées)
-
-    Args:
-        db_connection: Connexion DuckDB native (pour KPIs uniquement)
-
-    Returns:
-        Stats d'enrichissement + validation
-    """
-    print("ENRICHISSEMENT LLM (tables activées uniquement)...")
-
-    # 1. Récupérer les tables activées depuis SQLite
-    print("1/4 - Récupération des tables activées...")
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT t.id, t.name, t.row_count, d.id as datasource_id
-        FROM tables t
-        JOIN datasources d ON t.datasource_id = d.id
-        WHERE t.is_enabled = 1
-    """)
-    enabled_tables = cursor.fetchall()
-    conn.close()
-
-    if not enabled_tables:
-        return {
-            "status": "error",
-            "message": "Aucune table activée. Activez au moins une table avant l'enrichissement.",
-            "stats": {"tables": 0, "columns": 0, "synonyms": 0, "kpis": 0},
-        }
-
-    return _enrich_tables(enabled_tables, db_connection)
-
-
 def _enrich_tables(
     tables_rows: list[Any],
     db_connection: DuckDBConnection,
@@ -557,108 +514,6 @@ Colonnes:
 # =============================================================================
 
 
-def generate_catalog_from_connection(db_connection: DuckDBConnection) -> dict[str, Any]:
-    """
-    Génère le catalogue complet depuis une connexion DuckDB existante.
-
-    Utilise le LLM configuré par défaut via llm_service.
-    LEGACY: Gardée pour compatibilité, utiliser enrich_enabled_tables() à la place.
-
-    Args:
-        db_connection: Connexion DuckDB native (duckdb.DuckDBPyConnection)
-
-    Retourne les statistiques, validations et le catalogue.
-    """
-    validation_results: dict[str, Any] = {"catalog": None, "kpis": None}
-
-    # 1. Extraction depuis la connexion existante
-    print("1/5 - Extraction des métadonnées depuis connexion DuckDB...")
-    catalog = extract_metadata_from_connection(db_connection)
-    print(
-        f"    → {len(catalog.tables)} tables, {sum(len(t.columns) for t in catalog.tables)} colonnes"
-    )
-
-    # 2. Modèle dynamique (implicite dans enrich_with_llm)
-    print("2/5 - Création du modèle Pydantic dynamique...")
-
-    # 3. Enrichissement LLM (utilise llm_service)
-    print("3/5 - Enrichissement avec LLM Service...")
-    enrichment = enrich_with_llm(catalog)
-
-    # 3bis. Validation de l'enrichissement
-    catalog_validation = validate_catalog_enrichment(catalog, enrichment)
-    validation_results["catalog"] = catalog_validation.to_dict()
-    if catalog_validation.status == "OK":
-        print(
-            f"    → Validation: [OK] {catalog_validation.tables_ok} tables, {catalog_validation.columns_ok} colonnes"
-        )
-    else:
-        print(
-            f"    → Validation: [WARNING] {catalog_validation.tables_warning} tables, {catalog_validation.columns_warning} colonnes avec problèmes"
-        )
-        for issue in catalog_validation.issues[:5]:  # Limiter à 5 issues
-            print(f"      - {issue}")
-
-    # 4. Sauvegarde du catalogue
-    print("4/5 - Sauvegarde dans le catalogue SQLite...")
-    stats = save_to_catalog(catalog, enrichment, get_duckdb_path())
-    print(
-        f"    → {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
-    )
-
-    # 5. Génération des KPIs
-    print("5/5 - Génération des 4 KPIs...")
-    try:
-        kpis_result = generate_kpis(catalog, db_connection)
-        # Validation des KPIs
-        kpis_validation = validate_all_kpis(kpis_result)
-        validation_results["kpis"] = kpis_validation
-
-        kpis_stats = save_kpis(kpis_result)
-        stats["kpis"] = kpis_stats["kpis"]
-
-        if kpis_validation["warnings"] == 0:
-            print(f"    → [OK] {kpis_stats['kpis']} KPIs générés")
-        else:
-            print(
-                f"    → [WARNING] {kpis_stats['kpis']} KPIs générés, {kpis_validation['warnings']} avec problèmes"
-            )
-            for detail in kpis_validation["details"]:
-                if detail.status == "WARNING":
-                    print(f"      - {detail.kpi_id}: {', '.join(detail.issues)}")
-    except KpiGenerationError as e:
-        stats["kpis"] = 0
-        validation_results["kpis"] = {"total": 0, "ok": 0, "warnings": 0, "details": []}
-        print(f"    → [ERROR] KPIs non générés: {e}")
-
-    # Rapport final
-    print("\n" + "=" * 50)
-    overall_status = "OK"
-    if validation_results["catalog"] and validation_results["catalog"]["status"] == "WARNING":
-        overall_status = "WARNING"
-    if validation_results["kpis"] and validation_results["kpis"]["warnings"] > 0:
-        overall_status = "WARNING"
-    if stats["kpis"] == 0:
-        overall_status = "WARNING"
-
-    print(f"RAPPORT FINAL: [{overall_status}]")
-    print(
-        f"  - Catalogue: {stats['tables']} tables, {stats['columns']} colonnes, {stats['synonyms']} synonymes"
-    )
-    print(f"  - KPIs: {stats['kpis']}/4 générés")
-    print("=" * 50)
-
-    return {
-        "status": overall_status.lower(),
-        "message": "Catalogue généré avec succès"
-        if overall_status == "OK"
-        else "Catalogue généré avec des avertissements",
-        "stats": stats,
-        "tables": [t.name for t in catalog.tables],
-        "validation": validation_results,
-    }
-
-
 # =============================================================================
 # EXPORTS PUBLICS
 # =============================================================================
@@ -683,7 +538,6 @@ __all__ = [
     "build_response_model",
     "check_token_limit",
     "detect_pattern",
-    "enrich_enabled_tables",
     "enrich_selected_tables",
     "enrich_with_llm",
     # Enrichment
@@ -692,7 +546,6 @@ __all__ = [
     "extract_metadata_from_connection",
     # Orchestration
     "extract_only",
-    "generate_catalog_from_connection",
     "generate_kpis",
     # Questions
     "generate_suggested_questions",

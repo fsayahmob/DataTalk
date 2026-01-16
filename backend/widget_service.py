@@ -5,7 +5,7 @@ Gère l'exécution SQL sur DuckDB et le cache des résultats.
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime
 from typing import Any
 
 import duckdb

@@ -1,10 +1,9 @@
 """
-Catalog operations endpoints (extract, enrich, generate).
+Catalog operations endpoints (extract, enrich).
 
 Endpoints:
 - POST /catalog/extract - Extract schema from DuckDB (no LLM)
 - POST /catalog/enrich - Enrich selected tables with LLM
-- POST /catalog/generate - Legacy: generate full catalog in one step
 """
 
 import asyncio
@@ -25,7 +24,6 @@ from catalog import (
 from catalog_engine import (
     enrich_selected_tables,
     extract_only,
-    generate_catalog_from_connection,
 )
 from core.state import app_state
 from db import get_connection
@@ -225,58 +223,3 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     }
 
 
-@router.post("/generate")
-async def generate_catalog_endpoint() -> dict[str, Any]:
-    """
-    [LEGACY] Génère le catalogue complet en une seule étape.
-
-    Pour le nouveau workflow en 2 étapes, utilisez:
-    1. POST /catalog/extract - Extraction sans LLM
-    2. (Sélection des tables via UI)
-    3. POST /catalog/enrich - Enrichissement LLM
-    """
-    # Vérifier que le LLM est configuré
-    llm_status = check_llm_status()
-    if llm_status["status"] != "ok":
-        raise HTTPException(
-            status_code=500, detail=llm_status.get("message", t("llm.not_configured"))
-        )
-
-    if not app_state.db_connection:
-        raise HTTPException(status_code=500, detail=t("db.not_connected"))
-
-    # 1. Vider le catalogue existant
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM synonyms")
-    cursor.execute("DELETE FROM columns")
-    cursor.execute("DELETE FROM tables")
-    cursor.execute("DELETE FROM datasources")
-    conn.commit()
-    conn.close()
-
-    # 2. Générer le catalogue dans un thread séparé pour ne pas bloquer les autres requêtes
-    db_conn = get_db_connection()
-
-    def run_generation() -> dict[str, Any]:
-        return generate_catalog_from_connection(db_connection=db_conn)
-
-    try:
-        loop = asyncio.get_event_loop()
-        with ThreadPoolExecutor() as executor:
-            result = await loop.run_in_executor(executor, run_generation)
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=t("catalog.generation_error", error=str(e))
-        ) from e
-
-    # 3. Rafraîchir le cache du schéma
-    app_state.db_schema_cache = get_schema_for_llm()
-
-    return {
-        "status": result.get("status", "ok"),
-        "message": result.get("message", "Catalogue généré"),
-        "tables_count": result.get("stats", {}).get("tables", 0),
-        "columns_count": result.get("stats", {}).get("columns", 0),
-        "synonyms_count": result.get("stats", {}).get("synonyms", 0),
-    }
