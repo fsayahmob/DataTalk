@@ -51,9 +51,10 @@ jobs:
 
       - name: Run audit script
         id: audit
+        working-directory: backend
         run: |
           # Exécuter l'audit et capturer le JSON
-          python scripts/audit_score.py --json > audit_result.json 2>&1 || true
+          python scripts/audit_score.py --json --path . > audit_result.json 2>&1 || true
 
           # Extraire score et grade
           SCORE=$(cat audit_result.json | python -c "import sys,json; d=json.load(sys.stdin); print(d['score'])")
@@ -63,7 +64,7 @@ jobs:
           echo "grade=$GRADE" >> $GITHUB_OUTPUT
 
           # Afficher le rapport lisible
-          python scripts/audit_score.py
+          python scripts/audit_score.py --path .
 
           # Sauvegarder pour artifacts
           cp audit_result.json ../audit_result.json
@@ -76,8 +77,9 @@ jobs:
           retention-days: 90
 
       - name: Check score threshold
+        working-directory: backend
         run: |
-          python scripts/audit_score.py --fail-under ${{ env.FAIL_UNDER }}
+          python scripts/audit_score.py --path . --fail-under ${{ env.FAIL_UNDER }}
 
       - name: Create score badge
         if: github.ref == 'refs/heads/main'
