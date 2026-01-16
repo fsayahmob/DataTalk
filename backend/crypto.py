@@ -56,7 +56,8 @@ def encrypt(plaintext: str) -> bytes:
 
     key = _get_encryption_key()
     f = Fernet(key)
-    return f.encrypt(plaintext.encode())
+    encrypted: bytes = f.encrypt(plaintext.encode())
+    return encrypted
 
 
 def decrypt(ciphertext: bytes) -> str | None:
@@ -74,7 +75,8 @@ def decrypt(ciphertext: bytes) -> str | None:
     try:
         key = _get_encryption_key()
         f = Fernet(key)
-        return f.decrypt(ciphertext).decode()
+        decrypted: bytes = f.decrypt(ciphertext)
+        return decrypted.decode()
     except Exception:
         return None
 
