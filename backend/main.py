@@ -8,6 +8,7 @@ import contextlib
 import json
 import logging
 import re
+import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from collections.abc import AsyncGenerator
@@ -488,8 +489,6 @@ async def health_check() -> dict[str, Any]:
     Health check enrichi pour monitoring et déploiement.
     Retourne l'état de tous les composants critiques.
     """
-    import time
-
     start = time.perf_counter()
 
     # État de la base DuckDB
