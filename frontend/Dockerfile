@@ -33,8 +33,8 @@ COPY --from=builder /app/public ./public
 
 EXPOSE 3000
 
-# Healthcheck
+# Healthcheck (node natif, pas besoin de wget/curl)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-    CMD wget -q --spider http://localhost:3000 || exit 1
+    CMD node -e "fetch('http://localhost:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
 
 CMD ["node", "server.js"]

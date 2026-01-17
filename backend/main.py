@@ -42,14 +42,51 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 
+def _check_volume_writable(path: str) -> bool:
+    """Vérifie qu'un répertoire est accessible en écriture."""
+    from pathlib import Path
+
+    try:
+        dir_path = Path(path).parent
+        dir_path.mkdir(parents=True, exist_ok=True)
+        # Test d'écriture
+        test_file = dir_path / ".write_test"
+        test_file.write_text("test")
+        test_file.unlink()
+        return True
+    except Exception as e:
+        logger.error("Volume non accessible en écriture (%s): %s", path, e)
+        return False
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application"""
-    # Startup: ouvrir la connexion DuckDB
+    from pathlib import Path
+
+    # Vérifier que les volumes sont montés et accessibles en écriture
     app_state.current_db_path = get_duckdb_path()
-    logger.info("Connexion à DuckDB: %s", app_state.current_db_path)
-    app_state.db_connection = duckdb.connect(app_state.current_db_path, read_only=True)
-    logger.info("DuckDB connecté")
+    logger.info("Chemin DuckDB configuré: %s", app_state.current_db_path)
+
+    if app_state.current_db_path:
+        if _check_volume_writable(app_state.current_db_path):
+            logger.info("Volume DuckDB accessible en écriture")
+        else:
+            logger.error("Volume DuckDB NON accessible - les uploads échoueront")
+
+    # Connexion DuckDB uniquement si le fichier existe
+    if app_state.current_db_path and Path(app_state.current_db_path).exists():
+        try:
+            app_state.db_connection = duckdb.connect(
+                app_state.current_db_path, read_only=True
+            )
+            logger.info("DuckDB connecté")
+        except Exception as e:
+            logger.warning("Impossible de se connecter à DuckDB: %s", e)
+            app_state.db_connection = None
+    else:
+        logger.info("Fichier DuckDB non trouvé - sera créé lors du premier upload")
+        app_state.db_connection = None
 
     # Vérifier le statut LLM
     llm_status = check_llm_status()
@@ -58,9 +95,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.warning("LLM non configuré: %s", llm_status.get("message"))
 
-    # Pré-charger le schéma du catalogue au démarrage
-    app_state.db_schema_cache = get_schema_for_llm()
-    logger.info("Schéma chargé (%d caractères)", len(app_state.db_schema_cache))
+    # Pré-charger le schéma du catalogue au démarrage (si DuckDB connecté)
+    if app_state.db_connection:
+        app_state.db_schema_cache = get_schema_for_llm()
+        logger.info("Schéma chargé (%d caractères)", len(app_state.db_schema_cache))
+    else:
+        app_state.db_schema_cache = None
+        logger.info("Schéma non chargé (en attente d'un dataset)")
 
     yield
 

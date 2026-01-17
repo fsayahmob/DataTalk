@@ -32,6 +32,12 @@ Thumbs.db
 *.duckdb.wal
 catalog.sqlite
 
+# Data folder (migré vers named volumes Docker)
+data/
+
+# Backend cache folder
+backend/cache/
+
 # Large files
 *.xlsx
 *.pptx

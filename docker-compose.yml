@@ -1,56 +1,72 @@
 # =============================================================================
-# G7 Analytics - Docker Compose Stack
+# DataTalk - Docker Compose Stack
 # =============================================================================
 # Architecture:
 #   Frontend (Next.js) → API (FastAPI) → Redis ← Worker (Celery)
 #                              ↓
-#                         /data volume
-#                     (SQLite + DuckDB)
+#                      Named Volumes
+#                  (SQLite / DuckDB / Cache)
 #
 # Usage:
-#   docker-compose up -d              # Démarrer tous les services
-#   docker-compose logs -f api        # Voir les logs de l'API
-#   docker-compose down               # Arrêter tous les services
+#   docker compose up -d              # Démarrer tous les services
+#   docker compose logs -f api        # Voir les logs de l'API
+#   docker compose down               # Arrêter tous les services
 #
-# Prérequis:
-#   1. Copier .env.example vers .env et configurer les clés API
-#   2. Mettre catalog.sqlite et g7_analytics.duckdb dans ./data/
+# Migration depuis bind mounts:
+#   docker run --rm -v ./data:/src -v datatalk-sqlite:/dst alpine \
+#     cp /src/catalog.sqlite /dst/catalog.sqlite
+#   docker run --rm -v ./data:/src -v datatalk-duckdb:/dst alpine \
+#     cp /src/g7_analytics.duckdb /dst/datatalk.duckdb
 # =============================================================================
+
+name: datatalk
 
 services:
   # ---------------------------------------------------------------------------
   # Frontend Next.js
   # ---------------------------------------------------------------------------
   frontend:
+    container_name: datatalk-frontend
     build: ./frontend
     ports:
       - "3000:3000"
     environment:
-      # URL vue par le NAVIGATEUR (pas par le container!)
-      # En prod: remplacer par l'URL publique (ex: https://api.mondomaine.com)
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     depends_on:
       api:
         condition: service_healthy
     restart: always
     networks:
-      - g7-net
+      - datatalk-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
 
   # ---------------------------------------------------------------------------
   # API FastAPI
   # ---------------------------------------------------------------------------
   api:
+    container_name: datatalk-api
     build: ./backend
     ports:
       - "8000:8000"
     environment:
-      - DATA_DIR=/data
+      - SQLITE_PATH=/data/sqlite/catalog.sqlite
+      - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
+      - CACHE_DIR=/data/cache
       - REDIS_URL=redis://redis:6379/0
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
-      # Volume partagé pour SQLite + DuckDB
-      - ./data:/data
+      - sqlite-data:/data/sqlite
+      - duckdb-data:/data/duckdb
+      - cache-data:/data/cache
     depends_on:
       redis:
         condition: service_healthy
@@ -62,15 +78,24 @@ services:
       start_period: 10s
     restart: always
     networks:
-      - g7-net
+      - datatalk-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   # ---------------------------------------------------------------------------
   # Redis (broker Celery)
   # ---------------------------------------------------------------------------
   redis:
+    container_name: datatalk-redis
     image: redis:7-alpine
     volumes:
-      - redis_data:/data
+      - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -78,34 +103,59 @@ services:
       retries: 3
     restart: always
     networks:
-      - g7-net
+      - datatalk-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 32M
 
   # ---------------------------------------------------------------------------
   # Worker Celery (tasks longues: extraction, enrichissement LLM)
   # ---------------------------------------------------------------------------
   worker:
+    container_name: datatalk-worker
     build: ./backend
     command: celery -A celery_app worker --loglevel=info --concurrency=2
     environment:
-      - DATA_DIR=/data
+      - SQLITE_PATH=/data/sqlite/catalog.sqlite
+      - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
+      - CACHE_DIR=/data/cache
       - REDIS_URL=redis://redis:6379/0
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
-      # Même volume que l'API (accès SQLite + DuckDB)
-      - ./data:/data
+      - sqlite-data:/data/sqlite
+      - duckdb-data:/data/duckdb:ro
+      - cache-data:/data/cache
     depends_on:
       redis:
         condition: service_healthy
+    # Désactiver le healthcheck hérité du Dockerfile (Celery n'expose pas /health)
+    healthcheck:
+      disable: true
     restart: always
     networks:
-      - g7-net
+      - datatalk-net
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+        reservations:
+          cpus: "0.25"
+          memory: 256M
 
   # ---------------------------------------------------------------------------
   # Flower (monitoring Celery) - OPTIONNEL
   # Décommenter pour debug des tasks
   # ---------------------------------------------------------------------------
   # flower:
+  #   container_name: datatalk-flower
   #   build: ./backend
   #   command: celery -A celery_app flower --port=5555
   #   ports:
@@ -115,18 +165,24 @@ services:
   #   depends_on:
   #     - redis
   #   networks:
-  #     - g7-net
+  #     - datatalk-net
 
 # =============================================================================
-# VOLUMES
+# VOLUMES (Named volumes - best practice 2025)
 # =============================================================================
 volumes:
-  redis_data:
-    name: g7-redis-data
+  sqlite-data:
+    name: datatalk-sqlite
+  duckdb-data:
+    name: datatalk-duckdb
+  cache-data:
+    name: datatalk-cache
+  redis-data:
+    name: datatalk-redis
 
 # =============================================================================
 # NETWORKS
 # =============================================================================
 networks:
-  g7-net:
-    name: g7-analytics-net
+  datatalk-net:
+    name: datatalk-net

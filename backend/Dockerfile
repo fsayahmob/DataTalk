@@ -1,11 +1,11 @@
 # =============================================================================
-# G7 Analytics Backend - Dockerfile
+# DataTalk Backend - Dockerfile
 # =============================================================================
-# Image optimisée pour FastAPI + DuckDB
+# Image optimisée pour FastAPI + DuckDB + Celery
 #
 # Usage:
-#   docker build -t g7-backend .
-#   docker run -p 8000:8000 -v ./data:/data g7-backend
+#   docker compose up -d          # API + Worker
+#   docker compose logs -f api    # Voir les logs
 # =============================================================================
 
 FROM python:3.11-slim
@@ -25,12 +25,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Code source
 COPY . .
 
+# Rendre l'entrypoint exécutable
+RUN chmod +x /app/entrypoint.sh
+
 # Port API
 EXPOSE 8000
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
+
+# Entrypoint: initialise les volumes puis lance la commande
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Commande par défaut: API
 # Pour le worker Celery, override avec: celery -A celery_app worker
