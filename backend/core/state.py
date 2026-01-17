@@ -7,10 +7,13 @@ Contient:
 - get_system_instruction: Génération du prompt système LLM
 """
 
+import logging
 import threading
 from pathlib import Path
 
 import duckdb
+
+logger = logging.getLogger(__name__)
 
 from catalog import get_schema_for_llm, get_setting
 from llm_config import get_active_prompt
@@ -45,9 +48,13 @@ class _AppState:
             if self._db_connection is not None:
                 try:
                     self._db_connection.close()
-                except Exception:
-                    pass  # Ignorer les erreurs de fermeture
+                except duckdb.Error:
+                    # Connexion déjà fermée ou invalide - normal en shutdown
+                    pass
             self._db_connection = conn
+            # Invalider le cache schéma (nouvelle connexion = potentiel nouveau schéma)
+            self._db_schema_cache = None
+            logger.debug("Schema cache invalidated (connection changed)")
 
     @property
     def db_schema_cache(self) -> str | None:
@@ -67,6 +74,10 @@ class _AppState:
     @current_db_path.setter
     def current_db_path(self, path: str | None) -> None:
         with self._lock:
+            # Invalider le cache si le path change
+            if self._current_db_path != path:
+                self._db_schema_cache = None
+                logger.debug("Schema cache invalidated (path changed to %s)", path)
             self._current_db_path = path
 
     def invalidate_cache(self) -> None:

@@ -99,7 +99,13 @@ def decrypt(ciphertext: bytes) -> str | None:
         f = Fernet(key)
         decrypted: bytes = f.decrypt(ciphertext)
         return decrypted.decode()
-    except Exception:
+    except (ValueError, TypeError):
+        # Données corrompues ou format invalide
+        return None
+    except Exception:  # noqa: BLE001
+        # Fernet peut lever diverses exceptions (InvalidToken, etc.)
+        # Retourner None pour ne pas exposer les détails crypto
+        logger.debug("Decryption failed - invalid token or corrupted data")
         return None
 
 

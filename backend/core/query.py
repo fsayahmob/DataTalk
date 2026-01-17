@@ -13,15 +13,16 @@ from typing import Any
 from fastapi import HTTPException
 
 from catalog import get_setting
+from constants import QueryConfig
 from core.state import app_state
 from i18n import t
 from type_defs import convert_df_to_json
 
 logger = logging.getLogger(__name__)
 
-# Configuration par défaut
-DEFAULT_MAX_CHART_ROWS = 5000
-DEFAULT_QUERY_TIMEOUT_MS = 30000  # 30 secondes
+# Re-export depuis constants pour compatibilité
+DEFAULT_MAX_CHART_ROWS = QueryConfig.MAX_CHART_ROWS
+DEFAULT_QUERY_TIMEOUT_MS = QueryConfig.DEFAULT_TIMEOUT_MS
 
 
 class QueryTimeoutError(Exception):
@@ -54,15 +55,15 @@ def execute_query(sql: str, timeout_ms: int | None = None) -> list[dict[str, Any
         timeout_ms = int(timeout_str) if timeout_str else DEFAULT_QUERY_TIMEOUT_MS
 
     try:
-        # Configurer le timeout DuckDB (par requête)
-        app_state.db_connection.execute(f"SET statement_timeout = {timeout_ms}")
-
+        # Note: DuckDB ne supporte pas statement_timeout nativement
+        # On exécute la requête directement sans limite de temps côté DB
         result = app_state.db_connection.execute(sql).fetchdf()
         return convert_df_to_json(result)
     except Exception as e:
         error_str = str(e).lower()
-        if "timeout" in error_str or "interrupt" in error_str:
-            logger.warning("Query timeout (%dms): %s...", timeout_ms, sql[:80])
+        # Vérifier un vrai timeout/interruption (pas une erreur de config)
+        if "interrupt" in error_str or "cancelled" in error_str:
+            logger.warning("Query interrupted (%dms): %s...", timeout_ms, sql[:80])
             raise QueryTimeoutError(t("db.query_timeout")) from e
         raise
 

@@ -12,6 +12,8 @@ import threading
 import time
 from typing import Any
 
+from constants import CircuitBreakerConfig
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,8 +48,8 @@ class CircuitBreaker:
         self._lock = threading.Lock()
         # Tracking des erreurs transientes (fenêtre glissante)
         self._transient_timestamps: list[float] = []
-        self._transient_window = 300  # 5 minutes
-        self._transient_threshold = 3  # 3 transients = 1 failure
+        self._transient_window = CircuitBreakerConfig.TRANSIENT_WINDOW_SECONDS
+        self._transient_threshold = CircuitBreakerConfig.TRANSIENT_THRESHOLD
 
     def allow_request(self) -> bool:
         """Vérifie si une requête est autorisée."""
@@ -159,9 +161,9 @@ class CircuitBreaker:
 
 # Instance globale du circuit breaker
 _circuit_breaker = CircuitBreaker(
-    failure_threshold=5,  # 5 erreurs consécutives
-    cooldown_seconds=60,  # 1 minute de pause
-    half_open_max_calls=1,  # 1 requête test
+    failure_threshold=CircuitBreakerConfig.FAILURE_THRESHOLD,
+    cooldown_seconds=CircuitBreakerConfig.COOLDOWN_SECONDS,
+    half_open_max_calls=CircuitBreakerConfig.HALF_OPEN_MAX_CALLS,
 )
 
 
