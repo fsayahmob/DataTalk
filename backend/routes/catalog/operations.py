@@ -4,10 +4,15 @@ Catalog operations endpoints (extract, enrich).
 Endpoints:
 - POST /catalog/extract - Extract schema from DuckDB (no LLM)
 - POST /catalog/enrich - Enrich selected tables with LLM
+
+Mode d'exécution:
+- Avec Redis/Celery: tasks asynchrones (recommandé en production)
+- Sans Redis: fallback sur ThreadPoolExecutor (dev local)
 """
 
 import asyncio
 import contextlib
+import logging
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
@@ -32,7 +37,27 @@ from llm_service import check_llm_status
 from routes.catalog.helpers import get_db_connection
 from routes.dependencies import EnrichCatalogRequest
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# =============================================================================
+# CELERY SUPPORT (optionnel)
+# =============================================================================
+# Si Redis est disponible, on utilise Celery pour les tasks longues
+# Sinon, fallback sur ThreadPoolExecutor
+
+CELERY_AVAILABLE = False
+try:
+    from tasks.catalog import enrich_catalog_task, extract_catalog_task
+
+    # Test si Redis est accessible
+    from celery_app import celery_app
+
+    celery_app.control.ping(timeout=1)
+    CELERY_AVAILABLE = True
+    logger.info("Celery/Redis available - using async tasks")
+except Exception:
+    logger.info("Celery/Redis not available - using ThreadPoolExecutor fallback")
 
 
 @router.post("/extract")
@@ -43,6 +68,10 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
     Les tables sont créées avec is_enabled=1 par défaut.
     L'utilisateur peut ensuite désactiver les tables non souhaitées
     avant de lancer l'enrichissement.
+
+    Mode:
+    - Avec Celery: retourne immédiatement, extraction en background
+    - Sans Celery: bloque jusqu'à la fin de l'extraction
     """
     if not app_state.db_connection:
         raise HTTPException(status_code=500, detail=t("db.not_connected"))
@@ -51,7 +80,10 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
     run_id = str(uuid.uuid4())
     # Extraction a 2 steps: extract_metadata, save_to_catalog (géré par WorkflowManager)
     job_id = create_catalog_job(
-        job_type="extraction", run_id=run_id, total_steps=2, details={"mode": "extraction_only"}
+        job_type="extraction",
+        run_id=run_id,
+        total_steps=2,
+        details={"mode": "extraction_only"},
     )
 
     # 1. Vider le catalogue existant
@@ -70,7 +102,19 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
     finally:
         conn.close()
 
-    # 2. Extraction dans un thread séparé
+    # 2. Lancer l'extraction
+    if CELERY_AVAILABLE:
+        # Mode async: dispatcher vers Celery
+        extract_catalog_task.delay(run_id=run_id, job_id=job_id)
+        return {
+            "status": "pending",
+            "message": "Extraction démarrée en arrière-plan",
+            "job_id": job_id,
+            "run_id": run_id,
+            "async": True,
+        }
+
+    # Mode sync: exécuter dans un thread (fallback dev)
     db_conn = get_db_connection()
 
     def run_extraction() -> dict[str, Any]:
@@ -107,6 +151,7 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
         "columns_count": result.get("stats", {}).get("columns", 0),
         "tables": result.get("tables", []),
         "run_id": run_id,
+        "async": False,
     }
 
 
@@ -127,6 +172,10 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     - KPIs (basés sur les tables sélectionnées)
 
     Prérequis: avoir fait /catalog/extract d'abord.
+
+    Mode:
+    - Avec Celery: retourne immédiatement, enrichissement en background
+    - Sans Celery: bloque jusqu'à la fin (peut prendre plusieurs minutes)
     """
     # Vérifier que le LLM est configuré
     llm_status = check_llm_status()
@@ -162,7 +211,19 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
         },
     )
 
-    # Enrichissement dans un thread séparé (full_context lu depuis SQLite)
+    # Lancer l'enrichissement
+    if CELERY_AVAILABLE:
+        # Mode async: dispatcher vers Celery
+        enrich_catalog_task.delay(run_id=run_id, job_id=job_id, table_ids=request.table_ids)
+        return {
+            "status": "pending",
+            "message": "Enrichissement démarré en arrière-plan",
+            "job_id": job_id,
+            "run_id": run_id,
+            "async": True,
+        }
+
+    # Mode sync: exécuter dans un thread (fallback dev)
     db_conn = get_db_connection()
 
     def run_enrichment() -> dict[str, Any]:
@@ -188,6 +249,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
                 "synonyms_count": 0,
                 "kpis_count": 0,
                 "run_id": run_id,
+                "async": False,
             }
 
         # Marquer le job comme complété (géré par WorkflowManager maintenant)
@@ -220,4 +282,5 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
         "synonyms_count": result.get("stats", {}).get("synonyms", 0),
         "kpis_count": result.get("stats", {}).get("kpis", 0),
         "run_id": run_id,
+        "async": False,
     }

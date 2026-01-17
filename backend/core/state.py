@@ -5,6 +5,12 @@ Contient:
 - _AppState: Singleton thread-safe pour les connexions DuckDB et le cache
 - get_duckdb_path: Résolution du chemin DuckDB
 - get_system_instruction: Génération du prompt système LLM
+
+⚠️ IMPORTANT POUR CELERY:
+Ce module contient le singleton APP_STATE qui gère la connexion DuckDB.
+Les workers Celery sont des processus SÉPARÉS de l'API.
+Ils doivent créer leur PROPRE connexion via get_duckdb_connection().
+NE JAMAIS partager APP_STATE entre processus.
 """
 
 import contextlib
@@ -14,13 +20,14 @@ from pathlib import Path
 
 import duckdb
 
-logger = logging.getLogger(__name__)
-
 from catalog import get_schema_for_llm, get_setting
+from config import DATA_DIR, DUCKDB_PATH
 from llm_config import get_active_prompt
 
+logger = logging.getLogger(__name__)
+
 # Configuration par défaut (fallback si settings non initialisé)
-DEFAULT_DB_PATH = str(Path(__file__).parent.parent / ".." / "data" / "g7_analytics.duckdb")
+DEFAULT_DB_PATH = str(DUCKDB_PATH)
 
 
 class _AppState:
@@ -90,12 +97,17 @@ app_state = _AppState()
 
 
 def get_duckdb_path() -> str:
-    """Récupère le chemin DuckDB depuis les settings ou utilise le défaut."""
+    """Récupère le chemin DuckDB depuis les settings ou utilise le défaut.
+
+    Priorité:
+    1. Setting "duckdb_path" en base (pour override utilisateur)
+    2. config.DUCKDB_PATH (DATA_DIR/g7_analytics.duckdb)
+    """
     path = get_setting("duckdb_path")
     if path:
-        # Si chemin relatif, le résoudre par rapport au dossier backend
+        # Si chemin relatif, le résoudre par rapport à DATA_DIR
         if not Path(path).is_absolute():
-            path = str(Path(__file__).parent.parent / ".." / path)
+            path = str(DATA_DIR / path)
         return str(Path(path).resolve())
     return DEFAULT_DB_PATH
 

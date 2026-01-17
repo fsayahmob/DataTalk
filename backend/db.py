@@ -11,12 +11,13 @@ from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
+from config import SCHEMA_PATH, SQLITE_PATH
 from db_migrations import MigrationError, run_migrations
 
 logger = logging.getLogger(__name__)
 
-CATALOG_PATH = str(Path(__file__).parent / "catalog.sqlite")
-SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+# Chemin configuré dans config.py (local: backend/, Docker: /data/)
+CATALOG_PATH = str(SQLITE_PATH)
 
 
 def init_database() -> None:
@@ -35,9 +36,15 @@ def init_database() -> None:
 
 
 def get_connection() -> sqlite3.Connection:
-    """Retourne une connexion au catalogue SQLite."""
+    """Retourne une connexion au catalogue SQLite.
+
+    Active le mode WAL pour permettre les lectures concurrentes
+    (API + Worker Celery).
+    """
     conn = sqlite3.connect(CATALOG_PATH)
     conn.row_factory = sqlite3.Row
+    # Mode WAL: permet lectures concurrentes (important pour API + Celery)
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 

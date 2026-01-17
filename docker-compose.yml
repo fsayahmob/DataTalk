@@ -1,0 +1,132 @@
+# =============================================================================
+# G7 Analytics - Docker Compose Stack
+# =============================================================================
+# Architecture:
+#   Frontend (Next.js) → API (FastAPI) → Redis ← Worker (Celery)
+#                              ↓
+#                         /data volume
+#                     (SQLite + DuckDB)
+#
+# Usage:
+#   docker-compose up -d              # Démarrer tous les services
+#   docker-compose logs -f api        # Voir les logs de l'API
+#   docker-compose down               # Arrêter tous les services
+#
+# Prérequis:
+#   1. Copier .env.example vers .env et configurer les clés API
+#   2. Mettre catalog.sqlite et g7_analytics.duckdb dans ./data/
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Frontend Next.js
+  # ---------------------------------------------------------------------------
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # URL vue par le NAVIGATEUR (pas par le container!)
+      # En prod: remplacer par l'URL publique (ex: https://api.mondomaine.com)
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: always
+    networks:
+      - g7-net
+
+  # ---------------------------------------------------------------------------
+  # API FastAPI
+  # ---------------------------------------------------------------------------
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    volumes:
+      # Volume partagé pour SQLite + DuckDB
+      - ./data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: always
+    networks:
+      - g7-net
+
+  # ---------------------------------------------------------------------------
+  # Redis (broker Celery)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: always
+    networks:
+      - g7-net
+
+  # ---------------------------------------------------------------------------
+  # Worker Celery (tasks longues: extraction, enrichissement LLM)
+  # ---------------------------------------------------------------------------
+  worker:
+    build: ./backend
+    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    environment:
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    volumes:
+      # Même volume que l'API (accès SQLite + DuckDB)
+      - ./data:/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: always
+    networks:
+      - g7-net
+
+  # ---------------------------------------------------------------------------
+  # Flower (monitoring Celery) - OPTIONNEL
+  # Décommenter pour debug des tasks
+  # ---------------------------------------------------------------------------
+  # flower:
+  #   build: ./backend
+  #   command: celery -A celery_app flower --port=5555
+  #   ports:
+  #     - "5555:5555"
+  #   environment:
+  #     - REDIS_URL=redis://redis:6379/0
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - g7-net
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  redis_data:
+    name: g7-redis-data
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  g7-net:
+    name: g7-analytics-net

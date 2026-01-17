@@ -251,7 +251,7 @@ class TestConstants:
 
     def test_schema_path_is_path(self) -> None:
         """SCHEMA_PATH est un Path."""
-        from db import SCHEMA_PATH
+        from config import SCHEMA_PATH
 
         assert isinstance(SCHEMA_PATH, Path)
         assert "schema.sql" in str(SCHEMA_PATH)

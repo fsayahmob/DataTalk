@@ -12,3 +12,6 @@ instructor==1.7.2
 tenacity==9.0.0
 httpx>=0.27.0
 slowapi>=0.1.9
+# Task queue (async jobs)
+celery[redis]==5.4.0
+redis==5.0.1
