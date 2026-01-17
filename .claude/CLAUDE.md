@@ -391,5 +391,123 @@ python scripts/enrich_comments.py
 4. **Chat conversation** - Historique + animation loading
 5. **Menu config** - Panel rétractable Gemini API key
 
+---
 
-git checkout 66a25ad
+## BACKLOG - Internationalisation (i18n)
+
+### Architecture Actuelle
+
+L'application supporte actuellement **Français (fr)** et **Anglais (en)** avec une implémentation parallèle frontend/backend.
+
+#### Frontend (`frontend/src/hooks/useTranslation.ts`)
+```typescript
+// Fichiers de traduction
+frontend/src/locales/fr.json  // 247 lignes, 14 catégories
+frontend/src/locales/en.json  // 247 lignes, 14 catégories
+
+// Usage
+import { t } from "@/hooks/useTranslation";
+t("common.save")  // "Sauvegarder"
+t("validation.range_error", { min: 1, max: 50 })  // "Valeur entre 1 et 50"
+```
+
+#### Backend (`backend/i18n.py`)
+```python
+# Fichiers de traduction
+backend/locales/fr.json  # 100 lignes, 9 catégories
+backend/locales/en.json  # 89 lignes, 9 catégories
+
+# Usage
+from i18n import t, set_locale
+t("llm.not_configured")  # "Aucun modèle LLM configuré..."
+```
+
+### Points Hardcodés à Corriger
+
+**IMPORTANT**: Les endroits suivants utilisent `fr-FR` en dur pour le formatage des dates/nombres:
+
+| Fichier | Ligne | Code Problématique |
+|---------|-------|-------------------|
+| `app/runs/page.tsx` | - | `toLocaleString('fr-FR', {...})` |
+| `components/settings/PromptsTab.tsx` | - | `toLocaleDateString("fr-FR")` |
+| `components/KpiCardCompact.tsx` | - | `value.toLocaleString("fr-FR")` |
+| `components/KpiCard.tsx` | - | `value.toLocaleString("fr-FR")` |
+| `components/chat/ChatHistory.tsx` | - | `toLocaleDateString("fr-FR", {...})` |
+| `components/Chart.tsx` | - | `value.toLocaleString('fr-FR')` |
+| `components/ChartCard.tsx` | - | `value.toLocaleString("fr-FR")` |
+| `components/DataTable.tsx` | - | `value.toLocaleString("fr-FR")` |
+| `app/layout.tsx` | - | `<html lang="fr">` |
+
+### US-08: Changement de Langue Utilisateur
+
+#### Objectif
+Permettre à l'utilisateur de changer la langue de l'interface. Le paramètre doit être utilisé **par le frontend ET le backend** pour que tous les messages soient cohérents.
+
+#### Backend
+- [ ] Ajouter setting `language` dans la table `settings` (valeur: "fr" | "en")
+- [ ] Créer endpoint `GET /settings/language`
+- [ ] Créer endpoint `PUT /settings/language`
+- [ ] Ajouter middleware pour lire le header `Accept-Language` OU le setting stocké
+- [ ] Appeler `set_locale()` avant de traiter chaque requête
+- [ ] Les réponses API utilisent automatiquement la bonne langue via `t()`
+
+#### Frontend
+- [ ] Créer `LanguageContext` pour stocker la langue globalement
+- [ ] Créer `LanguageProvider` (similaire à ThemeProvider)
+- [ ] Modifier `useTranslation` pour utiliser le contexte
+- [ ] Ajouter sélecteur de langue dans les Settings (onglet dédié ou dans ModelsTab)
+- [ ] Persister la langue dans localStorage + API
+- [ ] Modifier tous les `toLocaleString("fr-FR")` pour utiliser la locale du contexte
+- [ ] Modifier `<html lang="fr">` pour être dynamique
+- [ ] Envoyer header `Accept-Language` dans les requêtes API
+
+#### Flux de Données
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CHANGEMENT DE LANGUE                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. User clique "English" dans Settings                                     │
+│       │                                                                     │
+│       ▼                                                                     │
+│  2. Frontend: PUT /settings/language {value: "en"}                          │
+│       │                                                                     │
+│       ▼                                                                     │
+│  3. Backend: set_setting("language", "en") + set_locale("en")               │
+│       │                                                                     │
+│       ▼                                                                     │
+│  4. Frontend: LanguageContext.setLanguage("en")                             │
+│       │                                                                     │
+│       ├──▶ localStorage.setItem("language", "en")                           │
+│       │                                                                     │
+│       └──▶ Re-render avec nouvelles traductions                             │
+│                                                                             │
+│  5. Requêtes suivantes: header Accept-Language: en                          │
+│       │                                                                     │
+│       ▼                                                                     │
+│  6. Backend: middleware lit header → set_locale("en")                       │
+│       │                                                                     │
+│       ▼                                                                     │
+│  7. Réponses API en anglais via t("key")                                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Fichiers à Modifier
+
+**Frontend:**
+- `src/hooks/useTranslation.ts` - Ajouter support contexte
+- `src/components/ThemeProvider.tsx` - Renommer ou créer LanguageProvider
+- `src/app/layout.tsx` - lang dynamique + LanguageProvider
+- `src/lib/api/settings.ts` - Endpoints language
+- `src/components/settings/*` - Ajouter sélecteur langue
+- Tous les fichiers avec `toLocaleString("fr-FR")` (voir tableau ci-dessus)
+
+**Backend:**
+- `backend/main.py` - Middleware Accept-Language
+- `backend/routes/settings.py` - Endpoint language
+- `backend/i18n.py` - Déjà prêt (set_locale existe)
+
+#### Valeur par Défaut
+- Backend: `fr` (défaut actuel)
+- Frontend: Lire localStorage OU `navigator.language` OU `fr`
