@@ -11,36 +11,24 @@ const mockQuestions: PredefinedQuestion[] = [
     question: 'What is the average rating?',
     category: 'Satisfaction',
     icon: '⭐',
-    business_value: 'High',
-    display_order: 1,
-    is_enabled: true,
   },
   {
     id: 2,
     question: 'Which drivers have the best reviews?',
     category: 'Satisfaction',
     icon: '⭐',
-    business_value: 'Medium',
-    display_order: 2,
-    is_enabled: true,
   },
   {
     id: 3,
     question: 'Top 10 drivers by trips',
     category: 'Performance',
     icon: '🏆',
-    business_value: 'High',
-    display_order: 1,
-    is_enabled: true,
   },
   {
     id: 4,
     question: 'Rating trends this month',
     category: 'Trends',
     icon: '📈',
-    business_value: 'Medium',
-    display_order: 1,
-    is_enabled: true,
   },
 ];
 
@@ -137,9 +125,6 @@ describe('PredefinedQuestions', () => {
           question: 'Unknown icon question',
           category: 'Other',
           icon: 'unknown',
-          business_value: 'Low',
-          display_order: 1,
-          is_enabled: true,
         },
       ];
 

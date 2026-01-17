@@ -21,6 +21,7 @@ jest.mock('recharts', () => ({
 }));
 
 const mockCosts: LLMCosts = {
+  period_days: 7,
   total: {
     total_calls: 150,
     total_tokens_input: 50000,
@@ -46,9 +47,9 @@ const mockCosts: LLMCosts = {
     },
   ],
   by_hour: [
-    { hour: '2024-01-15T10:00:00', tokens_input: 5000, tokens_output: 2500, cost: 0.01 },
-    { hour: '2024-01-15T11:00:00', tokens_input: 8000, tokens_output: 4000, cost: 0.015 },
-    { hour: '2024-01-15T12:00:00', tokens_input: 3000, tokens_output: 1500, cost: 0.008 },
+    { hour: '2024-01-15T10:00:00', calls: 10, tokens_input: 5000, tokens_output: 2500, cost: 0.01 },
+    { hour: '2024-01-15T11:00:00', calls: 15, tokens_input: 8000, tokens_output: 4000, cost: 0.015 },
+    { hour: '2024-01-15T12:00:00', calls: 5, tokens_input: 3000, tokens_output: 1500, cost: 0.008 },
   ],
   by_source: [
     { source: 'chat', calls: 100, tokens_input: 35000, tokens_output: 17000, cost: 0.08 },
@@ -125,6 +126,7 @@ describe('UsageTab', () => {
 
     it('should show no data message when total calls is 0', () => {
       const emptyCosts: LLMCosts = {
+        period_days: 7,
         total: {
           total_calls: 0,
           total_tokens_input: 0,

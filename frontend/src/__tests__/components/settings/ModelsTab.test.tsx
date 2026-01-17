@@ -74,6 +74,7 @@ const mockModels: LLMModel[] = [
     context_window: 1000000,
     cost_per_1m_input: 0.15,
     cost_per_1m_output: 0.60,
+    is_default: true,
   },
   {
     id: 2,
@@ -83,6 +84,7 @@ const mockModels: LLMModel[] = [
     context_window: 2000000,
     cost_per_1m_input: 3.50,
     cost_per_1m_output: 10.50,
+    is_default: false,
   },
   {
     id: 3,
@@ -92,6 +94,7 @@ const mockModels: LLMModel[] = [
     context_window: 128000,
     cost_per_1m_input: 0.15,
     cost_per_1m_output: 0.60,
+    is_default: false,
   },
   {
     id: 4,
@@ -101,6 +104,7 @@ const mockModels: LLMModel[] = [
     context_window: 128000,
     cost_per_1m_input: null,
     cost_per_1m_output: null,
+    is_default: false,
   },
 ];
 
