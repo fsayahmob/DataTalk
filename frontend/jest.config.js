@@ -20,6 +20,7 @@ const config = {
         allowJs: true,
         skipLibCheck: true,
         strict: true,
+        types: ['jest', 'node', '@testing-library/jest-dom'],
         paths: {
           '@/*': ['./src/*'],
         },
