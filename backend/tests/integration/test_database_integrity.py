@@ -1,4 +1,8 @@
-"""Tests d'intégration pour vérifier l'intégrité de la base de données."""
+"""Tests d'intégration pour vérifier l'intégrité de la base de données.
+
+Ces tests vérifient que le schema.sql produit une base de données valide
+avec tous les prompts, tables et configurations requis.
+"""
 
 import sqlite3
 import typing
@@ -7,13 +11,30 @@ from pathlib import Path
 
 import pytest
 
-# Chemin vers la base de données de production
-CATALOG_DB = Path(__file__).parent.parent.parent / "catalog.sqlite"
+# Chemin vers le schema.sql
+SCHEMA_SQL = Path(__file__).parent.parent.parent / "schema.sql"
+
+
+@pytest.fixture(scope="module")
+def schema_db() -> Generator[sqlite3.Connection, None, None]:
+    """Crée une base de données en mémoire à partir du schema.sql."""
+    if not SCHEMA_SQL.exists():
+        pytest.skip("schema.sql non trouvé")
+
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+
+    # Exécuter le schema.sql complet
+    schema_content = SCHEMA_SQL.read_text(encoding="utf-8")
+    conn.executescript(schema_content)
+
+    yield conn
+    conn.close()
 
 
 @pytest.mark.integration
 class TestPromptIntegrity:
-    """Vérifie que les prompts requis existent."""
+    """Vérifie que les prompts requis existent dans le schema.sql."""
 
     REQUIRED_PROMPTS: typing.ClassVar[list[str]] = [
         "analytics_system",
@@ -22,19 +43,9 @@ class TestPromptIntegrity:
         "catalog_questions",
     ]
 
-    @pytest.fixture
-    def db_connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """Connexion à la vraie base de données."""
-        if not CATALOG_DB.exists():
-            pytest.skip("Base de données catalog.sqlite non trouvée")
-        conn = sqlite3.connect(str(CATALOG_DB))
-        conn.row_factory = sqlite3.Row
-        yield conn
-        conn.close()
-
-    def test_all_required_prompts_exist(self, db_connection: sqlite3.Connection) -> None:
+    def test_all_required_prompts_exist(self, schema_db: sqlite3.Connection) -> None:
         """Tous les prompts requis doivent exister et être actifs."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
 
         for prompt_key in self.REQUIRED_PROMPTS:
             cursor.execute(
@@ -47,11 +58,9 @@ class TestPromptIntegrity:
             assert row["is_active"] == 1, f"Prompt '{prompt_key}' n'est pas actif"
             assert row["content"], f"Prompt '{prompt_key}' a un contenu vide"
 
-    def test_analytics_prompt_has_schema_placeholder(
-        self, db_connection: sqlite3.Connection
-    ) -> None:
+    def test_analytics_prompt_has_schema_placeholder(self, schema_db: sqlite3.Connection) -> None:
         """Le prompt analytics doit contenir {schema} pour l'injection."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
         cursor.execute(
             "SELECT content FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
         )
@@ -60,9 +69,9 @@ class TestPromptIntegrity:
         assert row is not None, "Prompt analytics_system manquant"
         assert "{schema}" in row["content"], "Le prompt analytics_system doit contenir {schema}"
 
-    def test_analytics_prompt_can_be_formatted(self, db_connection: sqlite3.Connection) -> None:
+    def test_analytics_prompt_can_be_formatted(self, schema_db: sqlite3.Connection) -> None:
         """Le prompt analytics doit pouvoir être formaté avec .format(schema=...)."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
         cursor.execute(
             "SELECT content FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
         )
@@ -97,18 +106,9 @@ class TestDatabaseSchema:
         "widgets",
     ]
 
-    @pytest.fixture
-    def db_connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """Connexion à la vraie base de données."""
-        if not CATALOG_DB.exists():
-            pytest.skip("Base de données catalog.sqlite non trouvée")
-        conn = sqlite3.connect(str(CATALOG_DB))
-        yield conn
-        conn.close()
-
-    def test_all_required_tables_exist(self, db_connection: sqlite3.Connection) -> None:
+    def test_all_required_tables_exist(self, schema_db: sqlite3.Connection) -> None:
         """Toutes les tables requises doivent exister."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
         existing_tables = {row[0] for row in cursor.fetchall()}
 
@@ -120,26 +120,16 @@ class TestDatabaseSchema:
 class TestLLMConfiguration:
     """Vérifie la configuration LLM."""
 
-    @pytest.fixture
-    def db_connection(self) -> Generator[sqlite3.Connection, None, None]:
-        """Connexion à la vraie base de données."""
-        if not CATALOG_DB.exists():
-            pytest.skip("Base de données catalog.sqlite non trouvée")
-        conn = sqlite3.connect(str(CATALOG_DB))
-        conn.row_factory = sqlite3.Row
-        yield conn
-        conn.close()
-
-    def test_at_least_one_provider_exists(self, db_connection: sqlite3.Connection) -> None:
+    def test_at_least_one_provider_exists(self, schema_db: sqlite3.Connection) -> None:
         """Au moins un provider LLM doit exister."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
         cursor.execute("SELECT COUNT(*) as count FROM llm_providers")
         count = cursor.fetchone()["count"]
         assert count > 0, "Aucun provider LLM configuré"
 
-    def test_at_least_one_model_exists(self, db_connection: sqlite3.Connection) -> None:
+    def test_at_least_one_model_exists(self, schema_db: sqlite3.Connection) -> None:
         """Au moins un modèle LLM doit exister."""
-        cursor = db_connection.cursor()
+        cursor = schema_db.cursor()
         cursor.execute("SELECT COUNT(*) as count FROM llm_models")
         count = cursor.fetchone()["count"]
         assert count > 0, "Aucun modèle LLM configuré"
