@@ -37,7 +37,8 @@ class TestAnalysisFilters:
 
     def test_accepts_snake_case(self) -> None:
         """Accepte aussi snake_case."""
-        filters = AnalysisFilters(date_start="2024-01-01", note_min="3")
+        # mypy doesn't understand populate_by_name=True
+        filters = AnalysisFilters(date_start="2024-01-01", note_min="3")  # type: ignore[call-arg]
         assert filters.date_start == "2024-01-01"
         assert filters.note_min == "3"
 
@@ -48,7 +49,7 @@ class TestQuestionRequest:
     def test_question_required(self) -> None:
         """Le champ question est requis."""
         with pytest.raises(ValidationError):
-            QuestionRequest()
+            QuestionRequest()  # type: ignore[call-arg]
 
     def test_defaults(self) -> None:
         """Valeurs par défaut correctes."""
@@ -60,7 +61,8 @@ class TestQuestionRequest:
     def test_with_filters(self) -> None:
         """Peut inclure des filtres."""
         request = QuestionRequest(
-            question="Test?", filters=AnalysisFilters(date_start="2024-01-01")
+            question="Test?",
+            filters=AnalysisFilters(date_start="2024-01-01"),  # type: ignore[call-arg]
         )
         assert request.filters is not None
         assert request.filters.date_start == "2024-01-01"
@@ -72,7 +74,7 @@ class TestChartConfig:
     def test_type_required(self) -> None:
         """Le type est requis."""
         with pytest.raises(ValidationError):
-            ChartConfig()
+            ChartConfig()  # type: ignore[call-arg]
 
     def test_defaults(self) -> None:
         """Valeurs par défaut correctes."""
@@ -125,7 +127,7 @@ class TestSaveReportRequest:
     def test_required_fields(self) -> None:
         """Champs requis."""
         with pytest.raises(ValidationError):
-            SaveReportRequest()
+            SaveReportRequest()  # type: ignore[call-arg]
 
     def test_valid_request(self) -> None:
         """Requête valide."""
@@ -156,7 +158,7 @@ class TestUpdateSettingRequest:
     def test_value_required(self) -> None:
         """Value est requis."""
         with pytest.raises(ValidationError):
-            UpdateSettingRequest()
+            UpdateSettingRequest()  # type: ignore[call-arg]
 
     def test_valid(self) -> None:
         """Requête valide."""
@@ -170,7 +172,7 @@ class TestEnrichCatalogRequest:
     def test_table_ids_required(self) -> None:
         """table_ids est requis."""
         with pytest.raises(ValidationError):
-            EnrichCatalogRequest()
+            EnrichCatalogRequest()  # type: ignore[call-arg]
 
     def test_valid(self) -> None:
         """Requête valide."""
@@ -198,7 +200,7 @@ class TestSetActivePromptRequest:
     def test_version_required(self) -> None:
         """version est requis."""
         with pytest.raises(ValidationError):
-            SetActivePromptRequest()
+            SetActivePromptRequest()  # type: ignore[call-arg]
 
     def test_valid(self) -> None:
         """Requête valide."""
@@ -212,7 +214,7 @@ class TestPromptUpdateRequest:
     def test_content_required(self) -> None:
         """content est requis."""
         with pytest.raises(ValidationError):
-            PromptUpdateRequest()
+            PromptUpdateRequest()  # type: ignore[call-arg]
 
     def test_valid(self) -> None:
         """Requête valide."""

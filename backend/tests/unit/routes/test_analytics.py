@@ -133,7 +133,7 @@ class TestCallLlmForAnalytics:
         mock_response.response_time_ms = 0
         mock_call_llm.return_value = mock_response
 
-        filters = AnalysisFilters(date_start="2024-01-01")
+        filters = AnalysisFilters(date_start="2024-01-01")  # type: ignore[call-arg]
         call_llm_for_analytics("test", filters=filters)
 
         mock_filter_ctx.assert_called_once_with(filters)

@@ -95,8 +95,8 @@ class TestStructuredLLMResponse:
         )
 
         assert response.data == data
-        assert response.data.name == "test"
-        assert response.data.value == 42
+        assert response.data.name == "test"  # type: ignore[attr-defined]
+        assert response.data.value == 42  # type: ignore[attr-defined]
 
     def test_content_is_empty(self) -> None:
         """Le contenu est vide (remplacé par data)."""

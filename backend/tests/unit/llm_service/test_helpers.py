@@ -1,6 +1,7 @@
 """Tests pour llm_service/helpers.py - Fonctions helper LLM."""
 
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -60,10 +61,10 @@ class TestGetApiKeyForModel:
     """Tests de _get_api_key_for_model."""
 
     @patch("llm_service.helpers.get_api_key")
-    def test_returns_api_key(self, mock_get_api_key: patch) -> None:
+    def test_returns_api_key(self, mock_get_api_key: MagicMock) -> None:
         """Retourne la clé API si présente."""
         mock_get_api_key.return_value = "sk-test-key"
-        model = {"provider_id": 1}
+        model: dict[str, Any] = {"provider_id": 1}
 
         result = _get_api_key_for_model(model)
 
@@ -71,7 +72,7 @@ class TestGetApiKeyForModel:
         mock_get_api_key.assert_called_once_with(1)
 
     @patch("llm_service.helpers.get_api_key")
-    def test_returns_none_no_provider_id(self, mock_get_api_key: patch) -> None:
+    def test_returns_none_no_provider_id(self, mock_get_api_key: MagicMock) -> None:
         """Retourne None si pas de provider_id."""
         model: dict[str, int] = {}
 
@@ -81,20 +82,20 @@ class TestGetApiKeyForModel:
         mock_get_api_key.assert_not_called()
 
     @patch("llm_service.helpers.get_api_key")
-    def test_returns_none_if_no_key(self, mock_get_api_key: patch) -> None:
+    def test_returns_none_if_no_key(self, mock_get_api_key: MagicMock) -> None:
         """Retourne None si pas de clé configurée."""
         mock_get_api_key.return_value = None
-        model = {"provider_id": 2}
+        model: dict[str, Any] = {"provider_id": 2}
 
         result = _get_api_key_for_model(model)
 
         assert result is None
 
     @patch("llm_service.helpers.get_api_key")
-    def test_passes_provider_id(self, mock_get_api_key: patch) -> None:
+    def test_passes_provider_id(self, mock_get_api_key: MagicMock) -> None:
         """Passe le bon provider_id à get_api_key."""
         mock_get_api_key.return_value = "key"
-        model = {"provider_id": 42}
+        model: dict[str, Any] = {"provider_id": 42}
 
         _get_api_key_for_model(model)
 

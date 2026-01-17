@@ -137,6 +137,7 @@ class TestGetActivePrompt:
         result = get_active_prompt("test")
 
         mock_get_prompt.assert_called_once_with("test", "normal")
+        assert result is not None
         assert result["key"] == "test"
 
 

@@ -235,7 +235,7 @@ def sample_widget_data() -> dict[str, Any]:
 
 
 @pytest.fixture
-def mock_get_setting() -> Generator[MagicMock, None, None]:
+def mock_get_setting() -> Generator[dict[str, str], None, None]:
     """Mock de get_setting."""
     settings = {
         "duckdb_path": "/path/to/db.duckdb",

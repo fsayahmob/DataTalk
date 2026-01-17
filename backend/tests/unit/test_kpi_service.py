@@ -133,7 +133,7 @@ class TestGetKpiWithData:
         db = MagicMock()
 
         # Simuler sql_value retourne 100, sql_trend retourne 80
-        def execute_side_effect(sql):
+        def execute_side_effect(sql: str) -> MagicMock:
             mock_result = MagicMock()
             if "100" in sql:
                 mock_result.fetchdf.return_value = pd.DataFrame({"v": [100]})
@@ -164,7 +164,7 @@ class TestGetKpiWithData:
         }
         db = MagicMock()
 
-        def execute_side_effect(sql):
+        def execute_side_effect(sql: str) -> MagicMock:
             mock_result = MagicMock()
             if "value FROM" in sql:
                 mock_result.fetchdf.return_value = pd.DataFrame({"v": [10, 20, 30, 40]})
@@ -225,7 +225,7 @@ class TestGetKpiWithData:
         }
         db = MagicMock()
 
-        def execute_side_effect(sql):
+        def execute_side_effect(sql: str) -> MagicMock:
             mock_result = MagicMock()
             if "100" in sql:
                 mock_result.fetchdf.return_value = pd.DataFrame({"v": [100]})

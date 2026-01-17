@@ -83,6 +83,7 @@ class TestParseLlmJson:
         """Parse un tableau JSON."""
         content = '[{"a": 1}, {"b": 2}]'
         result = parse_llm_json(content)
+        assert isinstance(result, list)
         assert result == [{"a": 1}, {"b": 2}]
 
     def test_raises_on_empty_content(self) -> None:

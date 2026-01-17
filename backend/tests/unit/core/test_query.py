@@ -270,6 +270,7 @@ class TestShouldDisableChart:
         """La raison inclut le nombre de lignes."""
         with patch("core.query.get_setting", return_value="1000"):
             _, reason = should_disable_chart(5000, "bar")
+        assert reason is not None
         assert "5,000" in reason or "5000" in reason
 
 
