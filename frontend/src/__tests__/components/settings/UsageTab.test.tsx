@@ -1,7 +1,7 @@
 /**
  * Tests for UsageTab component
  */
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { UsageTab } from '@/components/settings/UsageTab';
 import type { LLMCosts } from '@/lib/api';
 

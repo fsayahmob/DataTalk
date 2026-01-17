@@ -6,7 +6,6 @@ import userEvent from '@testing-library/user-event';
 import { AnalyticsZone } from '@/components/AnalyticsZone';
 import type { SavedReport } from '@/types';
 import * as api from '@/lib/api';
-import { toast } from 'sonner';
 
 // Mock API
 jest.mock('@/lib/api', () => ({
@@ -23,10 +22,10 @@ jest.mock('sonner', () => ({
 
 // Mock icons
 jest.mock('@/components/icons', () => ({
-  ChartIcon: ({ size }: { size: number }) => <span data-testid="chart-icon" />,
-  ChevronRightIcon: ({ size }: { size: number }) => <span data-testid="chevron-right" />,
-  SaveIcon: ({ size }: { size: number }) => <span data-testid="save-icon" />,
-  ShareIcon: ({ size }: { size: number }) => <span data-testid="share-icon" />,
+  ChartIcon: ({ size: _size }: { size: number }) => <span data-testid="chart-icon" />,
+  ChevronRightIcon: ({ size: _size }: { size: number }) => <span data-testid="chevron-right" />,
+  SaveIcon: ({ size: _size }: { size: number }) => <span data-testid="save-icon" />,
+  ShareIcon: ({ size: _size }: { size: number }) => <span data-testid="share-icon" />,
 }));
 
 // Mock KpiGridCompact
@@ -67,7 +66,7 @@ describe('AnalyticsZone', () => {
     title: 'Test Report',
     question: 'Test question?',
     sql_query: 'SELECT * FROM test',
-    chart_config: null,
+    chart_config: undefined,
     is_pinned: false,
     share_token: 'test-token-123',
     created_at: '2024-01-01T00:00:00Z',

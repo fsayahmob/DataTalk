@@ -33,7 +33,7 @@ jest.mock('@/components/panels', () => ({
   SQLPanel: ({ sql }: { sql: string }) => (
     <div data-testid="sql-panel">{sql}</div>
   ),
-  ChartPanel: ({ config, data }: { config: unknown; data: unknown[] }) => (
+  ChartPanel: ({ config: _config, data }: { config: unknown; data: unknown[] }) => (
     <div data-testid="chart-panel">Chart with {data.length} items</div>
   ),
   TablePanel: ({ data }: { data: unknown[] }) => (

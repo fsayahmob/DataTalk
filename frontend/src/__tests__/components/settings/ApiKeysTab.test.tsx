@@ -229,7 +229,7 @@ describe('ApiKeysTab', () => {
       });
     });
 
-    it('should not save when API key is empty', async () => {
+    it('should not save when API key is empty', () => {
       const onSaveApiKey = jest.fn().mockResolvedValue(undefined);
       render(<ApiKeysTab {...defaultProps} onSaveApiKey={onSaveApiKey} />);
 

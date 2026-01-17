@@ -22,11 +22,10 @@ from .extraction import build_column_full_context, extract_metadata_from_connect
 from .kpis import generate_kpis, save_kpis
 from .models import (
     CatalogValidationResult,
-    ColumnMetadata,
     ExtractedCatalog,
     TableMetadata,
 )
-from .persistence import get_duckdb_path, update_descriptions
+from .persistence import get_duckdb_path, load_tables_context, update_descriptions
 from .questions import generate_suggested_questions, save_suggested_questions
 
 if TYPE_CHECKING:
@@ -35,20 +34,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-# =============================================================================
-# UTILITAIRES INTERNES
-# =============================================================================
-
-
 @contextmanager
 def _dummy_context() -> Generator[None, None, None]:
     """Context manager vide pour compatibilité quand job_id est None."""
     yield
-
-
-# =============================================================================
-# FONCTION EXTRACTION SEULE (ÉTAPE 1 - SANS LLM)
-# =============================================================================
 
 
 def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> dict[str, Any]:
@@ -163,11 +152,6 @@ def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> 
     }
 
 
-# =============================================================================
-# FONCTION ENRICHISSEMENT (ÉTAPE 2 - LLM SUR TABLES ACTIVÉES)
-# =============================================================================
-
-
 def enrich_selected_tables(
     table_ids: list[int], db_connection: DuckDBConnection, job_id: int | None = None
 ) -> dict[str, Any]:
@@ -254,72 +238,6 @@ def enrich_selected_tables(
 
     # Suite: construire le catalogue et enrichir
     return _enrich_tables(selected_tables, db_connection, workflow, datasource_name)
-
-
-def _load_tables_context(
-    tables_rows: list[Any],
-) -> list[tuple[TableMetadata, str]]:
-    """
-    Charge le contexte des tables depuis SQLite.
-
-    Lit le full_context (calculé à l'extraction) au lieu de recalculer
-    les statistiques depuis DuckDB.
-
-    Args:
-        tables_rows: Résultat SQL des tables à enrichir
-
-    Returns:
-        Liste de tuples (TableMetadata, context_string)
-    """
-    conn = get_connection()
-    cursor = conn.cursor()
-    tables_info: list[tuple[TableMetadata, str]] = []
-
-    for table_row in tables_rows:
-        table_id = table_row["id"]
-        table_name = table_row["name"]
-        row_count = table_row["row_count"] or 0
-
-        # Récupérer les colonnes depuis SQLite (avec full_context)
-        cursor.execute(
-            """
-            SELECT name, data_type, full_context, sample_values, value_range
-            FROM columns WHERE table_id = ? ORDER BY id
-            """,
-            (table_id,),
-        )
-        columns_rows = cursor.fetchall()
-        logger.info("  Lecture depuis SQLite: %s (%d colonnes)", table_name, len(columns_rows))
-
-        # Construire le contexte et les métadonnées
-        cols_desc = []
-        columns_result = []
-
-        for col_row in columns_rows:
-            col_name = col_row["name"]
-            col_type = col_row["data_type"]
-            full_context = col_row["full_context"] or ""
-
-            col_line = f"  - {col_name} ({col_type})"
-            if full_context:
-                col_line += f" {full_context}"
-            cols_desc.append(col_line)
-
-            columns_result.append(
-                ColumnMetadata(
-                    name=col_name,
-                    data_type=col_type,
-                    sample_values=col_row["sample_values"].split(", ") if col_row["sample_values"] else [],
-                    value_range=col_row["value_range"],
-                )
-            )
-
-        context_part = f"\nTable: {table_name} ({row_count:,} lignes)\nColonnes:\n{chr(10).join(cols_desc)}\n"
-        table_metadata = TableMetadata(name=table_name, row_count=row_count, columns=columns_result)
-        tables_info.append((table_metadata, context_part))
-
-    conn.close()
-    return tables_info
 
 
 def _run_llm_batches(
@@ -549,7 +467,7 @@ def _enrich_tables(
     max_tables_per_batch = int(max_batch_setting) if max_batch_setting else 15
 
     # 1. Charger le contexte des tables
-    tables_info = _load_tables_context(tables_rows)
+    tables_info = load_tables_context(tables_rows)
 
     # 2. Enrichir par batches
     result = _run_llm_batches(tables_info, workflow, max_tables_per_batch)

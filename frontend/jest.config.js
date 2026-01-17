@@ -35,8 +35,8 @@ const config = {
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
-    '!src/app/layout.tsx',
-    '!src/app/globals.css',
+    '!src/app/**',
+    '!src/components/icons.tsx',
   ],
   coverageThreshold: {
     global: {

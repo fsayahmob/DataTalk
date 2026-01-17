@@ -2,8 +2,10 @@
 Persistence du catalogue dans SQLite.
 
 Sauvegarde et mise à jour des descriptions, synonymes.
+Chargement du contexte des tables pour enrichissement.
 """
 
+import logging
 from contextlib import suppress
 from pathlib import Path
 from typing import Any
@@ -11,7 +13,9 @@ from typing import Any
 from catalog import add_column, add_datasource, add_synonym, add_table, get_setting
 from db import get_connection
 
-from .models import ExtractedCatalog
+from .models import ColumnMetadata, ExtractedCatalog, TableMetadata
+
+logger = logging.getLogger(__name__)
 
 # Configuration par défaut (fallback si settings non initialisé)
 DEFAULT_DB_PATH = str(Path(__file__).parent.parent / ".." / "data" / "g7_analytics.duckdb")
@@ -201,3 +205,69 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
     conn.commit()
     conn.close()
     return stats
+
+
+def load_tables_context(
+    tables_rows: list[Any],
+) -> list[tuple[TableMetadata, str]]:
+    """
+    Charge le contexte des tables depuis SQLite.
+
+    Lit le full_context (calculé à l'extraction) au lieu de recalculer
+    les statistiques depuis DuckDB.
+
+    Args:
+        tables_rows: Résultat SQL des tables à enrichir
+
+    Returns:
+        Liste de tuples (TableMetadata, context_string)
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+    tables_info: list[tuple[TableMetadata, str]] = []
+
+    for table_row in tables_rows:
+        table_id = table_row["id"]
+        table_name = table_row["name"]
+        row_count = table_row["row_count"] or 0
+
+        # Récupérer les colonnes depuis SQLite (avec full_context)
+        cursor.execute(
+            """
+            SELECT name, data_type, full_context, sample_values, value_range
+            FROM columns WHERE table_id = ? ORDER BY id
+            """,
+            (table_id,),
+        )
+        columns_rows = cursor.fetchall()
+        logger.info("  Lecture depuis SQLite: %s (%d colonnes)", table_name, len(columns_rows))
+
+        # Construire le contexte et les métadonnées
+        cols_desc = []
+        columns_result = []
+
+        for col_row in columns_rows:
+            col_name = col_row["name"]
+            col_type = col_row["data_type"]
+            full_context = col_row["full_context"] or ""
+
+            col_line = f"  - {col_name} ({col_type})"
+            if full_context:
+                col_line += f" {full_context}"
+            cols_desc.append(col_line)
+
+            columns_result.append(
+                ColumnMetadata(
+                    name=col_name,
+                    data_type=col_type,
+                    sample_values=col_row["sample_values"].split(", ") if col_row["sample_values"] else [],
+                    value_range=col_row["value_range"],
+                )
+            )
+
+        context_part = f"\nTable: {table_name} ({row_count:,} lignes)\nColonnes:\n{chr(10).join(cols_desc)}\n"
+        table_metadata = TableMetadata(name=table_name, row_count=row_count, columns=columns_result)
+        tables_info.append((table_metadata, context_part))
+
+    conn.close()
+    return tables_info

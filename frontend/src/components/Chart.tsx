@@ -61,6 +61,7 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   return null;
 };
 
+// eslint-disable-next-line complexity -- Chart has multiple render paths for different chart types
 export function Chart({ config, data, height = "100%" }: ChartProps) {
   // ID unique pour les gradients de ce chart (doit être appelé avant tout return conditionnel)
   const chartId = useId();

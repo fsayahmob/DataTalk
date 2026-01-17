@@ -126,7 +126,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run-123" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 
@@ -159,7 +159,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 
@@ -189,7 +189,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 
@@ -220,7 +220,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 
@@ -261,7 +261,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 
@@ -276,24 +276,24 @@ describe('PipelineLog', () => {
   });
 
   describe('SSE lifecycle', () => {
-    it('should close EventSource when done message received', async () => {
+    it('should close EventSource when done message received', () => {
       render(<PipelineLog runId="test-run" />);
 
       const eventSource = MockEventSource.instances[0];
 
-      await act(async () => {
+      act(() => {
         eventSource.simulateMessage({ done: true });
       });
 
       expect(eventSource.readyState).toBe(2); // CLOSED
     });
 
-    it('should close EventSource on error', async () => {
+    it('should close EventSource on error', () => {
       render(<PipelineLog runId="test-run" />);
 
       const eventSource = MockEventSource.instances[0];
 
-      await act(async () => {
+      act(() => {
         eventSource.simulateError();
       });
 
@@ -348,7 +348,7 @@ describe('PipelineLog', () => {
 
       render(<PipelineLog runId="test-run" />);
 
-      await act(async () => {
+      act(() => {
         MockEventSource.instances[0].simulateMessage(mockJobs);
       });
 

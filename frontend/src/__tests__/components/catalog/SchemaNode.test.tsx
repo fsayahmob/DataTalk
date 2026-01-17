@@ -29,8 +29,8 @@ jest.mock('@/hooks/useTranslation', () => ({
 
 describe('SchemaNode', () => {
   const defaultColumns = [
-    { id: 1, name: 'id', data_type: 'INTEGER', description: null },
-    { id: 2, name: 'name', data_type: 'VARCHAR(255)', description: null },
+    { id: 1, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+    { id: 2, name: 'name', data_type: 'VARCHAR(255)', description: null, sample_values: null, full_context: null, value_range: null },
   ];
 
   const createNodeData = (overrides: Partial<SchemaNodeData> = {}): SchemaNodeData => ({
@@ -90,7 +90,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'count', data_type: 'INTEGER', description: null }],
+            columns: [{ id: 1, name: 'count', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -102,7 +102,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'title', data_type: 'VARCHAR', description: null }],
+            columns: [{ id: 1, name: 'title', data_type: 'VARCHAR', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -114,7 +114,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'created_at', data_type: 'TIMESTAMP', description: null }],
+            columns: [{ id: 1, name: 'created_at', data_type: 'TIMESTAMP', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -127,7 +127,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'active', data_type: 'BOOLEAN', description: null }],
+            columns: [{ id: 1, name: 'active', data_type: 'BOOLEAN', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -139,7 +139,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'metadata', data_type: 'JSON', description: null }],
+            columns: [{ id: 1, name: 'metadata', data_type: 'JSON', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -151,7 +151,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'data', data_type: 'BLOB', description: null }],
+            columns: [{ id: 1, name: 'data', data_type: 'BLOB', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -167,6 +167,9 @@ describe('SchemaNode', () => {
         name: `col_${i}`,
         data_type: 'VARCHAR',
         description: null,
+        sample_values: null,
+        full_context: null,
+        value_range: null,
       }));
 
       render(<SchemaNode data={createNodeData({ columns })} />);
@@ -182,6 +185,9 @@ describe('SchemaNode', () => {
         name: `col_${i}`,
         data_type: 'VARCHAR',
         description: null,
+        sample_values: null,
+        full_context: null,
+        value_range: null,
       }));
 
       render(<SchemaNode data={createNodeData({ columns })} />);
@@ -248,7 +254,7 @@ describe('SchemaNode', () => {
         <SchemaNode
           data={createNodeData({
             columns: [
-              { id: 1, name: 'rating', data_type: 'INTEGER', description: null, value_range: '1-5' },
+              { id: 1, name: 'rating', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: '1-5' },
             ],
           })}
         />
@@ -261,7 +267,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'id', data_type: 'INTEGER', description: null }],
+            columns: [{ id: 1, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );
@@ -275,7 +281,7 @@ describe('SchemaNode', () => {
       render(
         <SchemaNode
           data={createNodeData({
-            columns: [{ id: 1, name: 'name', data_type: 'VARCHAR(255)', description: null }],
+            columns: [{ id: 1, name: 'name', data_type: 'VARCHAR(255)', description: null, sample_values: null, full_context: null, value_range: null }],
           })}
         />
       );

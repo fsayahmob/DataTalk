@@ -15,6 +15,11 @@ jest.mock('@/components/Sidebar', () => ({
   ),
 }));
 
+// Mock DatasetHeader component
+jest.mock('@/components/DatasetHeader', () => ({
+  DatasetHeader: () => <div data-testid="dataset-header">Dataset Header</div>,
+}));
+
 describe('AppShell', () => {
   it('renders children correctly', () => {
     render(
@@ -75,5 +80,15 @@ describe('AppShell', () => {
     const main = container.querySelector('main');
     expect(main).toBeInTheDocument();
     expect(main).toHaveClass('flex-1');
+  });
+
+  it('renders DatasetHeader component', () => {
+    render(
+      <AppShell>
+        <div>Content</div>
+      </AppShell>
+    );
+
+    expect(screen.getByTestId('dataset-header')).toBeInTheDocument();
   });
 });

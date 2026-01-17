@@ -1,7 +1,7 @@
 /**
  * Tests for ChartPanel component
  */
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ChartPanel } from '@/components/panels/ChartPanel';
 import type { ChartConfig } from '@/types';
@@ -17,11 +17,11 @@ jest.mock('@/components/Chart', () => ({
 
 // Mock icons
 jest.mock('@/components/icons', () => ({
-  ChartIcon: ({ size, className }: { size: number; className?: string }) => (
+  ChartIcon: ({ size: _size, className: _className }: { size: number; className?: string }) => (
     <span data-testid="chart-icon" aria-hidden="true" />
   ),
-  ExpandIcon: ({ size }: { size: number }) => <span data-testid="expand-icon" aria-hidden="true" />,
-  CollapseIcon: ({ size }: { size: number }) => <span data-testid="collapse-icon" aria-hidden="true" />,
+  ExpandIcon: ({ size: _size }: { size: number }) => <span data-testid="expand-icon" aria-hidden="true" />,
+  CollapseIcon: ({ size: _size }: { size: number }) => <span data-testid="collapse-icon" aria-hidden="true" />,
 }));
 
 // Mock useTranslation
@@ -40,8 +40,8 @@ describe('ChartPanel', () => {
   const createConfig = (overrides: Partial<ChartConfig> = {}): ChartConfig => ({
     type: 'bar',
     title: 'Sales by Month',
-    xAxis: 'month',
-    yAxis: 'sales',
+    x: 'month',
+    y: 'sales',
     ...overrides,
   });
 

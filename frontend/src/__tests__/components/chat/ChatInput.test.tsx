@@ -2,7 +2,6 @@
  * Tests for ChatInput component
  */
 import { render, screen, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { ChatInput } from '@/components/chat/ChatInput';
 
 // Mock translation hook
@@ -69,7 +68,7 @@ describe('ChatInput', () => {
   });
 
   describe('Textarea interaction', () => {
-    it('should call onQuestionChange when typing', async () => {
+    it('should call onQuestionChange when typing', () => {
       const onQuestionChange = jest.fn();
       render(<ChatInput {...defaultProps} onQuestionChange={onQuestionChange} />);
 

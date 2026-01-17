@@ -16,11 +16,6 @@ afterAll(() => {
 
 // Mock recharts
 jest.mock('recharts', () => {
-  const MockChartWrapper = ({ children, ...props }: { children: React.ReactNode }) => (
-    <div data-testid="chart-wrapper" data-chart-props={JSON.stringify(props)}>
-      {children}
-    </div>
-  );
   return {
     BarChart: (props: Record<string, unknown>) => (
       <div data-testid="bar-chart" data-margin={JSON.stringify(props.margin)}>
@@ -65,6 +60,7 @@ jest.mock('recharts', () => {
 describe('Chart', () => {
   const createConfig = (overrides: Partial<ChartConfig> = {}): ChartConfig => ({
     type: 'bar',
+    title: 'Test Chart',
     x: 'category',
     y: 'value',
     ...overrides,

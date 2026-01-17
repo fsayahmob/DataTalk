@@ -1,7 +1,7 @@
 /**
  * Tests for TableDetailPanel component
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TableDetailPanel } from '@/components/catalog/TableDetailPanel';
 import type { CatalogTable } from '@/lib/api';
@@ -24,37 +24,28 @@ jest.mock('sonner', () => ({
 
 // Mock CloseIcon
 jest.mock('@/components/icons', () => ({
-  CloseIcon: ({ size }: { size: number }) => <span data-testid="close-icon">X</span>,
+  CloseIcon: ({ size: _size }: { size: number }) => <span data-testid="close-icon">X</span>,
 }));
 
 // Mock useTranslation
+const translations: Record<string, string> = {
+  'catalog.excluded': 'Excluded', 'catalog.not_enriched': 'Not enriched',
+  'catalog.not_enriched_warning': 'This table has not been enriched yet.',
+  'catalog.include_enrichment': 'Include in enrichment',
+  'catalog.will_be_enriched': 'Will be enriched by LLM',
+  'catalog.excluded_from_enrichment': 'Excluded from LLM enrichment',
+  'catalog.description_empty': 'Description cannot be empty',
+  'catalog.description_updated': 'Description updated',
+  'catalog.update_error': 'Failed to update description',
+  'catalog.column': 'Column', 'catalog.type': 'Type', 'catalog.description': 'Description',
+  'catalog.add_description': 'Add description...', 'catalog.click_to_edit': 'Click to edit',
+  'catalog.value_analysis': 'Value Analysis',
+  'catalog.full_stats_sent': 'Full statistics will be sent',
+  'catalog.compact_stats_sent': 'Compact statistics will be sent',
+  'common.rows': 'rows', 'prompts.mode_label': 'Mode: full',
+};
 jest.mock('@/hooks/useTranslation', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const translations: Record<string, string> = {
-        'catalog.excluded': 'Excluded',
-        'catalog.not_enriched': 'Not enriched',
-        'catalog.not_enriched_warning': 'This table has not been enriched yet.',
-        'catalog.include_enrichment': 'Include in enrichment',
-        'catalog.will_be_enriched': 'Will be enriched by LLM',
-        'catalog.excluded_from_enrichment': 'Excluded from LLM enrichment',
-        'catalog.description_empty': 'Description cannot be empty',
-        'catalog.description_updated': 'Description updated',
-        'catalog.update_error': 'Failed to update description',
-        'catalog.column': 'Column',
-        'catalog.type': 'Type',
-        'catalog.description': 'Description',
-        'catalog.add_description': 'Add description...',
-        'catalog.click_to_edit': 'Click to edit',
-        'catalog.value_analysis': 'Value Analysis',
-        'catalog.full_stats_sent': 'Full statistics will be sent',
-        'catalog.compact_stats_sent': 'Compact statistics will be sent',
-        'common.rows': 'rows',
-        'prompts.mode_label': 'Mode: full',
-      };
-      return translations[key] || key;
-    },
-  }),
+  useTranslation: () => ({ t: (key: string) => translations[key] || key }),
 }));
 
 describe('TableDetailPanel', () => {
@@ -63,15 +54,14 @@ describe('TableDetailPanel', () => {
 
   const createTable = (overrides: Partial<CatalogTable> = {}): CatalogTable => ({
     id: 1,
-    datasource_id: 1,
     name: 'users',
     description: 'User accounts table',
     row_count: 1500,
     is_enabled: true,
     columns: [
-      { id: 1, name: 'id', data_type: 'INTEGER', description: 'Primary key' },
-      { id: 2, name: 'name', data_type: 'VARCHAR(255)', description: null },
-      { id: 3, name: 'email', data_type: 'VARCHAR(255)', description: 'User email address' },
+      { id: 1, name: 'id', data_type: 'INTEGER', description: 'Primary key', sample_values: null, full_context: null, value_range: null },
+      { id: 2, name: 'name', data_type: 'VARCHAR(255)', description: null, sample_values: null, full_context: null, value_range: null },
+      { id: 3, name: 'email', data_type: 'VARCHAR(255)', description: 'User email address', sample_values: null, full_context: null, value_range: null },
     ],
     ...overrides,
   });
@@ -82,66 +72,17 @@ describe('TableDetailPanel', () => {
   });
 
   describe('Basic rendering', () => {
-    it('renders table name in header', () => {
+    it('renders table info, columns and close button', () => {
       render(
-        <TableDetailPanel
-          table={createTable()}
-          onClose={mockOnClose}
-          onTableToggle={mockOnTableToggle}
-        />
+        <TableDetailPanel table={createTable()} onClose={mockOnClose} onTableToggle={mockOnTableToggle} />
       );
-
       expect(screen.getByText('users')).toBeInTheDocument();
-    });
-
-    it('renders row count', () => {
-      render(
-        <TableDetailPanel
-          table={createTable()}
-          onClose={mockOnClose}
-          onTableToggle={mockOnTableToggle}
-        />
-      );
-
       expect(screen.getByText(/1,500/)).toBeInTheDocument();
-    });
-
-    it('renders table description', () => {
-      render(
-        <TableDetailPanel
-          table={createTable()}
-          onClose={mockOnClose}
-          onTableToggle={mockOnTableToggle}
-        />
-      );
-
       expect(screen.getByText('User accounts table')).toBeInTheDocument();
-    });
-
-    it('renders column table with headers', () => {
-      render(
-        <TableDetailPanel
-          table={createTable()}
-          onClose={mockOnClose}
-          onTableToggle={mockOnTableToggle}
-        />
-      );
-
       expect(screen.getByRole('table')).toBeInTheDocument();
       expect(screen.getByText('id')).toBeInTheDocument();
       expect(screen.getByText('name')).toBeInTheDocument();
       expect(screen.getByText('email')).toBeInTheDocument();
-    });
-
-    it('renders close button', () => {
-      render(
-        <TableDetailPanel
-          table={createTable()}
-          onClose={mockOnClose}
-          onTableToggle={mockOnTableToggle}
-        />
-      );
-
       expect(screen.getByTestId('close-icon')).toBeInTheDocument();
     });
   });
@@ -439,6 +380,7 @@ describe('TableDetailPanel', () => {
                 name: 'rating',
                 data_type: 'INTEGER',
                 description: null,
+                sample_values: null,
                 value_range: '1-5',
                 full_context: 'Integer values from 1 to 5',
               },

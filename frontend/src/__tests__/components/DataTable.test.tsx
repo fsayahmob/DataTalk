@@ -1,7 +1,7 @@
 /**
  * Tests for DataTable component
  */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DataTable } from '@/components/DataTable';
 
@@ -17,14 +17,14 @@ jest.mock('xlsx', () => ({
 
 // Mock icons
 jest.mock('@/components/icons', () => ({
-  FilterIcon: ({ size }: { size: number }) => <span data-testid="filter-icon" />,
-  SortIcon: ({ size }: { size: number }) => <span data-testid="sort-icon" />,
-  SortAscIcon: ({ size }: { size: number }) => <span data-testid="sort-asc-icon" />,
-  SortDescIcon: ({ size }: { size: number }) => <span data-testid="sort-desc-icon" />,
-  ChevronLeftIcon: ({ size }: { size: number }) => <span data-testid="chevron-left" />,
-  ChevronRightIcon: ({ size }: { size: number }) => <span data-testid="chevron-right" />,
-  DownloadIcon: ({ size }: { size: number }) => <span data-testid="download-icon" />,
-  ChevronDownIcon: ({ size }: { size: number }) => <span data-testid="chevron-down" />,
+  FilterIcon: ({ size: _size }: { size: number }) => <span data-testid="filter-icon" />,
+  SortIcon: ({ size: _size }: { size: number }) => <span data-testid="sort-icon" />,
+  SortAscIcon: ({ size: _size }: { size: number }) => <span data-testid="sort-asc-icon" />,
+  SortDescIcon: ({ size: _size }: { size: number }) => <span data-testid="sort-desc-icon" />,
+  ChevronLeftIcon: ({ size: _size }: { size: number }) => <span data-testid="chevron-left" />,
+  ChevronRightIcon: ({ size: _size }: { size: number }) => <span data-testid="chevron-right" />,
+  DownloadIcon: ({ size: _size }: { size: number }) => <span data-testid="download-icon" />,
+  ChevronDownIcon: ({ size: _size }: { size: number }) => <span data-testid="chevron-down" />,
 }));
 
 // Mock useTranslation

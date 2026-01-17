@@ -14,9 +14,9 @@ from contextlib import asynccontextmanager
 import duckdb
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from catalog import get_schema_for_llm
@@ -79,7 +79,17 @@ app = FastAPI(
 
 # Rate limiting
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+async def rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle rate limit exceeded errors."""
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Rate limit exceeded. Please try again later."},
+    )
+
+
+app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # CORS pour permettre les appels depuis Next.js
 app.add_middleware(

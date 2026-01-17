@@ -11,7 +11,7 @@ jest.mock('dagre', () => {
     setGraph: jest.fn(),
     setNode: jest.fn(),
     setEdge: jest.fn(),
-    node: jest.fn((id: string) => ({
+    node: jest.fn((_id: string) => ({
       x: 100,
       y: 100,
       width: 300,
@@ -40,14 +40,13 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'users',
           description: 'User table',
           row_count: 100,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'id', data_type: 'INTEGER', description: null },
-            { id: 2, name: 'name', data_type: 'VARCHAR', description: null },
+            { id: 1, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 2, name: 'name', data_type: 'VARCHAR', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -65,7 +64,6 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'orders',
           description: null,
           row_count: 5000,
@@ -83,7 +81,6 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'products',
           description: 'Product catalog',
           row_count: 200,
@@ -101,26 +98,24 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'orders',
           description: null,
           row_count: 100,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'id', data_type: 'INTEGER', description: null },
-            { id: 2, name: 'id_client', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 2, name: 'id_client', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 2,
-          datasource_id: 1,
           name: 'clients',
           description: null,
           row_count: 50,
           is_enabled: true,
           columns: [
-            { id: 3, name: 'id', data_type: 'INTEGER', description: null },
-            { id: 4, name: 'name', data_type: 'VARCHAR', description: null },
+            { id: 3, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 4, name: 'name', data_type: 'VARCHAR', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -136,26 +131,24 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'courses',
           description: null,
           row_count: 100,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'num_course', data_type: 'INTEGER', description: null },
-            { id: 2, name: 'cod_taxi', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'num_course', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 2, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 2,
-          datasource_id: 1,
           name: 'taxis',
           description: null,
           row_count: 50,
           is_enabled: true,
           columns: [
-            { id: 3, name: 'cod_taxi', data_type: 'INTEGER', description: null },
-            { id: 4, name: 'nom', data_type: 'VARCHAR', description: null },
+            { id: 3, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 4, name: 'nom', data_type: 'VARCHAR', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -171,24 +164,22 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'table_a',
           description: null,
           row_count: 10,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'cod_taxi', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 2,
-          datasource_id: 1,
           name: 'table_b',
           description: null,
           row_count: 20,
           is_enabled: true,
           columns: [
-            { id: 2, name: 'cod_taxi', data_type: 'INTEGER', description: null },
+            { id: 2, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -205,7 +196,6 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'disabled_table',
           description: null,
           row_count: 0,
@@ -223,10 +213,10 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'table_without_enabled',
           description: null,
           row_count: 0,
+          is_enabled: true,
           columns: [],
         },
       ];
@@ -240,36 +230,33 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'orders',
           description: null,
           row_count: 100,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'cod_taxi', data_type: 'INTEGER', description: null },
-            { id: 2, name: 'client_id', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
+            { id: 2, name: 'client_id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 2,
-          datasource_id: 1,
           name: 'taxis',
           description: null,
           row_count: 50,
           is_enabled: true,
           columns: [
-            { id: 3, name: 'cod_taxi', data_type: 'INTEGER', description: null },
+            { id: 3, name: 'cod_taxi', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 3,
-          datasource_id: 1,
           name: 'clients',
           description: null,
           row_count: 30,
           is_enabled: true,
           columns: [
-            { id: 4, name: 'client_id', data_type: 'INTEGER', description: null },
+            { id: 4, name: 'client_id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -286,13 +273,12 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'single_table',
           description: null,
           row_count: 10,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'id', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];
@@ -311,12 +297,14 @@ describe('layoutUtils', () => {
         name: `col_${i}`,
         data_type: 'VARCHAR',
         description: null,
+        sample_values: null,
+        full_context: null,
+        value_range: null,
       }));
 
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'wide_table',
           description: null,
           row_count: 1000,
@@ -335,24 +323,22 @@ describe('layoutUtils', () => {
       const tables: CatalogTable[] = [
         {
           id: 1,
-          datasource_id: 1,
           name: 'orders',
           description: null,
           row_count: 100,
           is_enabled: true,
           columns: [
-            { id: 1, name: 'fk_customer', data_type: 'INTEGER', description: null },
+            { id: 1, name: 'fk_customer', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
         {
           id: 2,
-          datasource_id: 1,
           name: 'customers',
           description: null,
           row_count: 50,
           is_enabled: true,
           columns: [
-            { id: 2, name: 'id', data_type: 'INTEGER', description: null },
+            { id: 2, name: 'id', data_type: 'INTEGER', description: null, sample_values: null, full_context: null, value_range: null },
           ],
         },
       ];

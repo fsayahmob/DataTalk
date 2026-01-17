@@ -79,7 +79,7 @@ describe('SQLPanel', () => {
   });
 
   describe('Copy functionality', () => {
-    it('should copy SQL to clipboard when copy button is clicked', async () => {
+    it('should copy SQL to clipboard when copy button is clicked', () => {
       const sql = 'SELECT * FROM users WHERE id = 1';
       render(<SQLPanel sql={sql} />);
 
