@@ -22,7 +22,9 @@ SQLITE_PATH = Path(_sqlite_env) if _sqlite_env else Path(__file__).parent / "cat
 # Docker: /data/duckdb/datatalk.duckdb (named volume datatalk-duckdb)
 # Local: ./data/g7_analytics.duckdb ou via setting "duckdb_path" dans SQLite
 _duckdb_env = os.getenv("DUCKDB_PATH")
-DUCKDB_PATH = Path(_duckdb_env) if _duckdb_env else Path(__file__).parent / "data" / "g7_analytics.duckdb"
+DUCKDB_PATH = (
+    Path(_duckdb_env) if _duckdb_env else Path(__file__).parent / "data" / "g7_analytics.duckdb"
+)
 
 # =============================================================================
 # RÉPERTOIRE CACHE
@@ -50,6 +52,7 @@ UPLOADS_DIR = CACHE_DIR / "uploads"
 # REDIS (pour Celery)
 # =============================================================================
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
 
 # =============================================================================
 # INITIALISATION DES DOSSIERS

@@ -74,9 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Connexion DuckDB uniquement si le fichier existe
     if app_state.current_db_path and Path(app_state.current_db_path).exists():
         try:
-            app_state.db_connection = duckdb.connect(
-                app_state.current_db_path, read_only=True
-            )
+            app_state.db_connection = duckdb.connect(app_state.current_db_path, read_only=True)
             logger.info("DuckDB connecté")
         except Exception as e:
             logger.warning("Impossible de se connecter à DuckDB: %s", e)
