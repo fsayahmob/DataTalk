@@ -12,6 +12,7 @@ Endpoints:
 
 import json
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -79,7 +80,10 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
     """
     Analyse une question dans le contexte d'une conversation.
     Sauvegarde le message user et la réponse assistant.
+    Inclut les timings détaillés pour le profiling.
     """
+    total_start = time.perf_counter()
+
     try:
         # Sauvegarder le message user
         add_message(conversation_id=conversation_id, role="user", content=request.question)
@@ -96,6 +100,7 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
 
         if not sql:
             # Le LLM n'a pas généré de SQL - retourner quand même le message
+            total_ms = int((time.perf_counter() - total_start) * 1000)
             message_id = add_message(
                 conversation_id=conversation_id,
                 role="assistant",
@@ -117,12 +122,22 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
                 "response_time_ms": metadata.get("response_time_ms"),
+                "timings": {
+                    "llm_call_ms": metadata.get("response_time_ms"),
+                    "llm_parse_ms": metadata.get("llm_parse_ms"),
+                    "sql_exec_ms": None,
+                    "total_ms": total_ms,
+                },
             }
 
-        # Exécuter le SQL
+        # Exécuter le SQL avec timing
+        sql_start = time.perf_counter()
         try:
             data = execute_query(sql)
+            sql_exec_ms = int((time.perf_counter() - sql_start) * 1000)
         except Exception as sql_exec_error:
+            sql_exec_ms = int((time.perf_counter() - sql_start) * 1000)
+            total_ms = int((time.perf_counter() - total_start) * 1000)
             # Erreur SQL - sanitizer pour éviter d'exposer des infos sensibles
             error_key = sanitize_sql_error(sql_exec_error)
             sql_error_str = t(error_key)
@@ -149,6 +164,12 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
                 "tokens_input": metadata.get("tokens_input"),
                 "tokens_output": metadata.get("tokens_output"),
                 "response_time_ms": metadata.get("response_time_ms"),
+                "timings": {
+                    "llm_call_ms": metadata.get("response_time_ms"),
+                    "llm_parse_ms": metadata.get("llm_parse_ms"),
+                    "sql_exec_ms": sql_exec_ms,
+                    "total_ms": total_ms,
+                },
             }
 
         # Vérifier si le chart doit être désactivé
@@ -156,6 +177,19 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
 
         # Limiter les données pour le stockage (max 100 lignes)
         data_to_store = data[:100] if len(data) > 100 else data
+
+        # Calculer le temps total
+        total_ms = int((time.perf_counter() - total_start) * 1000)
+
+        # Log des performances pour monitoring
+        logger.info(
+            "Performance [conv=%d]: LLM=%dms, Parse=%dms, SQL=%dms, Total=%dms",
+            conversation_id,
+            metadata.get("response_time_ms") or 0,
+            metadata.get("llm_parse_ms") or 0,
+            sql_exec_ms,
+            total_ms,
+        )
 
         # Sauvegarder la réponse assistant
         message_id = add_message(
@@ -183,6 +217,12 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
             "tokens_input": metadata.get("tokens_input"),
             "tokens_output": metadata.get("tokens_output"),
             "response_time_ms": metadata.get("response_time_ms"),
+            "timings": {
+                "llm_call_ms": metadata.get("response_time_ms"),
+                "llm_parse_ms": metadata.get("llm_parse_ms"),
+                "sql_exec_ms": sql_exec_ms,
+                "total_ms": total_ms,
+            },
         }
 
     except HTTPException:

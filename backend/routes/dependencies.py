@@ -32,6 +32,15 @@ class ChartConfig(BaseModel):
     color: str | None = None
 
 
+class PerformanceTimings(BaseModel):
+    """Métriques de performance détaillées pour le profiling."""
+
+    llm_call_ms: int | None = None  # Temps appel LLM (inclut réseau + génération)
+    llm_parse_ms: int | None = None  # Temps parsing JSON de la réponse LLM
+    sql_exec_ms: int | None = None  # Temps exécution SQL sur DuckDB
+    total_ms: int | None = None  # Temps total end-to-end
+
+
 class AnalysisResponse(BaseModel):
     message: str
     sql: str
@@ -44,7 +53,9 @@ class AnalysisResponse(BaseModel):
     model_name: str = "unknown"
     tokens_input: int | None = None
     tokens_output: int | None = None
-    response_time_ms: int | None = None
+    response_time_ms: int | None = None  # Legacy: temps LLM seul
+    # Profiling détaillé
+    timings: PerformanceTimings | None = None
 
 
 class SaveReportRequest(BaseModel):

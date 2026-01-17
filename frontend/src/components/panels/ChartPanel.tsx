@@ -18,9 +18,9 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
     return null;
   }
 
-  const content = (
+  const chartContent = (height: number | "100%") => (
     <div className="w-full h-full">
-      <Chart config={config} data={data} height="100%" />
+      <Chart config={config} data={data} height={height} />
     </div>
   );
 
@@ -41,15 +41,15 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
           </button>
         </div>
         <div className="flex-1 p-4">
-          {content}
+          {chartContent("100%")}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 min-h-[250px] max-h-[50vh] border-b border-border/50 p-4 overflow-hidden bg-secondary/5 flex flex-col">
-      <div className="flex items-center justify-between mb-2 flex-shrink-0">
+    <div className="border-b border-border/50 p-4 overflow-hidden bg-secondary/5">
+      <div className="flex items-center justify-between mb-2">
         <span className="text-sm font-medium flex items-center gap-2">
           <ChartIcon size={14} className="text-primary" />
           {config.title || t("visualization.chart")}
@@ -62,8 +62,8 @@ export function ChartPanel({ config, data }: ChartPanelProps) {
           {t("common.fullscreen")}
         </button>
       </div>
-      <div className="flex-1 min-h-0">
-        {content}
+      <div className="h-[300px]">
+        {chartContent(300)}
       </div>
     </div>
   );

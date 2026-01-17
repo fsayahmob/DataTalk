@@ -193,64 +193,110 @@ async def get_single_setting(key: str) -> dict[str, str]:
     return {"key": key, "value": value}
 
 
-@router.put("/settings/{key}")
-async def update_single_setting(key: str, request: UpdateSettingRequest) -> dict[str, Any]:
-    """Met à jour une configuration spécifique."""
-    # Liste des clés autorisées
-    allowed_keys = ["catalog_context_mode", "duckdb_path", "max_tables_per_batch", "max_chart_rows"]
-    if key not in allowed_keys:
-        raise HTTPException(status_code=400, detail=t("settings.not_editable", key=key))
+# Configuration déclarative des settings éditables
+# Chaque setting définit: validation, invalidation du cache, actions spéciales
+EDITABLE_SETTINGS: dict[str, dict[str, Any]] = {
+    "catalog_context_mode": {
+        "allowed_values": ("compact", "full"),
+        "invalidates_schema_cache": True,
+    },
+    "duckdb_path": {
+        "type": "path",
+        "invalidates_schema_cache": True,
+        "reconnect_db": True,
+    },
+    "max_tables_per_batch": {
+        "type": "int",
+        "min": 1,
+        "max": 50,
+    },
+    "max_chart_rows": {
+        "type": "int",
+        "min": 100,
+        "max": 100000,
+    },
+    "query_timeout_ms": {
+        "type": "int",
+        "min": 1000,
+        "max": 300000,  # 5 minutes max
+    },
+}
 
-    # Validation spécifique par clé
-    if key == "catalog_context_mode" and request.value not in ("compact", "full"):
-        raise HTTPException(
-            status_code=400, detail=t("validation.allowed_values", values="'compact', 'full'")
-        )
 
-    if key == "max_tables_per_batch":
+def _validate_setting(key: str, value: str, config: dict[str, Any]) -> str | None:
+    """Valide une valeur de setting selon sa config. Retourne le message d'erreur ou None."""
+    # Validation par valeurs autorisées
+    if "allowed_values" in config:
+        if value not in config["allowed_values"]:
+            return t("validation.allowed_values", values=str(config["allowed_values"]))
+
+    # Validation numérique
+    if config.get("type") == "int":
         try:
-            val = int(request.value)
-            if val < 1 or val > 50:
-                raise HTTPException(
-                    status_code=400, detail=t("validation.range_error", min=1, max=50)
-                )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=t("validation.numeric_required")) from e
+            val = int(value)
+            if "min" in config and val < config["min"]:
+                return t("validation.range_error", min=config["min"], max=config.get("max", "∞"))
+            if "max" in config and val > config["max"]:
+                return t("validation.range_error", min=config.get("min", 0), max=config["max"])
+        except ValueError:
+            return t("validation.numeric_required")
 
-    if key == "max_chart_rows":
-        try:
-            val = int(request.value)
-            if val < 100 or val > 100000:
-                raise HTTPException(
-                    status_code=400, detail=t("validation.range_error", min=100, max=100000)
-                )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=t("validation.numeric_required")) from e
+    # Validation de chemin
+    if config.get("type") == "path":
+        path = value
+        if not Path(path).is_absolute():
+            path = str(Path(__file__).parent.parent / ".." / path)
+        path = str(Path(path).resolve())
+        if not Path(path).exists():
+            return t("db.file_not_found", path=path)
 
-    if key == "duckdb_path":
-        # Valider que le fichier existe
-        new_path = request.value
+    return None
+
+
+def _apply_side_effects(key: str, value: str, config: dict[str, Any]) -> dict[str, Any]:
+    """Applique les effets de bord après la mise à jour d'un setting."""
+    extra_response: dict[str, Any] = {}
+
+    # Invalider le cache schéma si nécessaire
+    if config.get("invalidates_schema_cache"):
+        app_state.db_schema_cache = None
+        logger.info("Setting '%s' changé, cache schéma invalidé", key)
+
+    # Reconnexion DuckDB si nécessaire
+    if config.get("reconnect_db"):
+        new_path = value
         if not Path(new_path).is_absolute():
             new_path = str(Path(__file__).parent.parent / ".." / new_path)
         new_path = str(Path(new_path).resolve())
 
-        if not Path(new_path).exists():
-            raise HTTPException(status_code=400, detail=t("db.file_not_found", path=new_path))
-
-        # Sauvegarder le setting
-        set_setting(key, request.value)
-
-        # Reconnecter à la nouvelle base
         if app_state.db_connection:
             app_state.db_connection.close()
         app_state.current_db_path = new_path
         app_state.db_connection = duckdb.connect(new_path, read_only=True)
-
-        # Invalider le cache du schéma
-        app_state.db_schema_cache = None
-
+        extra_response["resolved_path"] = new_path
         logger.info("DuckDB reconnecté à: %s", new_path)
-        return {"status": "ok", "key": key, "value": request.value, "resolved_path": new_path}
 
+    return extra_response
+
+
+@router.put("/settings/{key}")
+async def update_single_setting(key: str, request: UpdateSettingRequest) -> dict[str, Any]:
+    """Met à jour une configuration spécifique."""
+    # Vérifier si la clé est éditable
+    if key not in EDITABLE_SETTINGS:
+        raise HTTPException(status_code=400, detail=t("settings.not_editable", key=key))
+
+    config = EDITABLE_SETTINGS[key]
+
+    # Valider la valeur
+    error = _validate_setting(key, request.value, config)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Sauvegarder le setting
     set_setting(key, request.value)
-    return {"status": "ok", "key": key, "value": request.value}
+
+    # Appliquer les effets de bord (invalidation cache, reconnexion DB, etc.)
+    extra = _apply_side_effects(key, request.value, config)
+
+    return {"status": "ok", "key": key, "value": request.value, **extra}

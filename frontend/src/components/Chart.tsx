@@ -111,6 +111,40 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
   const axisLineStyle = { stroke: "currentColor", opacity: 0.3 };
   const legendStyle = { paddingTop: 20, color: "currentColor", opacity: 0.6 };
 
+  // Détecte si on a beaucoup de séries (pour adapter la légende)
+  const hasManySeries = yKeys.length > 4;
+
+  // Légende compacte pour les graphiques avec beaucoup de séries
+  const renderCompactLegend = (props: LegendProps) => {
+    const { payload } = props;
+    if (!payload) return null;
+    return (
+      <div style={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: "4px 12px",
+        fontSize: 10,
+        justifyContent: "center",
+        paddingTop: 8,
+      }}>
+        {payload.map((entry, index) => (
+          <div key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{
+              width: 10,
+              height: 3,
+              borderRadius: 1,
+              backgroundColor: entry.color,
+              flexShrink: 0,
+            }} />
+            <span style={{ color: "inherit", opacity: 0.7 }}>
+              {String(entry.value).length > 20 ? `${String(entry.value).slice(0, 20)}…` : entry.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   switch (config.type) {
     case "bar":
       // Multi-séries: une barre colorée par série. Série unique: une couleur par barre.
@@ -173,13 +207,13 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
     case "line":
       return (
         <ResponsiveContainer width="100%" height={height}>
-          <LineChart {...commonProps}>
+          <LineChart {...commonProps} margin={{ top: 20, right: 30, left: 20, bottom: hasManySeries ? 40 : 60 }}>
             <CartesianGrid {...gridStyle} vertical={false} />
             <XAxis
               dataKey={config.x}
               angle={-45}
               textAnchor="end"
-              height={80}
+              height={hasManySeries ? 60 : 80}
               tick={axisStyle}
               axisLine={axisLineStyle}
               tickLine={axisLineStyle}
@@ -191,16 +225,20 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               tickLine={axisLineStyle}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={legendStyle} />
+            {hasManySeries ? (
+              <Legend content={renderCompactLegend} wrapperStyle={{ paddingTop: 4 }} />
+            ) : (
+              <Legend wrapperStyle={legendStyle} />
+            )}
             {yKeys.map((yKey, idx) => (
               <Line
                 key={yKey}
                 type="monotone"
                 dataKey={yKey}
                 stroke={COLORS[idx % COLORS.length]}
-                strokeWidth={3}
-                dot={{ r: 4, fill: COLORS[idx % COLORS.length], strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: COLORS[idx % COLORS.length], stroke: "hsl(var(--background))", strokeWidth: 2 }}
+                strokeWidth={hasManySeries ? 2 : 3}
+                dot={hasManySeries ? false : { r: 4, fill: COLORS[idx % COLORS.length], strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: COLORS[idx % COLORS.length], stroke: "hsl(var(--background))", strokeWidth: 2 }}
               />
             ))}
           </LineChart>
@@ -296,7 +334,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
     case "area":
       return (
         <ResponsiveContainer width="100%" height={height}>
-          <AreaChart {...commonProps}>
+          <AreaChart {...commonProps} margin={{ top: 20, right: 30, left: 20, bottom: hasManySeries ? 40 : 60 }}>
             <defs>
               {yKeys.map((_, idx) => (
                 <linearGradient key={idx} id={`${chartId}-area-${idx}`} x1="0" y1="0" x2="0" y2="1">
@@ -310,7 +348,7 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               dataKey={config.x}
               angle={-45}
               textAnchor="end"
-              height={80}
+              height={hasManySeries ? 60 : 80}
               tick={axisStyle}
               axisLine={axisLineStyle}
               tickLine={axisLineStyle}
@@ -322,7 +360,11 @@ export function Chart({ config, data, height = "100%" }: ChartProps) {
               tickLine={axisLineStyle}
             />
             <Tooltip content={<CustomTooltip />} />
-            <Legend wrapperStyle={legendStyle} />
+            {hasManySeries ? (
+              <Legend content={renderCompactLegend} wrapperStyle={{ paddingTop: 4 }} />
+            ) : (
+              <Legend wrapperStyle={legendStyle} />
+            )}
             {yKeys.map((yKey, idx) => (
               <Area
                 key={yKey}

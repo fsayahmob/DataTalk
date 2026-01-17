@@ -10,6 +10,7 @@ Helpers exportés:
 """
 
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -20,7 +21,13 @@ from core.state import PromptNotConfiguredError, get_system_instruction
 from i18n import t
 from llm_service import LLMError, call_llm, check_llm_status
 from llm_utils import parse_analytics_response
-from routes.dependencies import AnalysisFilters, AnalysisResponse, ChartConfig, QuestionRequest
+from routes.dependencies import (
+    AnalysisFilters,
+    AnalysisResponse,
+    ChartConfig,
+    PerformanceTimings,
+    QuestionRequest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -105,12 +112,16 @@ def call_llm_for_analytics(
 
         # Parser la réponse JSON (via llm_utils centralisé)
         content = response.content.strip() if response.content else ""
+        parse_start = time.perf_counter()
         result = parse_analytics_response(content)
+        parse_ms = int((time.perf_counter() - parse_start) * 1000)
+
         result["_metadata"] = {
             "model_name": response.model_name,
             "tokens_input": response.tokens_input,
             "tokens_output": response.tokens_output,
             "response_time_ms": response.response_time_ms,
+            "llm_parse_ms": parse_ms,
         }
         return result
 
@@ -136,8 +147,10 @@ async def analyze(request: QuestionRequest) -> AnalysisResponse:
     1. Appelle le LLM pour générer SQL + message + config chart
     2. Exécute le SQL sur DuckDB
     3. Vérifie si le chart doit être désactivé (trop de données)
-    4. Retourne le tout au frontend
+    4. Retourne le tout au frontend avec timings détaillés
     """
+    total_start = time.perf_counter()
+
     try:
         # 1. Appeler le LLM avec les filtres
         llm_response = call_llm_for_analytics(request.question, filters=request.filters)
@@ -150,13 +163,35 @@ async def analyze(request: QuestionRequest) -> AnalysisResponse:
         if not sql:
             raise HTTPException(status_code=400, detail=t("llm.no_sql_generated"))
 
-        # 2. Exécuter le SQL
+        # 2. Exécuter le SQL avec timing
+        sql_start = time.perf_counter()
         data = execute_query(sql)
+        sql_exec_ms = int((time.perf_counter() - sql_start) * 1000)
 
         # 3. Vérifier si le chart doit être désactivé
         chart_disabled, chart_disabled_reason = should_disable_chart(len(data), chart.get("type"))
 
-        # 4. Retourner la réponse complète avec métadonnées
+        # 4. Calculer le temps total
+        total_ms = int((time.perf_counter() - total_start) * 1000)
+
+        # 5. Construire les timings détaillés
+        timings = PerformanceTimings(
+            llm_call_ms=metadata.get("response_time_ms"),
+            llm_parse_ms=metadata.get("llm_parse_ms"),
+            sql_exec_ms=sql_exec_ms,
+            total_ms=total_ms,
+        )
+
+        # Log des performances pour monitoring
+        logger.info(
+            "Performance: LLM=%dms, Parse=%dms, SQL=%dms, Total=%dms",
+            timings.llm_call_ms or 0,
+            timings.llm_parse_ms or 0,
+            sql_exec_ms,
+            total_ms,
+        )
+
+        # 6. Retourner la réponse complète avec métadonnées et timings
         return AnalysisResponse(
             message=message,
             sql=sql,
@@ -168,6 +203,7 @@ async def analyze(request: QuestionRequest) -> AnalysisResponse:
             tokens_input=metadata.get("tokens_input"),
             tokens_output=metadata.get("tokens_output"),
             response_time_ms=metadata.get("response_time_ms"),
+            timings=timings,
         )
 
     except HTTPException:
