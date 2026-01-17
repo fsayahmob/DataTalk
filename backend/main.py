@@ -10,6 +10,7 @@ Structure modulaire:
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import duckdb
 import uvicorn
@@ -44,8 +45,6 @@ load_dotenv()
 
 def _check_volume_writable(path: str) -> bool:
     """Vérifie qu'un répertoire est accessible en écriture."""
-    from pathlib import Path
-
     try:
         dir_path = Path(path).parent
         dir_path.mkdir(parents=True, exist_ok=True)
@@ -62,8 +61,6 @@ def _check_volume_writable(path: str) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application"""
-    from pathlib import Path
-
     # Vérifier que les volumes sont montés et accessibles en écriture
     app_state.current_db_path = get_duckdb_path()
     logger.info("Chemin DuckDB configuré: %s", app_state.current_db_path)
