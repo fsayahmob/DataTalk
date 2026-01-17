@@ -213,9 +213,10 @@ def check_backend_tests(backend_path: Path) -> AuditResult:
             component="backend",
         )
 
-    # Lancer pytest sur les fichiers trouvés (tous les fichiers)
+    # Lancer pytest sur les fichiers trouvés (chemins relatifs au backend)
+    relative_paths = [str(f.relative_to(backend_path)) for f in test_files]
     code, stdout, stderr = run_command(
-        ["python", "-m", "pytest"] + [str(f.name) for f in test_files] + ["--tb=no", "-q"],
+        ["python", "-m", "pytest"] + relative_paths + ["--tb=no", "-q"],
         cwd=backend_path,
     )
 
@@ -275,8 +276,10 @@ def check_backend_coverage(backend_path: Path) -> AuditResult:
             component="backend",
         )
 
+    # Utiliser les chemins relatifs au backend
+    relative_paths = [str(f.relative_to(backend_path)) for f in test_files]
     code, stdout, stderr = run_command(
-        ["python", "-m", "pytest"] + [str(f.name) for f in test_files] +
+        ["python", "-m", "pytest"] + relative_paths +
         ["--cov=.", "--cov-report=term", "--tb=no", "-q"],
         cwd=backend_path,
     )
