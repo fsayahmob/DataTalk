@@ -297,8 +297,10 @@ class TestExtractMetadataFromConnection:
 
         conn.execute.side_effect = [
             tables_result,
-            row_count_1, cols_1,
-            row_count_2, cols_2,
+            row_count_1,
+            cols_1,
+            row_count_2,
+            cols_2,
         ]
 
         with patch("catalog_engine.extraction.extract_column_stats") as mock_stats:

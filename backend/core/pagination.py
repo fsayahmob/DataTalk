@@ -27,9 +27,7 @@ def validate_pagination(limit: int | None, offset: int | None) -> tuple[int, int
     return validated_limit, validated_offset
 
 
-def paginate_response(
-    items: list[Any], total: int, limit: int, offset: int
-) -> dict[str, Any]:
+def paginate_response(items: list[Any], total: int, limit: int, offset: int) -> dict[str, Any]:
     """
     Construit une réponse paginée standardisée.
 

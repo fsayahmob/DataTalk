@@ -276,7 +276,9 @@ def _run_llm_batches(
         batch_context = chr(10).join([info[1] for info in batch])
 
         with workflow.step(f"llm_batch_{batch_idx + 1}") if workflow else _dummy_context():
-            logger.info("  Batch %d/%d: %s", batch_idx + 1, len(batches), [t.name for t in batch_tables])
+            logger.info(
+                "  Batch %d/%d: %s", batch_idx + 1, len(batches), [t.name for t in batch_tables]
+            )
             batch_catalog = ExtractedCatalog(datasource="g7_analytics.duckdb", tables=batch_tables)
 
             try:

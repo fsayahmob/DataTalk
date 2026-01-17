@@ -38,9 +38,7 @@ class TestListConversations:
     @pytest.mark.asyncio
     @patch("routes.conversations.get_conversations")
     @patch("routes.conversations.validate_pagination")
-    async def test_lists_conversations(
-        self, mock_validate: MagicMock, mock_get: MagicMock
-    ) -> None:
+    async def test_lists_conversations(self, mock_validate: MagicMock, mock_get: MagicMock) -> None:
         """Liste les conversations."""
         mock_validate.return_value = (20, 0)
         mock_get.return_value = [
@@ -155,9 +153,7 @@ class TestAnalyzeInConversation:
     @pytest.mark.asyncio
     @patch("routes.conversations.add_message")
     @patch("routes.conversations.call_llm_for_analytics")
-    async def test_handles_no_sql(
-        self, mock_llm: MagicMock, mock_add: MagicMock
-    ) -> None:
+    async def test_handles_no_sql(self, mock_llm: MagicMock, mock_add: MagicMock) -> None:
         """Gère le cas où pas de SQL généré."""
         mock_add.return_value = 5
         mock_llm.return_value = {
@@ -206,9 +202,7 @@ class TestAnalyzeInConversation:
     @pytest.mark.asyncio
     @patch("routes.conversations.add_message")
     @patch("routes.conversations.call_llm_for_analytics")
-    async def test_passes_use_context(
-        self, mock_llm: MagicMock, mock_add: MagicMock
-    ) -> None:
+    async def test_passes_use_context(self, mock_llm: MagicMock, mock_add: MagicMock) -> None:
         """Passe use_context au LLM."""
         mock_add.return_value = 1
         mock_llm.return_value = {

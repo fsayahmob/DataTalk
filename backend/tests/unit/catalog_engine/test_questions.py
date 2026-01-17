@@ -132,10 +132,7 @@ class TestSaveSuggestedQuestions:
         save_suggested_questions(questions)
 
         # Vérifie que DELETE a été appelé
-        delete_calls = [
-            c for c in cursor.execute.call_args_list
-            if "DELETE" in str(c)
-        ]
+        delete_calls = [c for c in cursor.execute.call_args_list if "DELETE" in str(c)]
         assert len(delete_calls) > 0
 
     @patch("catalog_engine.questions.get_connection")
@@ -154,10 +151,7 @@ class TestSaveSuggestedQuestions:
         save_suggested_questions(questions)
 
         # Vérifie les INSERT avec display_order
-        insert_calls = [
-            c for c in cursor.execute.call_args_list
-            if "INSERT" in str(c)
-        ]
+        insert_calls = [c for c in cursor.execute.call_args_list if "INSERT" in str(c)]
         # Premier appel avec display_order=0, deuxième avec display_order=1
         assert len(insert_calls) == 2
 

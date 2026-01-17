@@ -406,10 +406,7 @@ class TestSaveKpis:
         save_kpis(result)
 
         # Vérifie que DELETE a été appelé
-        delete_calls = [
-            call for call in cursor.execute.call_args_list
-            if "DELETE" in str(call)
-        ]
+        delete_calls = [call for call in cursor.execute.call_args_list if "DELETE" in str(call)]
         assert len(delete_calls) > 0
 
     @patch("catalog_engine.kpis.get_connection")

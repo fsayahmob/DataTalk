@@ -137,9 +137,7 @@ class TestBuildResponseModel:
         """Les modèles de table ont un champ description."""
         catalog = ExtractedCatalog(
             datasource="test.duckdb",
-            tables=[
-                TableMetadata(name="users", row_count=100, columns=[])
-            ],
+            tables=[TableMetadata(name="users", row_count=100, columns=[])],
         )
         model = build_response_model(catalog)
         # Le champ users est un modèle avec description et columns
@@ -154,9 +152,7 @@ class TestBuildFullContext:
         """Inclut le nom de la table."""
         catalog = ExtractedCatalog(
             datasource="test.duckdb",
-            tables=[
-                TableMetadata(name="evaluations", row_count=64000, columns=[])
-            ],
+            tables=[TableMetadata(name="evaluations", row_count=64000, columns=[])],
         )
         context = _build_full_context(catalog)
         assert "evaluations" in context
@@ -165,9 +161,7 @@ class TestBuildFullContext:
         """Inclut le nombre de lignes."""
         catalog = ExtractedCatalog(
             datasource="test.duckdb",
-            tables=[
-                TableMetadata(name="t", row_count=64000, columns=[])
-            ],
+            tables=[TableMetadata(name="t", row_count=64000, columns=[])],
         )
         context = _build_full_context(catalog)
         assert "64,000" in context or "64000" in context
@@ -290,9 +284,7 @@ class TestEnrichWithLlm:
 
     @patch("catalog_engine.enrichment.call_with_retry")
     @patch("catalog_engine.enrichment.get_active_prompt")
-    def test_returns_enrichment_dict(
-        self, mock_prompt: MagicMock, mock_retry: MagicMock
-    ) -> None:
+    def test_returns_enrichment_dict(self, mock_prompt: MagicMock, mock_retry: MagicMock) -> None:
         """Retourne un dict d'enrichissement."""
         mock_prompt.return_value = {"content": "Enrich: {tables_context}"}
         mock_retry.return_value = {
@@ -319,9 +311,7 @@ class TestEnrichWithLlm:
 
     @patch("catalog_engine.enrichment.call_with_retry")
     @patch("catalog_engine.enrichment.get_active_prompt")
-    def test_uses_provided_context(
-        self, mock_prompt: MagicMock, mock_retry: MagicMock
-    ) -> None:
+    def test_uses_provided_context(self, mock_prompt: MagicMock, mock_retry: MagicMock) -> None:
         """Utilise le contexte fourni."""
         mock_prompt.return_value = {"content": "Test: {tables_context}"}
         mock_retry.return_value = {"t": {"description": "Test", "columns": {}}}

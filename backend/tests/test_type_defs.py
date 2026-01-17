@@ -63,11 +63,13 @@ class TestConvertDfToJson:
 
     def test_df_with_inf_is_json_serializable(self) -> None:
         """DataFrame avec inf/nan est JSON-sérialisable après conversion."""
-        df = pd.DataFrame({
-            "normal": [1.0, 2.0, 3.0],
-            "with_inf": [1.0, np.inf, -np.inf],
-            "with_nan": [np.nan, 2.0, 3.0],
-        })
+        df = pd.DataFrame(
+            {
+                "normal": [1.0, 2.0, 3.0],
+                "with_inf": [1.0, np.inf, -np.inf],
+                "with_nan": [np.nan, 2.0, 3.0],
+            }
+        )
         result = convert_df_to_json(df)
 
         # Doit être JSON-sérialisable sans exception
@@ -89,10 +91,12 @@ class TestConvertDfToJson:
 
     def test_df_with_timestamps(self) -> None:
         """DataFrame avec timestamps est correctement converti."""
-        df = pd.DataFrame({
-            "date": pd.to_datetime(["2024-01-15", "2024-01-16"]),
-            "value": [1, 2],
-        })
+        df = pd.DataFrame(
+            {
+                "date": pd.to_datetime(["2024-01-15", "2024-01-16"]),
+                "value": [1, 2],
+            }
+        )
         result = convert_df_to_json(df)
 
         # Les dates sont converties en strings

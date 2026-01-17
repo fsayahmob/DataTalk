@@ -148,9 +148,7 @@ class TestExtractOnly:
         mock_conn: MagicMock,
     ) -> None:
         """Lève erreur si création datasource échoue."""
-        mock_extract.return_value = ExtractedCatalog(
-            datasource="test.duckdb", tables=[]
-        )
+        mock_extract.return_value = ExtractedCatalog(datasource="test.duckdb", tables=[])
         mock_ds.return_value = None
         conn = MagicMock()
         cursor = MagicMock()
@@ -186,7 +184,13 @@ class TestEnrichSelectedTables:
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"id": 1, "name": "users", "row_count": 100, "datasource_id": 1, "datasource_name": "test"}
+            {
+                "id": 1,
+                "name": "users",
+                "row_count": 100,
+                "datasource_id": 1,
+                "datasource_name": "test",
+            }
         ]
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
@@ -197,7 +201,8 @@ class TestEnrichSelectedTables:
 
         # Vérifie les UPDATE
         update_calls = [
-            c for c in cursor.execute.call_args_list
+            c
+            for c in cursor.execute.call_args_list
             if "UPDATE" in str(c) and "is_enabled" in str(c)
         ]
         assert len(update_calls) >= 1
@@ -246,7 +251,13 @@ class TestEnrichTables:
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"name": "id", "data_type": "INT", "full_context": "", "sample_values": None, "value_range": None}
+            {
+                "name": "id",
+                "data_type": "INT",
+                "full_context": "",
+                "sample_values": None,
+                "value_range": None,
+            }
         ]
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
@@ -255,10 +266,12 @@ class TestEnrichTables:
         mock_enrich.return_value = {"users": {"description": "Test", "columns": {}}}
 
         from catalog_engine.models import CatalogValidationResult
+
         mock_validate.return_value = CatalogValidationResult()
         mock_update.return_value = {"tables": 1, "columns": 1, "synonyms": 0}
 
         from catalog_engine.models import KpisGenerationResult
+
         mock_kpis.return_value = KpisGenerationResult(kpis=[])
         mock_save_kpis.return_value = {"kpis": 0}
         mock_questions.return_value = []
@@ -284,7 +297,13 @@ class TestEnrichTables:
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"name": "c", "data_type": "INT", "full_context": "", "sample_values": None, "value_range": None}
+            {
+                "name": "c",
+                "data_type": "INT",
+                "full_context": "",
+                "sample_values": None,
+                "value_range": None,
+            }
         ]
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
@@ -313,7 +332,13 @@ class TestEnrichTables:
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"name": "c", "data_type": "INT", "full_context": "", "sample_values": None, "value_range": None}
+            {
+                "name": "c",
+                "data_type": "INT",
+                "full_context": "",
+                "sample_values": None,
+                "value_range": None,
+            }
         ]
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
@@ -361,10 +386,12 @@ class TestEnrichTables:
         mock_enrich.return_value = {}
 
         from catalog_engine.models import CatalogValidationResult
+
         mock_validate.return_value = CatalogValidationResult()
         mock_update.return_value = {"tables": 0, "columns": 0, "synonyms": 0}
 
         from llm_utils import KpiGenerationError
+
         mock_kpis.side_effect = KpiGenerationError("KPI error")
         mock_questions.return_value = []
         mock_save_questions.return_value = {"questions": 0}
@@ -411,12 +438,14 @@ class TestEnrichTables:
         mock_enrich.return_value = {}
 
         from catalog_engine.models import CatalogValidationResult, KpisGenerationResult
+
         mock_validate.return_value = CatalogValidationResult()
         mock_update.return_value = {"tables": 0, "columns": 0, "synonyms": 0}
         mock_kpis.return_value = KpisGenerationResult(kpis=[])
         mock_save_kpis.return_value = {"kpis": 0}
 
         from llm_utils import QuestionGenerationError
+
         mock_questions.side_effect = QuestionGenerationError("Questions error")
 
         tables_rows: list[dict[str, Any]] = []

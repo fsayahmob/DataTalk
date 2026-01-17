@@ -70,9 +70,7 @@ class TestLogCost:
 
     @patch("llm_config.costs.get_model")
     @patch("llm_config.costs.get_connection")
-    def test_handles_missing_model_costs(
-        self, mock_conn: MagicMock, mock_model: MagicMock
-    ) -> None:
+    def test_handles_missing_model_costs(self, mock_conn: MagicMock, mock_model: MagicMock) -> None:
         """Gère les modèles sans coûts définis."""
         conn = MagicMock()
         cursor = MagicMock()
@@ -92,9 +90,7 @@ class TestLogCost:
 
     @patch("llm_config.costs.get_model")
     @patch("llm_config.costs.get_connection")
-    def test_logs_with_optional_params(
-        self, mock_conn: MagicMock, mock_model: MagicMock
-    ) -> None:
+    def test_logs_with_optional_params(self, mock_conn: MagicMock, mock_model: MagicMock) -> None:
         """Enregistre avec les paramètres optionnels."""
         conn = MagicMock()
         cursor = MagicMock()

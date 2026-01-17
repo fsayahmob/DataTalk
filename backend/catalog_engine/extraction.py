@@ -248,9 +248,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
 
     for (table_name,) in tables:
         # Nombre de lignes
-        row_result = conn.execute(
-            f'SELECT COUNT(*) FROM "{table_name}"'
-        ).fetchone()
+        row_result = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()
         row_count = row_result[0] if row_result else 0
 
         # Colonnes via information_schema

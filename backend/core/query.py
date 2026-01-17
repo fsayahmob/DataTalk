@@ -29,7 +29,6 @@ class QueryTimeoutError(Exception):
     """Erreur de timeout de requête DuckDB."""
 
 
-
 def execute_query(sql: str, timeout_ms: int | None = None) -> list[dict[str, Any]]:
     """
     Exécute une requête SQL sur DuckDB avec timeout.

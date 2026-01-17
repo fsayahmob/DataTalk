@@ -24,9 +24,7 @@ class TestCallLlm:
 
     @patch("llm_service.calls._circuit_breaker")
     @patch("llm_service.calls.get_default_model")
-    def test_raises_if_no_model(
-        self, mock_get_model: MagicMock, mock_cb: MagicMock
-    ) -> None:
+    def test_raises_if_no_model(self, mock_get_model: MagicMock, mock_cb: MagicMock) -> None:
         """Lève une erreur si pas de modèle configuré."""
         mock_cb.allow_request.return_value = True
         mock_get_model.return_value = None
@@ -200,9 +198,7 @@ class TestCallLlmStructured:
 
     @patch("llm_service.calls._circuit_breaker")
     @patch("llm_service.calls.get_default_model")
-    def test_raises_if_no_model(
-        self, mock_get_model: MagicMock, mock_cb: MagicMock
-    ) -> None:
+    def test_raises_if_no_model(self, mock_get_model: MagicMock, mock_cb: MagicMock) -> None:
         """Lève une erreur si pas de modèle."""
         mock_cb.allow_request.return_value = True
         mock_get_model.return_value = None

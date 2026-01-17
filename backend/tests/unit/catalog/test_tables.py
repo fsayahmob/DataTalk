@@ -129,7 +129,13 @@ class TestGetSchemaForLlm:
             [{"id": 1, "name": "test_ds"}],  # datasources
             [{"id": 1, "name": "users", "row_count": 1000}],  # tables
             [  # columns
-                {"name": "id", "data_type": "INTEGER", "description": "ID", "value_range": "1-1000", "full_context": None}
+                {
+                    "name": "id",
+                    "data_type": "INTEGER",
+                    "description": "ID",
+                    "value_range": "1-1000",
+                    "full_context": None,
+                }
             ],
         ]
         mock_conn.cursor.return_value = mock_cursor
@@ -165,7 +171,15 @@ class TestGetSchemaForLlm:
         mock_cursor.fetchall.side_effect = [
             [{"id": 1, "name": "test_ds"}],
             [{"id": 1, "name": "test", "row_count": 100}],
-            [{"name": "col", "data_type": "INT", "description": None, "value_range": None, "full_context": "FULL_STATS"}],
+            [
+                {
+                    "name": "col",
+                    "data_type": "INT",
+                    "description": None,
+                    "value_range": None,
+                    "full_context": "FULL_STATS",
+                }
+            ],
         ]
         mock_conn.cursor.return_value = mock_cursor
 
@@ -184,7 +198,15 @@ class TestGetSchemaForLlm:
         mock_cursor.fetchall.side_effect = [
             [{"id": 1, "name": "test_ds"}],
             [{"id": 1, "name": "test", "row_count": 100}],
-            [{"name": "col", "data_type": "INT", "description": long_desc, "value_range": None, "full_context": None}],
+            [
+                {
+                    "name": "col",
+                    "data_type": "INT",
+                    "description": long_desc,
+                    "value_range": None,
+                    "full_context": None,
+                }
+            ],
         ]
         mock_conn.cursor.return_value = mock_cursor
 

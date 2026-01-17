@@ -42,9 +42,7 @@ class TestCheckLocalProviderAvailable:
 
     @patch("llm_config.providers.urllib.request.urlopen")
     @patch("llm_config.providers.get_provider_by_name")
-    def test_returns_true_if_reachable(
-        self, mock_get: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
+    def test_returns_true_if_reachable(self, mock_get: MagicMock, mock_urlopen: MagicMock) -> None:
         """Retourne True si provider accessible."""
         mock_get.return_value = {"name": "ollama", "base_url": "http://localhost:11434"}
         mock_urlopen.return_value.__enter__ = MagicMock()
@@ -69,9 +67,7 @@ class TestCheckLocalProviderAvailable:
 
     @patch("llm_config.providers.urllib.request.urlopen")
     @patch("llm_config.providers.get_provider_by_name")
-    def test_returns_false_on_timeout(
-        self, mock_get: MagicMock, mock_urlopen: MagicMock
-    ) -> None:
+    def test_returns_false_on_timeout(self, mock_get: MagicMock, mock_urlopen: MagicMock) -> None:
         """Retourne False sur timeout."""
         mock_get.return_value = {"name": "ollama", "base_url": "http://localhost:11434"}
         mock_urlopen.side_effect = TimeoutError()

@@ -227,9 +227,7 @@ class TestUpdateDescriptions:
             datasource="test.duckdb",
             tables=[TableMetadata(name="users", row_count=100, columns=[])],
         )
-        enrichment: dict[str, Any] = {
-            "users": {"description": "New description", "columns": {}}
-        }
+        enrichment: dict[str, Any] = {"users": {"description": "New description", "columns": {}}}
 
         stats = update_descriptions(catalog, enrichment)
         assert stats["tables"] == 1
@@ -314,9 +312,7 @@ class TestUpdateDescriptions:
             datasource="test.duckdb",
             tables=[TableMetadata(name="missing", row_count=100, columns=[])],
         )
-        enrichment: dict[str, Any] = {
-            "missing": {"description": "Desc", "columns": {}}
-        }
+        enrichment: dict[str, Any] = {"missing": {"description": "Desc", "columns": {}}}
 
         stats = update_descriptions(catalog, enrichment)
         assert stats["columns"] == 0

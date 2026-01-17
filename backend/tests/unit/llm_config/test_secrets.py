@@ -17,9 +17,7 @@ class TestSetApiKey:
 
     @patch("llm_config.secrets.encrypt")
     @patch("llm_config.secrets.get_connection")
-    def test_saves_encrypted_key(
-        self, mock_conn: MagicMock, mock_encrypt: MagicMock
-    ) -> None:
+    def test_saves_encrypted_key(self, mock_conn: MagicMock, mock_encrypt: MagicMock) -> None:
         """Sauvegarde la clé chiffrée."""
         conn = MagicMock()
         cursor = MagicMock()
@@ -60,9 +58,7 @@ class TestSetApiKey:
 
     @patch("llm_config.secrets.encrypt")
     @patch("llm_config.secrets.get_connection")
-    def test_creates_key_hint(
-        self, mock_conn: MagicMock, mock_encrypt: MagicMock
-    ) -> None:
+    def test_creates_key_hint(self, mock_conn: MagicMock, mock_encrypt: MagicMock) -> None:
         """Crée un indice de clé."""
         conn = MagicMock()
         cursor = MagicMock()
@@ -79,9 +75,7 @@ class TestSetApiKey:
 
     @patch("llm_config.secrets.encrypt")
     @patch("llm_config.secrets.get_connection")
-    def test_short_key_masked(
-        self, mock_conn: MagicMock, mock_encrypt: MagicMock
-    ) -> None:
+    def test_short_key_masked(self, mock_conn: MagicMock, mock_encrypt: MagicMock) -> None:
         """Masque les clés courtes."""
         conn = MagicMock()
         cursor = MagicMock()
@@ -101,9 +95,7 @@ class TestGetApiKey:
 
     @patch("llm_config.secrets.decrypt")
     @patch("llm_config.secrets.get_connection")
-    def test_returns_decrypted_key(
-        self, mock_conn: MagicMock, mock_decrypt: MagicMock
-    ) -> None:
+    def test_returns_decrypted_key(self, mock_conn: MagicMock, mock_decrypt: MagicMock) -> None:
         """Retourne la clé déchiffrée."""
         conn = MagicMock()
         cursor = MagicMock()

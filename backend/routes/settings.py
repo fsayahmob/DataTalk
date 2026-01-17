@@ -243,8 +243,12 @@ def _validate_setting(key: str, value: str, config: dict[str, Any]) -> str | Non
     if config.get("type") == "int":
         try:
             val = int(value)
-            if ("min" in config and val < config["min"]) or ("max" in config and val > config["max"]):
-                return t("validation.range_error", min=config.get("min", 0), max=config.get("max", "∞"))
+            if ("min" in config and val < config["min"]) or (
+                "max" in config and val > config["max"]
+            ):
+                return t(
+                    "validation.range_error", min=config.get("min", 0), max=config.get("max", "∞")
+                )
         except ValueError:
             return t("validation.numeric_required")
 

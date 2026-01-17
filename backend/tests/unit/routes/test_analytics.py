@@ -207,9 +207,7 @@ class TestCallLlmForAnalytics:
 
         mock_status.return_value = {"status": "ok"}
         mock_instruction.return_value = "System"
-        mock_call_llm.side_effect = LLMError(
-            LLMErrorCode.QUOTA_EXCEEDED, provider="Google"
-        )
+        mock_call_llm.side_effect = LLMError(LLMErrorCode.QUOTA_EXCEEDED, provider="Google")
 
         with pytest.raises(HTTPException) as exc_info:
             call_llm_for_analytics("test")

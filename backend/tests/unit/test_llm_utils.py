@@ -220,9 +220,7 @@ class TestCallWithRetry:
         call_fn = MagicMock(side_effect=Exception("fail"))
 
         with pytest.raises(KpiGenerationError):
-            call_with_retry(
-                call_fn, max_retries=0, error_class=KpiGenerationError, context="KPI"
-            )
+            call_with_retry(call_fn, max_retries=0, error_class=KpiGenerationError, context="KPI")
 
     def test_validation_function(self) -> None:
         """Utilise la fonction de validation."""

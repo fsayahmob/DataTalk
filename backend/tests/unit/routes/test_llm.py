@@ -36,8 +36,23 @@ class TestListLlmProviders:
     ) -> None:
         """Retourne les providers."""
         mock_get.return_value = [
-            {"id": 1, "name": "google", "display_name": "Google AI", "type": "cloud", "requires_api_key": 1, "is_enabled": 1},
-            {"id": 2, "name": "ollama", "display_name": "Ollama", "type": "local", "requires_api_key": 0, "is_enabled": 1, "base_url": "http://localhost:11434"},
+            {
+                "id": 1,
+                "name": "google",
+                "display_name": "Google AI",
+                "type": "cloud",
+                "requires_api_key": 1,
+                "is_enabled": 1,
+            },
+            {
+                "id": 2,
+                "name": "ollama",
+                "display_name": "Ollama",
+                "type": "local",
+                "requires_api_key": 0,
+                "is_enabled": 1,
+                "base_url": "http://localhost:11434",
+            },
         ]
         mock_hint.side_effect = lambda pid: "sk-...xyz" if pid == 1 else None
         mock_check.return_value = True
@@ -83,9 +98,7 @@ class TestListLlmModels:
 
     @pytest.mark.asyncio
     @patch("routes.llm.get_provider_by_name")
-    async def test_raises_if_provider_not_found(
-        self, mock_get_provider: MagicMock
-    ) -> None:
+    async def test_raises_if_provider_not_found(self, mock_get_provider: MagicMock) -> None:
         """Lève une erreur si provider non trouvé."""
         mock_get_provider.return_value = None
 
@@ -126,9 +139,7 @@ class TestSetLlmDefaultModel:
     @pytest.mark.asyncio
     @patch("routes.llm.get_models")
     @patch("routes.llm.set_default_model")
-    async def test_sets_default(
-        self, mock_set: MagicMock, mock_get: MagicMock
-    ) -> None:
+    async def test_sets_default(self, mock_set: MagicMock, mock_get: MagicMock) -> None:
         """Définit le modèle par défaut."""
         mock_get.return_value = [{"id": 1, "model_id": "gemini-2.0-flash"}]
 
@@ -155,9 +166,7 @@ class TestUpdateProviderConfig:
     @pytest.mark.asyncio
     @patch("routes.llm.get_provider_by_name")
     @patch("routes.llm.update_provider_base_url")
-    async def test_updates_base_url(
-        self, mock_update: MagicMock, mock_get: MagicMock
-    ) -> None:
+    async def test_updates_base_url(self, mock_update: MagicMock, mock_get: MagicMock) -> None:
         """Met à jour la base_url."""
         mock_get.return_value = {"id": 1, "name": "ollama", "requires_api_key": False}
 
@@ -169,9 +178,7 @@ class TestUpdateProviderConfig:
 
     @pytest.mark.asyncio
     @patch("routes.llm.get_provider_by_name")
-    async def test_raises_if_provider_not_found(
-        self, mock_get: MagicMock
-    ) -> None:
+    async def test_raises_if_provider_not_found(self, mock_get: MagicMock) -> None:
         """Lève une erreur si provider non trouvé."""
         mock_get.return_value = None
 

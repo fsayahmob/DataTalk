@@ -24,9 +24,7 @@ class TestListWidgets:
     @pytest.mark.asyncio
     @patch("routes.widgets.app_state")
     @patch("routes.widgets.get_all_widgets_with_data")
-    async def test_returns_widgets(
-        self, mock_get: MagicMock, mock_app_state: MagicMock
-    ) -> None:
+    async def test_returns_widgets(self, mock_get: MagicMock, mock_app_state: MagicMock) -> None:
         """Retourne les widgets."""
         mock_app_state.db_connection = MagicMock()
         mock_get.return_value = [
@@ -134,9 +132,7 @@ class TestListKpis:
     @pytest.mark.asyncio
     @patch("routes.widgets.app_state")
     @patch("routes.widgets.get_all_kpis_with_data")
-    async def test_returns_kpis(
-        self, mock_get: MagicMock, mock_app_state: MagicMock
-    ) -> None:
+    async def test_returns_kpis(self, mock_get: MagicMock, mock_app_state: MagicMock) -> None:
         """Retourne les KPIs."""
         mock_app_state.db_connection = MagicMock()
         mock_get.return_value = [
@@ -179,9 +175,7 @@ class TestListSuggestedQuestions:
     @pytest.mark.asyncio
     @patch("routes.widgets.get_connection")
     @patch("routes.widgets.get_suggested_questions")
-    async def test_returns_questions(
-        self, mock_get: MagicMock, mock_conn: MagicMock
-    ) -> None:
+    async def test_returns_questions(self, mock_get: MagicMock, mock_conn: MagicMock) -> None:
         """Retourne les questions suggérées."""
         conn = MagicMock()
         conn.execute.return_value.fetchone.return_value = (5,)

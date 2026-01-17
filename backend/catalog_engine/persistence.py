@@ -260,12 +260,16 @@ def load_tables_context(
                 ColumnMetadata(
                     name=col_name,
                     data_type=col_type,
-                    sample_values=col_row["sample_values"].split(", ") if col_row["sample_values"] else [],
+                    sample_values=col_row["sample_values"].split(", ")
+                    if col_row["sample_values"]
+                    else [],
                     value_range=col_row["value_range"],
                 )
             )
 
-        context_part = f"\nTable: {table_name} ({row_count:,} lignes)\nColonnes:\n{chr(10).join(cols_desc)}\n"
+        context_part = (
+            f"\nTable: {table_name} ({row_count:,} lignes)\nColonnes:\n{chr(10).join(cols_desc)}\n"
+        )
         table_metadata = TableMetadata(name=table_name, row_count=row_count, columns=columns_result)
         tables_info.append((table_metadata, context_part))
 

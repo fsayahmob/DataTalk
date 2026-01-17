@@ -37,9 +37,7 @@ class TestExecuteKpiSql:
     def test_returns_list_for_multiple_rows(self) -> None:
         """Retourne une liste pour plusieurs lignes."""
         db = MagicMock()
-        db.execute.return_value.fetchdf.return_value = pd.DataFrame(
-            {"value": [10, 20, 30, 40]}
-        )
+        db.execute.return_value.fetchdf.return_value = pd.DataFrame({"value": [10, 20, 30, 40]})
 
         result = execute_kpi_sql(db, "SELECT value FROM test")
 
@@ -249,15 +247,25 @@ class TestGetAllKpisWithData:
 
     @patch("kpi_service.get_connection")
     @patch("kpi_service.get_kpi_with_data")
-    def test_returns_all_kpis(
-        self, mock_get_kpi: MagicMock, mock_conn: MagicMock
-    ) -> None:
+    def test_returns_all_kpis(self, mock_get_kpi: MagicMock, mock_conn: MagicMock) -> None:
         """Retourne tous les KPIs."""
         conn = MagicMock()
         cursor = MagicMock()
         cursor.fetchall.return_value = [
-            {"kpi_id": "k1", "title": "KPI 1", "sql_value": "SELECT 1", "sql_trend": "SELECT 0", "sql_sparkline": "SELECT 1"},
-            {"kpi_id": "k2", "title": "KPI 2", "sql_value": "SELECT 2", "sql_trend": "SELECT 0", "sql_sparkline": "SELECT 1"},
+            {
+                "kpi_id": "k1",
+                "title": "KPI 1",
+                "sql_value": "SELECT 1",
+                "sql_trend": "SELECT 0",
+                "sql_sparkline": "SELECT 1",
+            },
+            {
+                "kpi_id": "k2",
+                "title": "KPI 2",
+                "sql_value": "SELECT 2",
+                "sql_trend": "SELECT 0",
+                "sql_sparkline": "SELECT 1",
+            },
         ]
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
@@ -287,8 +295,20 @@ class TestSaveKpis:
         mock_conn.return_value = conn
 
         kpis = [
-            {"id": "k1", "title": "KPI 1", "sql_value": "SELECT 1", "sql_trend": "SELECT 0", "sql_sparkline": "SELECT 1"},
-            {"id": "k2", "title": "KPI 2", "sql_value": "SELECT 2", "sql_trend": "SELECT 0", "sql_sparkline": "SELECT 1"},
+            {
+                "id": "k1",
+                "title": "KPI 1",
+                "sql_value": "SELECT 1",
+                "sql_trend": "SELECT 0",
+                "sql_sparkline": "SELECT 1",
+            },
+            {
+                "id": "k2",
+                "title": "KPI 2",
+                "sql_value": "SELECT 2",
+                "sql_trend": "SELECT 0",
+                "sql_sparkline": "SELECT 1",
+            },
         ]
 
         count = save_kpis(kpis)
@@ -307,7 +327,9 @@ class TestSaveKpis:
         conn.cursor.return_value = cursor
         mock_conn.return_value = conn
 
-        save_kpis([{"id": "new", "title": "New", "sql_value": "", "sql_trend": "", "sql_sparkline": ""}])
+        save_kpis(
+            [{"id": "new", "title": "New", "sql_value": "", "sql_trend": "", "sql_sparkline": ""}]
+        )
 
         # Premier appel doit être le DELETE
         first_call = cursor.execute.call_args_list[0]

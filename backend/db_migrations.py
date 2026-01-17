@@ -16,7 +16,6 @@ class MigrationError(Exception):
     """Erreur lors d'une migration."""
 
 
-
 def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
     """Vérifie si une colonne existe dans une table."""
     cursor.execute(f"PRAGMA table_info({table})")

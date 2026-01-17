@@ -118,9 +118,7 @@ class TestExecuteReport:
     @pytest.mark.asyncio
     @patch("routes.reports.get_saved_reports")
     @patch("routes.reports.execute_query")
-    async def test_executes_report(
-        self, mock_execute: MagicMock, mock_get: MagicMock
-    ) -> None:
+    async def test_executes_report(self, mock_execute: MagicMock, mock_get: MagicMock) -> None:
         """Exécute un rapport."""
         mock_get.return_value = [
             {
@@ -180,9 +178,7 @@ class TestExecuteReport:
     @pytest.mark.asyncio
     @patch("routes.reports.get_saved_reports")
     @patch("routes.reports.execute_query")
-    async def test_handles_query_error(
-        self, mock_execute: MagicMock, mock_get: MagicMock
-    ) -> None:
+    async def test_handles_query_error(self, mock_execute: MagicMock, mock_get: MagicMock) -> None:
         """Gère les erreurs de requête."""
         mock_get.return_value = [{"id": 1, "sql_query": "SELECT * FROM invalid"}]
         mock_execute.side_effect = Exception("Table not found")

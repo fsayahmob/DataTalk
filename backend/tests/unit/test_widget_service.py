@@ -49,9 +49,7 @@ class TestGetWidgetWithData:
 
     @patch("widget_service.get_widget_cache")
     @patch("widget_service.set_widget_cache")
-    def test_uses_cache_when_available(
-        self, mock_set: MagicMock, mock_get: MagicMock
-    ) -> None:
+    def test_uses_cache_when_available(self, mock_set: MagicMock, mock_get: MagicMock) -> None:
         """Utilise le cache si disponible."""
         mock_get.return_value = {
             "data": '[{"col": 1}]',
@@ -69,9 +67,7 @@ class TestGetWidgetWithData:
 
     @patch("widget_service.get_widget_cache")
     @patch("widget_service.set_widget_cache")
-    def test_executes_sql_when_no_cache(
-        self, mock_set: MagicMock, mock_get: MagicMock
-    ) -> None:
+    def test_executes_sql_when_no_cache(self, mock_set: MagicMock, mock_get: MagicMock) -> None:
         """Exécute SQL si pas de cache."""
         mock_get.return_value = None
 
@@ -88,9 +84,7 @@ class TestGetWidgetWithData:
 
     @patch("widget_service.get_widget_cache")
     @patch("widget_service.set_widget_cache")
-    def test_skips_cache_when_disabled(
-        self, mock_set: MagicMock, mock_get: MagicMock
-    ) -> None:
+    def test_skips_cache_when_disabled(self, mock_set: MagicMock, mock_get: MagicMock) -> None:
         """N'utilise pas le cache si désactivé."""
         widget = {"widget_id": "w1", "sql_query": "SELECT 1"}
         db = MagicMock()
@@ -103,9 +97,7 @@ class TestGetWidgetWithData:
 
     @patch("widget_service.get_widget_cache")
     @patch("widget_service.set_widget_cache")
-    def test_handles_invalid_cache_json(
-        self, mock_set: MagicMock, mock_get: MagicMock
-    ) -> None:
+    def test_handles_invalid_cache_json(self, mock_set: MagicMock, mock_get: MagicMock) -> None:
         """Gère le JSON invalide dans le cache."""
         mock_get.return_value = {
             "data": "invalid json",
@@ -255,9 +247,7 @@ class TestRefreshSingleWidgetCache:
 
     @patch("widget_service.get_widgets")
     @patch("widget_service.execute_widget_sql")
-    def test_handles_sql_error(
-        self, mock_execute: MagicMock, mock_get: MagicMock
-    ) -> None:
+    def test_handles_sql_error(self, mock_execute: MagicMock, mock_get: MagicMock) -> None:
         """Gère les erreurs SQL."""
         mock_get.return_value = [{"widget_id": "w1", "sql_query": "SELECT * FROM bad"}]
         mock_execute.side_effect = Exception("SQL error")

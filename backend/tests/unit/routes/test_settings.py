@@ -168,7 +168,13 @@ class TestGetSettings:
         mock_llm.return_value = {"status": "ok"}
         mock_default.return_value = {"id": 1, "name": "gemini"}
         mock_providers.return_value = [
-            {"id": 1, "name": "google", "display_name": "Google AI", "type": "cloud", "requires_api_key": True}
+            {
+                "id": 1,
+                "name": "google",
+                "display_name": "Google AI",
+                "type": "cloud",
+                "requires_api_key": True,
+            }
         ]
         mock_hint.return_value = "sk-...xyz"
 
@@ -199,9 +205,7 @@ class TestUpdateSettings:
 
     @pytest.mark.asyncio
     @patch("routes.settings.get_provider_by_name")
-    async def test_raises_if_provider_not_found(
-        self, mock_get_provider: MagicMock
-    ) -> None:
+    async def test_raises_if_provider_not_found(self, mock_get_provider: MagicMock) -> None:
         """Lève une erreur si provider non trouvé."""
         mock_get_provider.return_value = None
         request = SettingsUpdateRequest(api_key="sk-test", provider_name="unknown")

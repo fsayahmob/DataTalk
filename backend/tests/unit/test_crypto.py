@@ -113,7 +113,9 @@ class TestEncrypt:
 
     def test_encrypts_string(self) -> None:
         """Chiffre une chaîne correctement."""
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}
+        ):
             import importlib
 
             import crypto
@@ -126,7 +128,9 @@ class TestEncrypt:
 
     def test_encrypted_is_bytes(self) -> None:
         """Le résultat est en bytes."""
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}
+        ):
             import importlib
 
             import crypto
@@ -149,7 +153,9 @@ class TestDecrypt:
 
     def test_decrypts_to_original(self) -> None:
         """Déchiffre vers la valeur originale."""
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}
+        ):
             import importlib
 
             import crypto
@@ -169,7 +175,9 @@ class TestDecrypt:
 
     def test_returns_none_for_invalid_ciphertext(self) -> None:
         """Retourne None pour un ciphertext invalide."""
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}
+        ):
             import importlib
 
             import crypto
@@ -241,7 +249,9 @@ class TestEncryptDecryptRoundtrip:
         if not value:
             return  # Skip empty string (decrypt returns None)
 
-        with patch.dict(os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}):
+        with patch.dict(
+            os.environ, {"ENCRYPTION_KEY": "test_key_for_encryption_test!!", "ENVIRONMENT": "dev"}
+        ):
             import importlib
 
             import crypto
