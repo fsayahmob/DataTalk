@@ -39,7 +39,8 @@ class TestCreateReport:
     @patch("routes.reports.save_report")
     async def test_creates_report(self, mock_save: MagicMock) -> None:
         """Crée un rapport."""
-        mock_save.return_value = {"id": 1, "share_token": "abc123"}
+        token = "abc123"
+        mock_save.return_value = {"id": 1, "share_token": token}
 
         request = SaveReportRequest(
             title="Mon rapport",
@@ -49,7 +50,7 @@ class TestCreateReport:
         result = await create_report(request)
 
         assert result["id"] == 1
-        assert result["share_token"] == "abc123"
+        assert result["share_token"] == token
         mock_save.assert_called_once_with(
             title="Mon rapport",
             question="Quelle est la note moyenne?",

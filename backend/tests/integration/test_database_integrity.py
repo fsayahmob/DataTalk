@@ -1,6 +1,7 @@
 """Tests d'intégration pour vérifier l'intégrité de la base de données."""
 
 import sqlite3
+import typing
 from pathlib import Path
 
 import pytest
@@ -13,7 +14,7 @@ CATALOG_DB = Path(__file__).parent.parent.parent / "catalog.sqlite"
 class TestPromptIntegrity:
     """Vérifie que les prompts requis existent."""
 
-    REQUIRED_PROMPTS = [
+    REQUIRED_PROMPTS: typing.ClassVar[list[str]] = [
         "analytics_system",
         "catalog_enrichment",
         "widgets_generation",
@@ -81,7 +82,7 @@ class TestPromptIntegrity:
 class TestDatabaseSchema:
     """Vérifie que les tables requises existent."""
 
-    REQUIRED_TABLES = [
+    REQUIRED_TABLES: typing.ClassVar[list[str]] = [
         "llm_prompts",
         "llm_providers",
         "llm_models",

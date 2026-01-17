@@ -218,7 +218,7 @@ def enrich_selected_tables(
         # Activer seulement les tables sélectionnées
         placeholders = ",".join("?" * len(table_ids))
         cursor.execute(
-            f"UPDATE tables SET is_enabled = 1 WHERE id IN ({placeholders})",  # noqa: S608
+            f"UPDATE tables SET is_enabled = 1 WHERE id IN ({placeholders})",
             table_ids,
         )
         conn.commit()
@@ -234,7 +234,7 @@ def enrich_selected_tables(
             FROM tables t
             JOIN datasources d ON t.datasource_id = d.id
             WHERE t.id IN ({placeholders})
-        """,  # noqa: S608 - placeholders are sanitized integers from table_ids
+        """,
             table_ids,
         )
         selected_tables = cursor.fetchall()

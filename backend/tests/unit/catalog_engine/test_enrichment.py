@@ -201,7 +201,8 @@ class TestBuildFullContext:
             ],
         )
         context = _build_full_context(catalog)
-        assert "15" in context and "NULL" in context
+        assert "15" in context
+        assert "NULL" in context
 
     def test_includes_enum_for_categorical(self) -> None:
         """Inclut ENUM pour catégoriel."""

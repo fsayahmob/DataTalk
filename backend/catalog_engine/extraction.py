@@ -110,7 +110,7 @@ def extract_column_stats(
                 COUNT(*) - COUNT("{col_name}") as null_count,
                 COUNT(DISTINCT "{col_name}") as distinct_count
             FROM "{table_name}"
-        """).fetchone()  # noqa: S608
+        """).fetchone()
 
         if base_stats is None:
             return ColumnMetadata(**stats)
@@ -132,7 +132,7 @@ def extract_column_stats(
                 FROM "{table_name}"
                 WHERE "{col_name}" IS NOT NULL
                 ORDER BY val
-            """).fetchall()  # noqa: S608
+            """).fetchall()
             stats["sample_values"] = [str(s[0])[:100] for s in samples if s[0]]
         else:
             # Échantillon de 5 valeurs
@@ -141,7 +141,7 @@ def extract_column_stats(
                 FROM "{table_name}"
                 WHERE "{col_name}" IS NOT NULL
                 LIMIT 5
-            """).fetchall()  # noqa: S608
+            """).fetchall()
             stats["sample_values"] = [str(s[0])[:50] for s in samples if s[0]]
 
         # 3. Top 10 valeurs avec fréquences (distribution)
@@ -152,7 +152,7 @@ def extract_column_stats(
             GROUP BY "{col_name}"
             ORDER BY cnt DESC
             LIMIT 10
-        """).fetchall()  # noqa: S608
+        """).fetchall()
 
         stats["top_values"] = [
             ValueFrequency(
@@ -174,7 +174,7 @@ def extract_column_stats(
                         MEDIAN("{col_name}")
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
-                """).fetchone()  # noqa: S608
+                """).fetchone()
 
                 if num_stats is not None and num_stats[0] is not None:
                     stats["value_range"] = f"{num_stats[0]} - {num_stats[1]}"
@@ -191,7 +191,7 @@ def extract_column_stats(
                         AVG(LENGTH("{col_name}"))
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
-                """).fetchone()  # noqa: S608
+                """).fetchone()
 
                 if text_stats is not None and text_stats[0] is not None:
                     stats["min_length"] = text_stats[0]
@@ -206,7 +206,7 @@ def extract_column_stats(
                     FROM "{table_name}"
                     WHERE "{col_name}" IS NOT NULL
                     LIMIT 100
-                """).fetchall()  # noqa: S608
+                """).fetchall()
                 sample_values_for_pattern = [str(s[0]) for s in pattern_samples if s[0]]
 
                 pattern, rate = detect_pattern(sample_values_for_pattern)
@@ -249,7 +249,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
     for (table_name,) in tables:
         # Nombre de lignes
         row_result = conn.execute(
-            f'SELECT COUNT(*) FROM "{table_name}"'  # noqa: S608
+            f'SELECT COUNT(*) FROM "{table_name}"'
         ).fetchone()
         row_count = row_result[0] if row_result else 0
 
@@ -259,7 +259,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
             FROM information_schema.columns
             WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
-        """).fetchall()  # noqa: S608
+        """).fetchall()
 
         logger.info("  %s: %d colonnes, %d lignes", table_name, len(columns_info), row_count)
 

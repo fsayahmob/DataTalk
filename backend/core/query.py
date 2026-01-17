@@ -28,7 +28,6 @@ DEFAULT_QUERY_TIMEOUT_MS = QueryConfig.DEFAULT_TIMEOUT_MS
 class QueryTimeoutError(Exception):
     """Erreur de timeout de requête DuckDB."""
 
-    pass
 
 
 def execute_query(sql: str, timeout_ms: int | None = None) -> list[dict[str, Any]]:

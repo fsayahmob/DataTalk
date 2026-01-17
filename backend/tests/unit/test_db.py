@@ -1,5 +1,6 @@
 """Tests pour db.py - Connexion SQLite centralisée."""
 
+import contextlib
 import sqlite3
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -71,9 +72,8 @@ class TestGetDb:
         with patch("db.get_connection", return_value=mock_conn):
             from db import get_db
 
-            with pytest.raises(ValueError):
-                with get_db():
-                    raise ValueError("Test error")
+            with pytest.raises(ValueError, match="Test error"), get_db():
+                raise ValueError("Test error")
 
             mock_conn.rollback.assert_called_once()
             mock_conn.close.assert_called_once()
@@ -233,10 +233,8 @@ class TestRunMigrationsSafe:
         ):
             from db import _run_migrations_safe
 
-            try:
+            with contextlib.suppress(MigrationError):
                 _run_migrations_safe()
-            except MigrationError:
-                pass
 
             mock_conn.close.assert_called_once()
 

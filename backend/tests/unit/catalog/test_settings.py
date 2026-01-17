@@ -64,12 +64,14 @@ class TestGetSetting:
         """Ferme la connexion même en cas d'erreur."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
-        mock_cursor.execute.side_effect = Exception("DB error")
+        mock_cursor.execute.side_effect = RuntimeError("DB error")
         mock_conn.cursor.return_value = mock_cursor
 
-        with patch("catalog.settings.get_connection", return_value=mock_conn):
-            with pytest.raises(Exception):
-                get_setting("key")
+        with (
+            patch("catalog.settings.get_connection", return_value=mock_conn),
+            pytest.raises(RuntimeError, match="DB error"),
+        ):
+            get_setting("key")
 
         mock_conn.close.assert_called_once()
 

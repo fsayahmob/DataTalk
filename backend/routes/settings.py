@@ -236,18 +236,15 @@ EDITABLE_SETTINGS: dict[str, dict[str, Any]] = {
 def _validate_setting(key: str, value: str, config: dict[str, Any]) -> str | None:
     """Valide une valeur de setting selon sa config. Retourne le message d'erreur ou None."""
     # Validation par valeurs autorisées
-    if "allowed_values" in config:
-        if value not in config["allowed_values"]:
-            return t("validation.allowed_values", values=str(config["allowed_values"]))
+    if "allowed_values" in config and value not in config["allowed_values"]:
+        return t("validation.allowed_values", values=str(config["allowed_values"]))
 
     # Validation numérique
     if config.get("type") == "int":
         try:
             val = int(value)
-            if "min" in config and val < config["min"]:
-                return t("validation.range_error", min=config["min"], max=config.get("max", "∞"))
-            if "max" in config and val > config["max"]:
-                return t("validation.range_error", min=config.get("min", 0), max=config["max"])
+            if ("min" in config and val < config["min"]) or ("max" in config and val > config["max"]):
+                return t("validation.range_error", min=config.get("min", 0), max=config.get("max", "∞"))
         except ValueError:
             return t("validation.numeric_required")
 

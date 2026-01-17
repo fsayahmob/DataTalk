@@ -47,7 +47,7 @@ def _get_encryption_key() -> bytes:
         logger.critical("ENCRYPTION_KEY must be set in production environment!")
         raise RuntimeError(
             "ENCRYPTION_KEY environment variable is required in production. "
-            "Generate one with: python -c \"import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())\""
+            "Generate one with: python -c 'import os, base64; print(base64.urlsafe_b64encode(os.urandom(32)).decode())'"
         )
     else:
         # Dev only: générer/charger une clé persistée localement
@@ -102,7 +102,7 @@ def decrypt(ciphertext: bytes) -> str | None:
     except (ValueError, TypeError):
         # Données corrompues ou format invalide
         return None
-    except Exception:  # noqa: BLE001
+    except Exception:
         # Fernet peut lever diverses exceptions (InvalidToken, etc.)
         # Retourner None pour ne pas exposer les détails crypto
         logger.debug("Decryption failed - invalid token or corrupted data")

@@ -134,9 +134,10 @@ class TestGetActivePrompt:
         mock_conn.return_value = conn
         mock_get_prompt.return_value = {"key": "test", "version": "normal"}
 
-        prompt = get_active_prompt("test")
+        result = get_active_prompt("test")
 
         mock_get_prompt.assert_called_once_with("test", "normal")
+        assert result["key"] == "test"
 
 
 class TestAddPrompt:

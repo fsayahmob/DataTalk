@@ -45,7 +45,7 @@ def sanitize_sql_error(error: Exception, log_full: bool = True) -> str:
 
     # Logger l'erreur complète pour debug (jamais envoyée au client)
     if log_full:
-        logger.error("SQL error (full): %s", error, exc_info=True)
+        logger.error("SQL error (full): %s", error)
 
     # Chercher un pattern connu
     for pattern, i18n_key in ERROR_PATTERNS.items():
@@ -75,7 +75,7 @@ def sanitize_error_message(error: Exception, context: str = "operation") -> str:
     error_str = str(error)
 
     # Logger l'erreur complète
-    logger.error("Error in %s: %s", context, error, exc_info=True)
+    logger.error("Error in %s: %s", context, error)
 
     # Patterns à supprimer
     path_pattern = r"(/[a-zA-Z0-9_\-./]+)+\.(\w+)"  # Chemins fichiers

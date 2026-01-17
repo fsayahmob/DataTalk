@@ -92,11 +92,12 @@ class TestGetWidgets:
         mock_conn.cursor.return_value = mock_cursor
 
         with patch("catalog.widgets.get_connection", return_value=mock_conn):
-            result = get_widgets(enabled_only=False)
+            widgets = get_widgets(enabled_only=False)
 
         # Vérifie que le filtre is_enabled n'est PAS utilisé
         call_sql = mock_cursor.execute.call_args[0][0]
         assert "WHERE" not in call_sql or "is_enabled" not in call_sql
+        assert len(widgets) == 1
 
     def test_returns_empty_list_when_no_widgets(self) -> None:
         """Retourne liste vide sans widgets."""

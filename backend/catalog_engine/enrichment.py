@@ -106,13 +106,13 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
                 Field(description=f"Enrichissement pour la colonne {col.name}"),
             )
 
-        ColumnsModel = create_model(  # type: ignore[call-overload] # noqa: N806
+        ColumnsModel = create_model(  # type: ignore[call-overload]
             f"{table.name}_Columns",
             **column_fields,
         )
 
         # Créer le modèle de la table
-        TableModel = create_model(  # noqa: N806
+        TableModel = create_model(
             f"{table.name}_Enrichment",
             description=(str, Field(description=f"Description métier de la table {table.name}")),
             columns=(ColumnsModel, Field(description="Enrichissement des colonnes")),
@@ -230,7 +230,7 @@ def enrich_with_llm(
         EnrichmentError: Si l'enrichissement échoue après tous les retries.
     """
     # Construire le modèle de réponse dynamique
-    ResponseModel = build_response_model(catalog)  # noqa: N806
+    ResponseModel = build_response_model(catalog)
 
     # Utiliser le contexte fourni ou fallback sur _build_full_context
     if tables_context is None:

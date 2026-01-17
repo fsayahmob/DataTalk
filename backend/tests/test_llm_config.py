@@ -184,7 +184,7 @@ class TestSecrets:
     def test_set_api_key_empty_deletes(
         self,
         mock_db_connection: Any,
-        _mock_crypto: Any,
+        mock_crypto: Any,
     ) -> None:
         """set_api_key avec clé vide supprime l'entrée."""
         _mock_conn, mock_cursor = mock_db_connection
@@ -193,8 +193,8 @@ class TestSecrets:
 
         assert result is True
         # Vérifier que DELETE a été appelé
-        call_args = mock_cursor.execute.call_args[0][0]
-        assert "DELETE" in call_args
+        executed_sql = mock_cursor.execute.call_args[0][0]
+        assert "DELETE" in executed_sql
 
     def test_get_api_key_decrypts(self, mock_db_connection: Any, mock_crypto: Any) -> None:
         """get_api_key déchiffre la clé."""
@@ -210,7 +210,7 @@ class TestSecrets:
     def test_has_api_key_returns_bool(
         self,
         mock_db_connection: Any,
-        _mock_crypto: Any,
+        mock_crypto: Any,
     ) -> None:
         """has_api_key retourne True/False."""
         _mock_conn, mock_cursor = mock_db_connection

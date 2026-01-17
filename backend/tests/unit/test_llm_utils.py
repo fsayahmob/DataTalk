@@ -101,7 +101,8 @@ class TestParseLlmJson:
         """Lève une erreur si JSON invalide."""
         with pytest.raises(LLMJsonParseError) as exc_info:
             parse_llm_json("{invalid json}")
-        assert "JSON" in str(exc_info.value) and "invalide" in str(exc_info.value)
+        assert "JSON" in str(exc_info.value)
+        assert "invalide" in str(exc_info.value)
 
     def test_uses_context_in_error(self) -> None:
         """Utilise le contexte dans les erreurs."""
@@ -111,7 +112,7 @@ class TestParseLlmJson:
 
     def test_handles_triple_backticks_only(self) -> None:
         """Gère les balises ``` sans json."""
-        content = "```\n{\"value\": 100}\n```"
+        content = '```\n{"value": 100}\n```'
         result = parse_llm_json(content)
         assert result == {"value": 100}
 

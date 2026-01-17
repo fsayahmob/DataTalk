@@ -15,12 +15,11 @@ logger = logging.getLogger(__name__)
 class MigrationError(Exception):
     """Erreur lors d'une migration."""
 
-    pass
 
 
 def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
     """Vérifie si une colonne existe dans une table."""
-    cursor.execute(f"PRAGMA table_info({table})")  # noqa: S608
+    cursor.execute(f"PRAGMA table_info({table})")
     return column in [col[1] for col in cursor.fetchall()]
 
 
@@ -74,7 +73,7 @@ def _migration_003_costs_columns(cursor: sqlite3.Cursor) -> None:
     ]
     for col, typ in columns:
         if not _column_exists(cursor, "llm_costs", col):
-            cursor.execute(f"ALTER TABLE llm_costs ADD COLUMN {col} {typ}")  # noqa: S608
+            cursor.execute(f"ALTER TABLE llm_costs ADD COLUMN {col} {typ}")
 
 
 def _migration_004_full_context(cursor: sqlite3.Cursor) -> None:
@@ -96,7 +95,7 @@ def _migration_005_datasource_fields(cursor: sqlite3.Cursor) -> None:
     ]
     for col, typ in columns:
         if not _column_exists(cursor, "datasources", col):
-            cursor.execute(f"ALTER TABLE datasources ADD COLUMN {col} {typ}")  # noqa: S608
+            cursor.execute(f"ALTER TABLE datasources ADD COLUMN {col} {typ}")
 
 
 def _migration_006_prompt_v3(cursor: sqlite3.Cursor) -> None:

@@ -60,16 +60,16 @@ __all__ = [
     # Models
     "LLMResponse",
     "StructuredLLMResponse",
-    "_circuit_breaker",
     # Helpers
+    "_circuit_breaker",
     "_get_api_key_for_model",
     "_get_litellm_model_name",
     "_handle_litellm_exception",
-    "get_error_severity",
     # Calls
     "call_llm",
     "call_llm_structured",
     "check_llm_status",
     "get_circuit_breaker_status",
+    "get_error_severity",
     "reset_circuit_breaker",
 ]

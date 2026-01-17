@@ -80,6 +80,7 @@ ignore = [
     "PLR2004",  # Magic values
     "PLR0912",  # Too many branches
     "PLR0915",  # Too many statements
+    "PLR0911",  # Too many return statements
 
     # Legacy code patterns
     "T20",      # Print statements (use logging instead - migrate later)
@@ -95,11 +96,29 @@ ignore = [
     "I001",     # Import sorting
     "E402",     # Module level import not at top
     "F401",     # Imported but unused
+
+    # Security (false positives handled per-file)
+    "S310",     # URL open audit (urlopen used intentionally for health checks)
+    "N806",     # Variable name should be lowercase (Pydantic dynamic models)
 ]
 
 # Per-file exceptions
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "PLR2004", "ARG001"]
+"tests/*" = [
+    "S101",     # assert usage
+    "S105",     # Hardcoded password (test tokens)
+    "S110",     # try-except-pass (test error handling)
+    "S608",     # SQL injection (test queries)
+    "PLR2004",  # Magic values
+    "ARG001",   # Unused function argument
+    "ARG002",   # Unused method argument
+    "SLF001",   # Private member access (needed for testing internal state)
+    "PLC0415",  # Import not at top-level (deferred imports in tests)
+    "RUF059",   # Unused unpacked variable
+    "SIM117",   # Nested with statements (pytest.raises pattern)
+]
+"catalog_engine/extraction.py" = ["S608"]  # SQL built from db metadata (safe)
+"catalog_engine/orchestration.py" = ["S608"]  # SQL with parameterized queries (safe)
 
 [tool.ruff.lint.pylint]
 max-args = 6

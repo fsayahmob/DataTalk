@@ -7,6 +7,7 @@ Contient:
 - get_system_instruction: Génération du prompt système LLM
 """
 
+import contextlib
 import logging
 import threading
 from pathlib import Path
@@ -46,11 +47,9 @@ class _AppState:
         with self._lock:
             # Fermer l'ancienne connexion si elle existe
             if self._db_connection is not None:
-                try:
-                    self._db_connection.close()
-                except duckdb.Error:
+                with contextlib.suppress(duckdb.Error):
                     # Connexion déjà fermée ou invalide - normal en shutdown
-                    pass
+                    self._db_connection.close()
             self._db_connection = conn
             # Invalider le cache schéma (nouvelle connexion = potentiel nouveau schéma)
             self._db_schema_cache = None

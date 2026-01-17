@@ -185,18 +185,19 @@ class TestGetReportByToken:
         """Retourne le rapport quand trouvé."""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        test_token = "abc-123"
         mock_cursor.fetchone.return_value = {
             "id": 1,
             "title": "Shared Report",
-            "share_token": "abc-123",
+            "share_token": test_token,
         }
         mock_conn.cursor.return_value = mock_cursor
 
         with patch("catalog.reports.get_connection", return_value=mock_conn):
-            result = get_report_by_token("abc-123")
+            result = get_report_by_token(test_token)
 
         assert result is not None
-        assert result["share_token"] == "abc-123"
+        assert result["share_token"] == test_token
 
     def test_returns_none_when_not_found(self) -> None:
         """Retourne None si token non trouvé."""

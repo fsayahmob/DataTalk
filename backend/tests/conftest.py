@@ -82,12 +82,11 @@ def mock_app_state() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def fresh_app_state() -> Generator[Any, None, None]:
+def fresh_app_state() -> Any:
     """Crée une nouvelle instance de _AppState pour les tests isolés."""
     from core.state import _AppState
 
-    state = _AppState()
-    yield state
+    return _AppState()
 
 
 # =============================================================================
