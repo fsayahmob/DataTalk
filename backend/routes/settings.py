@@ -19,6 +19,7 @@ import duckdb
 from fastapi import APIRouter, HTTPException
 
 from catalog import get_all_settings, get_schema_for_llm, get_setting, set_setting
+from constants import CatalogConfig, QueryConfig
 from core.state import app_state, get_system_instruction
 from db import get_connection
 from i18n import t
@@ -185,6 +186,11 @@ async def update_settings(request: SettingsUpdateRequest) -> dict[str, str]:
 async def get_single_setting(key: str) -> dict[str, str]:
     """Récupère une configuration spécifique."""
     value = get_setting(key)
+
+    # Fallback vers la valeur par défaut si non trouvée en base
+    if value is None and key in EDITABLE_SETTINGS:
+        value = EDITABLE_SETTINGS[key].get("default")
+
     if value is None:
         raise HTTPException(status_code=404, detail=t("settings.not_found", key=key))
     # Masquer les clés API
@@ -198,6 +204,7 @@ async def get_single_setting(key: str) -> dict[str, str]:
 EDITABLE_SETTINGS: dict[str, dict[str, Any]] = {
     "catalog_context_mode": {
         "allowed_values": ("compact", "full"),
+        "default": "compact",
         "invalidates_schema_cache": True,
     },
     "duckdb_path": {
@@ -209,16 +216,19 @@ EDITABLE_SETTINGS: dict[str, dict[str, Any]] = {
         "type": "int",
         "min": 1,
         "max": 50,
+        "default": str(CatalogConfig.DEFAULT_MAX_TABLES_PER_BATCH),
     },
     "max_chart_rows": {
         "type": "int",
         "min": 100,
         "max": 100000,
+        "default": str(QueryConfig.MAX_CHART_ROWS),
     },
     "query_timeout_ms": {
         "type": "int",
         "min": 1000,
         "max": 300000,  # 5 minutes max
+        "default": str(QueryConfig.DEFAULT_TIMEOUT_MS),
     },
 }
 

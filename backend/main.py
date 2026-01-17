@@ -30,6 +30,7 @@ from routes import (
     llm_router,
     reports_router,
     settings_router,
+    v1_router,
     widgets_router,
 )
 
@@ -89,14 +90,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclure les routers
-app.include_router(settings_router)  # /health, /settings, /database/status, /schema
-app.include_router(analytics_router)  # /analyze
-app.include_router(conversations_router)  # /conversations
-app.include_router(reports_router)  # /reports
-app.include_router(catalog_router)  # /catalog
-app.include_router(llm_router)  # /llm
-app.include_router(widgets_router)  # /widgets, /kpis, /suggested-questions, /prompts
+# Inclure le router versionné /api/v1/*
+app.include_router(v1_router)
+
+# Backward compatibility: garder les routes legacy sans préfixe (deprecated)
+# TODO: supprimer après migration frontend vers /api/v1/
+app.include_router(settings_router)
+app.include_router(analytics_router)
+app.include_router(conversations_router)
+app.include_router(reports_router)
+app.include_router(catalog_router)
+app.include_router(llm_router)
+app.include_router(widgets_router)
 
 
 if __name__ == "__main__":

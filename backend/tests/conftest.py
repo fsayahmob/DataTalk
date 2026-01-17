@@ -4,10 +4,17 @@ Fixtures partagées pour tous les tests.
 Ces fixtures fournissent des mocks et données de test réutilisables.
 """
 
+from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
 import pytest
+
+
+# =============================================================================
+# FIXTURES DB
+# =============================================================================
 
 
 @pytest.fixture
@@ -24,7 +31,29 @@ def mock_duckdb_connection() -> MagicMock:
         ("table2",),
     ]
 
+    # Mock pour fetchdf retournant un DataFrame
+    conn.execute.return_value.fetchdf.return_value = pd.DataFrame(
+        {"col1": [1, 2, 3], "col2": ["a", "b", "c"]}
+    )
+
     return conn
+
+
+@pytest.fixture
+def mock_sqlite_connection() -> Generator[MagicMock, None, None]:
+    """Mock d'une connexion SQLite avec context manager."""
+    conn = MagicMock()
+    cursor = MagicMock()
+    cursor.fetchone.return_value = {"id": 1, "name": "test"}
+    cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
+    cursor.rowcount = 1
+    cursor.lastrowid = 1
+    conn.cursor.return_value = cursor
+    conn.__enter__ = MagicMock(return_value=conn)
+    conn.__exit__ = MagicMock(return_value=False)
+
+    with patch("db.get_connection", return_value=conn):
+        yield conn
 
 
 @pytest.fixture
@@ -35,6 +64,63 @@ def mock_sqlite_cursor() -> MagicMock:
     cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
     cursor.rowcount = 1
     return cursor
+
+
+# =============================================================================
+# FIXTURES APP STATE
+# =============================================================================
+
+
+@pytest.fixture
+def mock_app_state() -> Generator[MagicMock, None, None]:
+    """Mock de l'état applicatif global."""
+    with patch("core.state.app_state") as mock:
+        mock.db_connection = MagicMock()
+        mock.db_schema_cache = "schema_cache"
+        mock.current_db_path = "/path/to/db.duckdb"
+        yield mock
+
+
+@pytest.fixture
+def fresh_app_state() -> Generator[Any, None, None]:
+    """Crée une nouvelle instance de _AppState pour les tests isolés."""
+    from core.state import _AppState
+
+    state = _AppState()
+    yield state
+
+
+# =============================================================================
+# FIXTURES LLM
+# =============================================================================
+
+
+@pytest.fixture
+def mock_llm_response() -> dict[str, Any]:
+    """Réponse LLM type pour les tests."""
+    return {
+        "sql": "SELECT COUNT(*) FROM evaluations",
+        "explanation": "Compte le nombre total d'évaluations",
+        "chart_type": "number",
+        "chart_options": {},
+    }
+
+
+@pytest.fixture
+def mock_llm_call() -> Generator[MagicMock, None, None]:
+    """Mock du service LLM."""
+    with patch("llm_service.call_llm") as mock:
+        mock.return_value = {
+            "content": '{"sql": "SELECT 1", "explanation": "Test"}',
+            "usage": {"input_tokens": 100, "output_tokens": 50},
+            "model": "gemini-2.0-flash",
+        }
+        yield mock
+
+
+# =============================================================================
+# FIXTURES CATALOG
+# =============================================================================
 
 
 @pytest.fixture
@@ -91,6 +177,31 @@ def sample_enrichment() -> dict[str, Any]:
 
 
 @pytest.fixture
+def sample_catalog_data() -> dict[str, Any]:
+    """Données complètes d'un catalogue."""
+    return {
+        "datasource": "test_db",
+        "tables": [
+            {
+                "name": "evaluations",
+                "row_count": 64383,
+                "columns": [
+                    {"name": "id", "data_type": "INTEGER"},
+                    {"name": "note_eval", "data_type": "FLOAT"},
+                    {"name": "commentaire", "data_type": "VARCHAR"},
+                    {"name": "dat_course", "data_type": "TIMESTAMP"},
+                ],
+            }
+        ],
+    }
+
+
+# =============================================================================
+# FIXTURES KPI & WIDGET
+# =============================================================================
+
+
+@pytest.fixture
 def sample_kpi_data() -> dict[str, Any]:
     """Données d'exemple pour un KPI."""
     return {
@@ -104,3 +215,34 @@ def sample_kpi_data() -> dict[str, Any]:
         "trend_label": "vs mois dernier",
         "invert_trend": False,
     }
+
+
+@pytest.fixture
+def sample_widget_data() -> dict[str, Any]:
+    """Données d'exemple pour un widget."""
+    return {
+        "id": "widget-1",
+        "title": "Note moyenne",
+        "widget_type": "kpi",
+        "sql_query": "SELECT AVG(note_eval) FROM evaluations",
+        "chart_config": {"type": "number"},
+        "position": 0,
+    }
+
+
+# =============================================================================
+# FIXTURES SETTINGS
+# =============================================================================
+
+
+@pytest.fixture
+def mock_get_setting() -> Generator[MagicMock, None, None]:
+    """Mock de get_setting."""
+    settings = {
+        "duckdb_path": "/path/to/db.duckdb",
+        "query_timeout_ms": "30000",
+        "max_chart_rows": "5000",
+        "max_tables_per_batch": "4",
+    }
+    with patch("catalog.get_setting", side_effect=lambda k: settings.get(k)):
+        yield settings

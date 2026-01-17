@@ -56,7 +56,8 @@ def detect_pattern(values: list[str]) -> tuple[str | None, float | None]:
             if rate > 0.7 and rate > best_rate:
                 best_pattern = pattern_name
                 best_rate = rate
-        except Exception:  # noqa: S112
+        except (re.error, TypeError):
+            # Regex invalide ou type non compatible
             continue
 
     return (best_pattern, best_rate) if best_pattern else (None, None)

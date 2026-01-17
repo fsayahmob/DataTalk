@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Le toggle existe et fonctionne. Pour résumer:\n\n| Fonction | Usage | Appelée depuis |\n|----------|-------|----------------|\n| `enrich_selected_tables()` | Enrichissement initial (met `is_enabled=1` pour les tables sélectionnées) | `POST /catalog/enrich` |\n| `enrich_enabled_tables()` | **[LEGACY]** - pas utilisée | Aucun endpoint |\n| `toggle_table_enabled()` | Désactiver une table après enrichissement | `PATCH /catalog/tables/{id}/toggle` |\n\n**Conclusion**: Pas de régression. `enrich_enabled_tables()` est legacy et pourrait être supprimée. Le flux actuel passe par `enrich_selected_tables()` qui gère correctement le `is_enabled`.\n",
+  "lastMessage": "Les routes sont toutes présentes :\n- GET `/health`\n- GET `/database/status`\n- POST `/refresh-schema`\n- GET `/schema`\n- GET `/settings`\n- PUT `/settings`\n- GET `/settings/{key}`\n- PUT `/settings/{key}`\n\nLe problème était juste que le GET `/settings/{key}` retournait 404 pour `max_chart_rows` car ce setting n'existait pas en base et il n'y avait pas de fallback vers la valeur par défaut. C'est corrigé maintenant avec le fallback vers `EDITABLE_SETTINGS[key].get(\"default\")`.\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-16T22:10:13Z"
+  "timestamp": "2026-01-17T00:48:08Z"
 }

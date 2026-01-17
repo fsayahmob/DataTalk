@@ -5,6 +5,7 @@ Ce fichier centralise les type aliases et fonctions de conversion
 pour améliorer la type safety et éviter la duplication de code.
 """
 
+import math
 from typing import Any, TypeAlias
 
 import duckdb
@@ -44,6 +45,7 @@ def convert_pandas_value(value: Any) -> Any:
     - np.int64/float64 → Python int/float
     - date/datetime/time → string
     - NaN/NaT → None
+    - Inf/-Inf → None (non JSON-sérialisable)
     """
     # Pandas Timestamp
     if isinstance(value, pd.Timestamp):
@@ -53,12 +55,19 @@ def convert_pandas_value(value: Any) -> Any:
         return str(value) if not pd.isna(value) else None
     # Numpy types (int64, float64, etc.)
     if hasattr(value, "item"):
-        return value.item()
+        py_value = value.item()
+        # Vérifier inf/nan après conversion
+        if isinstance(py_value, float) and (math.isinf(py_value) or math.isnan(py_value)):
+            return None
+        return py_value
     # Python date/datetime/time
     if str(type(value).__name__) in ("date", "datetime", "time"):
         return str(value)
     # NaN/NaT values
     if pd.isna(value):
+        return None
+    # Python float inf/nan
+    if isinstance(value, float) and (math.isinf(value) or math.isnan(value)):
         return None
     return value
 

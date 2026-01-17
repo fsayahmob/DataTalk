@@ -184,7 +184,7 @@ class TestSecrets:
     def test_set_api_key_empty_deletes(
         self,
         mock_db_connection: Any,
-        mock_crypto: Any,  # noqa: ARG002
+        _mock_crypto: Any,
     ) -> None:
         """set_api_key avec clé vide supprime l'entrée."""
         _mock_conn, mock_cursor = mock_db_connection
@@ -210,7 +210,7 @@ class TestSecrets:
     def test_has_api_key_returns_bool(
         self,
         mock_db_connection: Any,
-        mock_crypto: Any,  # noqa: ARG002
+        _mock_crypto: Any,
     ) -> None:
         """has_api_key retourne True/False."""
         _mock_conn, mock_cursor = mock_db_connection
