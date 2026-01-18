@@ -1,7 +1,7 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { ThemeStyleSelector } from "@/components/ThemeStyleSelector";
 import { useThemeStyle } from "@/components/ThemeProvider";
 import {
@@ -13,14 +13,15 @@ import {
 } from "@/components/ui/select";
 import { Monitor, Moon, Sun } from "lucide-react";
 
+// Hydration-safe mounting detection
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
   const { style } = useThemeStyle();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
 
   if (!mounted) {
     return (

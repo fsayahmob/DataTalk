@@ -1,7 +1,7 @@
 "use client";
 
 import { ThemeProvider as NextThemesProvider } from "next-themes";
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useSyncExternalStore } from "react";
 
 // Theme style types
 export type ThemeStyle = "corporate" | "gcp" | "linux" | "bloomberg" | "github" | "dracula";
@@ -39,19 +39,25 @@ export function useThemeStyle() {
   return ctx;
 }
 
+// Hydration-safe mounting detection
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+// Read initial style from localStorage (client-side only)
+function getInitialStyle(): ThemeStyle {
+  if (typeof window === "undefined") return "corporate";
+  const saved = localStorage.getItem("theme-style") as ThemeStyle | null;
+  if (saved && THEME_STYLES.some((s) => s.id === saved)) {
+    return saved;
+  }
+  return "corporate";
+}
+
 // Provider component
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [style, setStyleState] = useState<ThemeStyle>("corporate");
-  const [mounted, setMounted] = useState(false);
-
-  // Load saved style from localStorage on mount
-  useEffect(() => {
-    setMounted(true);
-    const saved = localStorage.getItem("theme-style") as ThemeStyle | null;
-    if (saved && THEME_STYLES.some((s) => s.id === saved)) {
-      setStyleState(saved);
-    }
-  }, []);
+  const [style, setStyleState] = useState<ThemeStyle>(getInitialStyle);
+  const mounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
 
   // Apply style to document and persist
   useEffect(() => {

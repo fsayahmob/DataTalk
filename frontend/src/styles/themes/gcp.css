@@ -3,6 +3,20 @@
 
 /* Light mode - Google Cloud light theme */
 :root[data-theme-style="gcp"] {
+  /* Design tokens - Material Design aesthetic */
+  --radius: 0.5rem;
+  --font-family-base: "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "Roboto Mono", ui-monospace, monospace;
+  --font-size-base: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+  --letter-spacing-base: 0.01em;
+  --transition-speed: 200ms;
+  --spacing-unit: 0.5rem;
+
   /* Shadows - Google Material style */
   --shadow-sm: 0 1px 2px 0 rgb(60 64 67 / 0.1);
   --shadow-md: 0 1px 3px 1px rgb(60 64 67 / 0.15);
@@ -57,6 +71,20 @@
 
 /* Dark mode - higher specificity to override globals.css .dark */
 :root[data-theme-style="gcp"].dark {
+  /* Design tokens - Material Design aesthetic (same as light) */
+  --radius: 0.5rem;
+  --font-family-base: "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "Roboto Mono", ui-monospace, monospace;
+  --font-size-base: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+  --letter-spacing-base: 0.01em;
+  --transition-speed: 200ms;
+  --spacing-unit: 0.5rem;
+
   /* Background - Google dark gray */
   --background: oklch(0.14 0.005 250);
   --foreground: oklch(0.92 0 0);

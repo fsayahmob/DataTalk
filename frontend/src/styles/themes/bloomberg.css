@@ -3,6 +3,20 @@
 
 /* Light mode - Bloomberg style adapted for light */
 :root[data-theme-style="bloomberg"] {
+  /* Design tokens - Terminal aesthetic */
+  --radius: 0.125rem;
+  --font-family-base: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  --font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  --font-size-base: 0.8125rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-base: 1.4;
+  --letter-spacing-base: 0.01em;
+  --transition-speed: 100ms;
+  --spacing-unit: 0.25rem;
+
   /* Shadows - minimal for terminal look */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03);
   --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.05);
@@ -57,6 +71,20 @@
 
 /* Dark mode */
 :root[data-theme-style="bloomberg"].dark {
+  /* Design tokens - Terminal aesthetic (same as light) */
+  --radius: 0.125rem;
+  --font-family-base: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  --font-family-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+  --font-size-base: 0.8125rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-base: 1.4;
+  --letter-spacing-base: 0.01em;
+  --transition-speed: 100ms;
+  --spacing-unit: 0.25rem;
+
   /* Shadows - Terminal look, no shadows */
   --shadow-sm: none;
   --shadow-md: none;

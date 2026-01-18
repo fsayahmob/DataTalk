@@ -3,6 +3,20 @@
 
 /* Light mode - Ubuntu light theme */
 :root[data-theme-style="linux"] {
+  /* Design tokens - Ubuntu aesthetic */
+  --radius: 0.375rem;
+  --font-family-base: "Ubuntu", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-family-mono: "Ubuntu Mono", ui-monospace, monospace;
+  --font-size-base: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+  --letter-spacing-base: 0;
+  --transition-speed: 150ms;
+  --spacing-unit: 0.25rem;
+
   /* Shadows - subtle warm tint */
   --shadow-sm: 0 1px 2px 0 rgb(119 41 83 / 0.06);
   --shadow-md: 0 4px 6px -1px rgb(119 41 83 / 0.08), 0 2px 4px -2px rgb(119 41 83 / 0.06);
@@ -57,6 +71,20 @@
 
 /* Dark mode */
 :root[data-theme-style="linux"].dark {
+  /* Design tokens - Ubuntu aesthetic (same as light) */
+  --radius: 0.375rem;
+  --font-family-base: "Ubuntu", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-family-mono: "Ubuntu Mono", ui-monospace, monospace;
+  --font-size-base: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 500;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+  --letter-spacing-base: 0;
+  --transition-speed: 150ms;
+  --spacing-unit: 0.25rem;
+
   /* Background - Ubuntu dark purple/brown */
   --background: oklch(0.12 0.03 330);
   --foreground: oklch(0.92 0.02 90);

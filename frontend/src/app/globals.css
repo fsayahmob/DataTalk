@@ -4,6 +4,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Design tokens - typography, spacing, transitions */
+  --font-family-base: var(--font-family-base);
+  --font-family-mono: var(--font-family-mono);
+  --transition-timing-default: var(--transition-speed);
+
   /* Status colors - map to Tailwind classes like text-status-success, bg-status-error */
   --color-status-success: var(--status-success);
   --color-status-success-foreground: var(--status-success-foreground);
@@ -59,7 +64,19 @@
 }
 
 :root {
-  --radius: 0.375rem;
+  /* Design tokens - can be overridden by themes */
+  --radius: 0.625rem;
+  --font-family-base: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-size-base: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+  --letter-spacing-base: 0;
+  --transition-speed: 150ms;
+  --spacing-unit: 0.25rem;
 
   /* Shadow tokens */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -201,6 +218,24 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+    letter-spacing: var(--letter-spacing-base);
+  }
+
+  /* Typography using theme tokens */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: var(--font-weight-bold);
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-family-mono);
+  }
+
+  /* Transition speed from theme */
+  button, a, input, select, textarea {
+    transition-duration: var(--transition-speed);
   }
 }
 

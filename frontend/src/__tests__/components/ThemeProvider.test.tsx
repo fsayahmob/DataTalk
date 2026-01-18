@@ -162,7 +162,7 @@ describe('useThemeStyle hook', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    await act(async () => {
+    act(() => {
       result.current.setStyle('dracula');
     });
 
@@ -176,7 +176,7 @@ describe('useThemeStyle hook', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    await act(async () => {
+    act(() => {
       result.current.setStyle('github');
     });
 
