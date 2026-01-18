@@ -81,6 +81,7 @@
     "close_menu": "Réduire le menu",
     "collapse": "Réduire",
     "analytics": "Analytics",
+    "datasets": "Datasets",
     "catalog": "Catalogue",
     "runs": "Runs",
     "settings": "Paramètres",
@@ -106,7 +107,12 @@
     "sql_execution_desc": "La requête générée n'a pas pu être exécutée sur la base de données.",
     "sql_attempted": "Requête SQL tentée :",
     "copy_details": "Copier les détails",
-    "try_suggestion": "Reformulez votre question ou essayez une question prédéfinie"
+    "try_suggestion": "Reformulez votre question ou essayez une question prédéfinie",
+    "no_dataset": "Aucun dataset actif",
+    "no_dataset_desc": "Créez ou activez un dataset pour commencer à analyser vos données.",
+    "no_dataset_action": "Aller aux Datasets",
+    "no_data": "Dataset vide",
+    "no_data_desc": "Le dataset actif ne contient aucune donnée. Importez des données pour commencer."
   },
   "catalog": {
     "title": "Catalogue",
@@ -243,5 +249,34 @@
     "mode_full_desc": "Schéma enrichi (stats, ENUM, distribution). Plus précis pour les requêtes complexes.",
     "saving": "Enregistrement...",
     "init_help": "Exécutez sqlite3 catalog.sqlite < schema.sql pour initialiser les prompts."
+  },
+  "datasets": {
+    "title": "Datasets",
+    "subtitle": "Gérez vos datasets analytiques",
+    "create": "Créer un dataset",
+    "create_title": "Nouveau dataset",
+    "name": "Nom",
+    "name_placeholder": "Mon dataset",
+    "description": "Description",
+    "description_placeholder": "Description du dataset (optionnel)",
+    "empty": "Aucun dataset",
+    "empty_hint": "Créez votre premier dataset pour commencer",
+    "created": "Dataset créé",
+    "deleted": "Dataset supprimé",
+    "activated": "Dataset activé",
+    "active": "Actif",
+    "status_empty": "Vide",
+    "status_syncing": "Synchronisation...",
+    "status_ready": "Prêt",
+    "status_error": "Erreur",
+    "tables": "tables",
+    "rows": "lignes",
+    "size": "Taille",
+    "created_at": "Créé le",
+    "delete_confirm_title": "Supprimer le dataset ?",
+    "delete_confirm_desc": "Cette action est irréversible. Le fichier DuckDB sera supprimé.",
+    "activate": "Activer",
+    "refresh_stats": "Actualiser",
+    "create_first": "Créer votre premier dataset"
   }
 }

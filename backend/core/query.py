@@ -41,11 +41,12 @@ def execute_query(sql: str, timeout_ms: int | None = None) -> list[dict[str, Any
         Liste de dictionnaires (données)
 
     Raises:
-        HTTPException: Si pas de connexion DB
+        HTTPException: Si pas de connexion DB ou dataset non disponible
         QueryTimeoutError: Si la requête dépasse le timeout
     """
     if not app_state.db_connection:
-        raise HTTPException(status_code=500, detail=t("db.not_connected"))
+        # Message clair pour guider l'utilisateur vers la création/activation d'un dataset
+        raise HTTPException(status_code=400, detail=t("db.no_dataset"))
 
     # Récupérer le timeout depuis les settings ou utiliser le défaut
     if timeout_ms is None:

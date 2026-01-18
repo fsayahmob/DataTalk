@@ -1,8 +1,12 @@
 /**
  * Tests for DatasetHeader component
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import { DatasetHeader } from '@/components/DatasetHeader';
+
+// Mock fetch API
+const mockFetch = jest.fn();
+global.fetch = mockFetch;
 
 // Mock @xyflow/react
 jest.mock('@xyflow/react', () => ({
@@ -18,39 +22,91 @@ jest.mock('@xyflow/react', () => ({
     Lines: 'lines',
     Cross: 'cross',
   },
+  Handle: () => null,
+  Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
+}));
+
+// Mock sonner toast
+jest.mock('sonner', () => ({
+  toast: {
+    success: jest.fn(),
+    error: jest.fn(),
+  },
 }));
 
 describe('DatasetHeader', () => {
-  it('renders the header container', () => {
-    const { container } = render(<DatasetHeader />);
-
-    const header = container.firstChild as HTMLElement;
-    expect(header).toHaveClass('h-12');
-    expect(header).toHaveClass('border-b');
+  beforeEach(() => {
+    mockFetch.mockReset();
   });
 
-  it('renders ReactFlowProvider', () => {
-    render(<DatasetHeader />);
+  it('renders ReactFlowProvider wrapper', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ datasets: [], count: 0, active_dataset_id: null }),
+    });
+
+    await act(async () => {
+      render(<DatasetHeader />);
+    });
 
     expect(screen.getByTestId('react-flow-provider')).toBeInTheDocument();
   });
 
-  it('renders ReactFlow component', () => {
-    render(<DatasetHeader />);
+  it('shows create first dataset link when no datasets exist', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ datasets: [], count: 0, active_dataset_id: null }),
+    });
 
-    expect(screen.getByTestId('react-flow')).toBeInTheDocument();
+    await act(async () => {
+      render(<DatasetHeader />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Créer votre premier dataset/i)).toBeInTheDocument();
+    });
   });
 
-  it('renders Background component', () => {
-    render(<DatasetHeader />);
+  it('renders ReactFlow component when datasets exist', async () => {
+    const mockDatasets = [
+      {
+        id: 'test-1',
+        name: 'Test Dataset',
+        description: null,
+        duckdb_path: '/path/test.duckdb',
+        status: 'ready',
+        is_active: true,
+        row_count: 100,
+        table_count: 2,
+        size_bytes: 1024,
+        created_at: '2024-01-01',
+        updated_at: '2024-01-01',
+      },
+    ];
 
-    expect(screen.getByTestId('background')).toBeInTheDocument();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ datasets: mockDatasets, count: 1, active_dataset_id: 'test-1' }),
+    });
+
+    await act(async () => {
+      render(<DatasetHeader />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow')).toBeInTheDocument();
+    });
   });
 
-  it('has flex-shrink-0 to prevent shrinking', () => {
-    const { container } = render(<DatasetHeader />);
+  it('shows loading state initially', async () => {
+    // Don't resolve the fetch immediately to test loading state
+    mockFetch.mockImplementation(() => new Promise(() => {}));
 
-    const header = container.firstChild as HTMLElement;
-    expect(header).toHaveClass('flex-shrink-0');
+    await act(async () => {
+      render(<DatasetHeader />);
+    });
+
+    // In loading state, we should see the loading text
+    expect(screen.getByText(/Chargement/i)).toBeInTheDocument();
   });
 });

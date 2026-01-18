@@ -8,6 +8,7 @@ Structure modulaire:
 """
 
 import logging
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -128,9 +129,14 @@ async def rate_limit_handler(request: Request, exc: Exception) -> JSONResponse:
 app.add_exception_handler(RateLimitExceeded, rate_limit_handler)
 
 # CORS pour permettre les appels depuis Next.js
+# En production: ALLOWED_ORIGINS=https://mondomaine.com,https://www.mondomaine.com
+ALLOWED_ORIGINS = os.getenv(
+    "ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+).split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

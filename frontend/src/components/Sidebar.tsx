@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon } from "@/components/icons";
+import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon, DatabaseIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import * as api from "@/lib/api";
 import type { LLMStatus } from "@/lib/api";
@@ -26,6 +26,11 @@ const navItems: NavItem[] = [
     href: "/",
     labelKey: "sidebar.analytics",
     icon: <ChartIcon size={18} />,
+  },
+  {
+    href: "/datasets",
+    labelKey: "sidebar.datasets",
+    icon: <DatabaseIcon size={18} />,
   },
   {
     href: "/catalog",

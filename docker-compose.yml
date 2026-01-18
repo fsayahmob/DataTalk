@@ -60,6 +60,8 @@ services:
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
       - CACHE_DIR=/data/cache
       - REDIS_URL=redis://redis:6379/0
+      # Production: ALLOWED_ORIGINS=https://mondomaine.com,https://www.mondomaine.com
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
     env_file:
       - path: .env
         required: false

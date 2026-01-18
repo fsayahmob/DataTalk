@@ -26,6 +26,12 @@ DUCKDB_PATH = (
     Path(_duckdb_env) if _duckdb_env else Path(__file__).parent / "data" / "g7_analytics.duckdb"
 )
 
+# Répertoire pour les fichiers DuckDB des datasets (un fichier par dataset)
+# Docker: /data/duckdb/ (même volume)
+# Local: ./data/datasets/
+_duckdb_dir_env = os.getenv("DUCKDB_DIR")
+DUCKDB_DIR = Path(_duckdb_dir_env) if _duckdb_dir_env else Path(__file__).parent / "data" / "datasets"
+
 # =============================================================================
 # RÉPERTOIRE CACHE
 # =============================================================================
@@ -62,6 +68,7 @@ def init_directories() -> None:
     """Crée les dossiers requis s'ils n'existent pas."""
     SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
     DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DUCKDB_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 

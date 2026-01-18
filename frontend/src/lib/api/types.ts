@@ -292,3 +292,32 @@ export interface KpiCompactData {
 export interface KpisResponse {
   kpis: KpiCompactData[];
 }
+
+// ============ Datasets Types ============
+
+export type DatasetStatus = "empty" | "syncing" | "ready" | "error";
+
+export interface Dataset {
+  id: string;
+  name: string;
+  description: string | null;
+  duckdb_path: string;
+  status: DatasetStatus;
+  is_active: boolean;
+  row_count: number;
+  table_count: number;
+  size_bytes: number;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface DatasetsResponse {
+  datasets: Dataset[];
+  count: number;
+  active_dataset_id: string | null;
+}
+
+export interface DatasetCreateRequest {
+  name: string;
+  description?: string;
+}

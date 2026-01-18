@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangleIcon, CopyIcon } from "@/components/icons";
+import Link from "next/link";
+import { AlertTriangleIcon, CopyIcon, DatabaseIcon } from "@/components/icons";
 import { t } from "@/hooks/useTranslation";
 
 interface ErrorDisplayProps {
@@ -8,7 +9,50 @@ interface ErrorDisplayProps {
   sql?: string;
 }
 
+// Détecte si l'erreur est liée à l'absence de dataset
+function isNoDatasetError(error: string): boolean {
+  const noDatasetPatterns = [
+    "aucun dataset actif",
+    "no dataset",
+    "no_dataset",
+    "créez ou activez un dataset",
+  ];
+  const lowerError = error.toLowerCase();
+  return noDatasetPatterns.some((pattern) => lowerError.includes(pattern));
+}
+
+// Composant spécifique pour l'erreur "pas de dataset"
+function NoDatasetError() {
+  return (
+    <div className="flex-1 flex items-center justify-center p-6">
+      <div className="max-w-md w-full text-center">
+        <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <DatabaseIcon size={32} className="text-primary" />
+        </div>
+        <h3 className="text-xl font-semibold text-foreground mb-2">
+          {t("error.no_dataset")}
+        </h3>
+        <p className="text-sm text-muted-foreground mb-6">
+          {t("error.no_dataset_desc")}
+        </p>
+        <Link
+          href="/datasets"
+          className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+        >
+          <DatabaseIcon size={16} />
+          {t("error.no_dataset_action")}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function ErrorDisplay({ error, sql }: ErrorDisplayProps) {
+  // Cas spécial: pas de dataset actif
+  if (isNoDatasetError(error)) {
+    return <NoDatasetError />;
+  }
+
   const copyError = () => {
     const text = sql ? `SQL:\n${sql}\n\nErreur:\n${error}` : error;
     void navigator.clipboard.writeText(text);

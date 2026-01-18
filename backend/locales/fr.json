@@ -17,6 +17,8 @@
   },
   "db": {
     "not_connected": "Base de données non connectée.",
+    "no_dataset": "Aucun dataset actif. Créez ou activez un dataset dans Datasets.",
+    "no_data": "Le dataset est vide. Importez des données pour commencer l'analyse.",
     "query_error": "Erreur lors de l'exécution de la requête.",
     "connection_error": "Impossible de se connecter à la base de données.",
     "file_not_found": "Fichier non trouvé: {path}",

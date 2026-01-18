@@ -81,6 +81,7 @@
     "close_menu": "Close menu",
     "collapse": "Collapse",
     "analytics": "Analytics",
+    "datasets": "Datasets",
     "catalog": "Catalog",
     "runs": "Runs",
     "settings": "Settings",
@@ -106,7 +107,12 @@
     "sql_execution_desc": "The generated query could not be executed on the database.",
     "sql_attempted": "SQL query attempted:",
     "copy_details": "Copy details",
-    "try_suggestion": "Rephrase your question or try a predefined question"
+    "try_suggestion": "Rephrase your question or try a predefined question",
+    "no_dataset": "No active dataset",
+    "no_dataset_desc": "Create or activate a dataset to start analyzing your data.",
+    "no_dataset_action": "Go to Datasets",
+    "no_data": "Empty dataset",
+    "no_data_desc": "The active dataset contains no data. Import data to get started."
   },
   "catalog": {
     "title": "Catalog",
@@ -243,5 +249,34 @@
     "mode_full_desc": "Enriched schema (stats, ENUM, distribution). More accurate for complex queries.",
     "saving": "Saving...",
     "init_help": "Run sqlite3 catalog.sqlite < schema.sql to initialize prompts."
+  },
+  "datasets": {
+    "title": "Datasets",
+    "subtitle": "Manage your analytics datasets",
+    "create": "Create dataset",
+    "create_title": "New dataset",
+    "name": "Name",
+    "name_placeholder": "My dataset",
+    "description": "Description",
+    "description_placeholder": "Dataset description (optional)",
+    "empty": "No datasets",
+    "empty_hint": "Create your first dataset to get started",
+    "created": "Dataset created",
+    "deleted": "Dataset deleted",
+    "activated": "Dataset activated",
+    "active": "Active",
+    "status_empty": "Empty",
+    "status_syncing": "Syncing...",
+    "status_ready": "Ready",
+    "status_error": "Error",
+    "tables": "tables",
+    "rows": "rows",
+    "size": "Size",
+    "created_at": "Created",
+    "delete_confirm_title": "Delete dataset?",
+    "delete_confirm_desc": "This action is irreversible. The DuckDB file will be deleted.",
+    "activate": "Activate",
+    "refresh_stats": "Refresh",
+    "create_first": "Create your first dataset"
   }
 }

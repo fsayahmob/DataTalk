@@ -8,6 +8,18 @@ Tous les imports `from catalog import X` continuent de fonctionner.
 # Datasources
 from .datasources import add_datasource
 
+# Datasets
+from .datasets import (
+    create_dataset,
+    delete_dataset,
+    get_active_dataset,
+    get_dataset,
+    get_datasets,
+    set_active_dataset,
+    update_dataset,
+    update_dataset_stats,
+)
+
 # Tables
 from .tables import (
     add_column,
@@ -81,6 +93,15 @@ __all__ = [
     "add_column",
     # Datasources
     "add_datasource",
+    # Datasets
+    "create_dataset",
+    "delete_dataset",
+    "get_active_dataset",
+    "get_dataset",
+    "get_datasets",
+    "set_active_dataset",
+    "update_dataset",
+    "update_dataset_stats",
     # Messages
     "add_message",
     # Questions

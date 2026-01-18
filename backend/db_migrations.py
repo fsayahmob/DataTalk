@@ -164,6 +164,31 @@ RÉPONSE: Un seul objet JSON (pas de tableau):
     )
 
 
+def _migration_007_datasets(cursor: sqlite3.Cursor) -> None:
+    """Crée la table datasets pour le multi-dataset support."""
+    if _table_exists(cursor, "datasets"):
+        return
+
+    cursor.execute("""
+        CREATE TABLE datasets (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            duckdb_path TEXT NOT NULL,
+            status TEXT DEFAULT 'empty' CHECK(status IN ('empty', 'syncing', 'ready', 'error')),
+            is_active INTEGER DEFAULT 0,
+            row_count INTEGER DEFAULT 0,
+            table_count INTEGER DEFAULT 0,
+            size_bytes INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    cursor.execute("CREATE INDEX idx_datasets_status ON datasets(status)")
+    cursor.execute("CREATE INDEX idx_datasets_active ON datasets(is_active)")
+    cursor.execute("CREATE UNIQUE INDEX idx_datasets_name ON datasets(name)")
+
+
 # =============================================================================
 # EXECUTION
 # =============================================================================
@@ -176,6 +201,7 @@ MIGRATIONS = [
     ("004", _migration_004_full_context),
     ("005", _migration_005_datasource_fields),
     ("006", _migration_006_prompt_v3),
+    ("007", _migration_007_datasets),
 ]
 
 
