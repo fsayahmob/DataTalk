@@ -1,0 +1,112 @@
+/* Google Cloud Platform Theme */
+/* Colors inspired by Google Cloud Console */
+
+/* Light mode - Google Cloud light theme */
+:root[data-theme-style="gcp"] {
+  /* Shadows - Google Material style */
+  --shadow-sm: 0 1px 2px 0 rgb(60 64 67 / 0.1);
+  --shadow-md: 0 1px 3px 1px rgb(60 64 67 / 0.15);
+  --shadow-lg: 0 4px 8px 3px rgb(60 64 67 / 0.15);
+  --shadow-xl: 0 8px 16px 6px rgb(60 64 67 / 0.15);
+  --shadow-2xl: 0 12px 24px 8px rgb(60 64 67 / 0.2);
+
+  /* Status colors - Google palette */
+  --status-success: oklch(0.5 0.15 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.6 0.15 85);
+  --status-warning-foreground: oklch(0.15 0 0);
+  --status-error: oklch(0.5 0.2 27);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.5 0.18 250);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.55 0.12 85);
+  --status-running-foreground: oklch(0.15 0 0);
+
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.2 0.01 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.01 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.01 250);
+  --primary: oklch(0.55 0.2 250);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.005 250);
+  --secondary-foreground: oklch(0.2 0.01 250);
+  --muted: oklch(0.93 0.005 250);
+  --muted-foreground: oklch(0.4 0.01 250);
+  --accent: oklch(0.55 0.18 145);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 27);
+  --border: oklch(0.88 0.005 250);
+  --input: oklch(0.88 0.005 250);
+  --ring: oklch(0.55 0.2 250);
+  --chart-1: oklch(0.55 0.2 250);
+  --chart-2: oklch(0.55 0.18 145);
+  --chart-3: oklch(0.65 0.15 85);
+  --chart-4: oklch(0.55 0.15 200);
+  --chart-5: oklch(0.55 0.18 27);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.2 0.01 250);
+  --sidebar-primary: oklch(0.55 0.2 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.005 250);
+  --sidebar-accent-foreground: oklch(0.2 0.01 250);
+  --sidebar-border: oklch(0.88 0.005 250);
+  --sidebar-ring: oklch(0.55 0.2 250);
+}
+
+/* Dark mode - higher specificity to override globals.css .dark */
+:root[data-theme-style="gcp"].dark {
+  /* Background - Google dark gray */
+  --background: oklch(0.14 0.005 250);
+  --foreground: oklch(0.92 0 0);
+
+  /* Cards */
+  --card: oklch(0.17 0.005 250);
+  --card-foreground: oklch(0.92 0 0);
+
+  /* Popovers */
+  --popover: oklch(0.19 0.005 250);
+  --popover-foreground: oklch(0.92 0 0);
+
+  /* Primary - Google Blue #1a73e8 */
+  --primary: oklch(0.55 0.2 250);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary */
+  --secondary: oklch(0.2 0.005 250);
+  --secondary-foreground: oklch(0.88 0 0);
+
+  /* Muted */
+  --muted: oklch(0.22 0.005 250);
+  --muted-foreground: oklch(0.62 0 0);
+
+  /* Accent - Google Green #1e8e3e */
+  --accent: oklch(0.55 0.18 145);
+  --accent-foreground: oklch(1 0 0);
+
+  /* Destructive - Google Red #d93025 */
+  --destructive: oklch(0.55 0.22 27);
+
+  /* Borders */
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.55 0.2 250);
+
+  /* Charts */
+  --chart-1: oklch(0.55 0.2 250);
+  --chart-2: oklch(0.55 0.18 145);
+  --chart-3: oklch(0.65 0.15 85);
+  --chart-4: oklch(0.55 0.15 200);
+  --chart-5: oklch(0.55 0.18 27);
+
+  /* Sidebar */
+  --sidebar: oklch(0.12 0.005 250);
+  --sidebar-foreground: oklch(0.92 0 0);
+  --sidebar-primary: oklch(0.55 0.2 250);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2 0.005 250);
+  --sidebar-accent-foreground: oklch(0.92 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.55 0.2 250);
+}

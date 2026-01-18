@@ -140,8 +140,8 @@ export function KpiCard({ data, className }: KpiCardProps) {
               variant="outline"
               className={
                 trend.direction === "up"
-                  ? "text-emerald-500 border-emerald-500/30"
-                  : "text-rose-500 border-rose-500/30"
+                  ? "text-status-success border-status-success/30"
+                  : "text-status-error border-status-error/30"
               }
             >
               {trend.direction === "up" ? (
@@ -172,9 +172,9 @@ export function KpiCard({ data, className }: KpiCardProps) {
             <div className="flex gap-2 font-medium text-foreground">
               {trend.label}
               {trend.direction === "up" ? (
-                <TrendUpIcon size={16} className="text-emerald-500" />
+                <TrendUpIcon size={16} className="text-status-success" />
               ) : (
-                <TrendDownIcon size={16} className="text-rose-500" />
+                <TrendDownIcon size={16} className="text-status-error" />
               )}
             </div>
           )}

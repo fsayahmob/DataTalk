@@ -1,0 +1,124 @@
+/* GitHub Theme */
+/* Colors inspired by GitHub's design system */
+
+/* Light mode - GitHub light theme */
+:root[data-theme-style="github"] {
+  /* Shadows - standard GitHub */
+  --shadow-sm: 0 1px 0 rgb(27 31 36 / 0.04);
+  --shadow-md: 0 3px 6px rgb(140 149 159 / 0.15);
+  --shadow-lg: 0 8px 24px rgb(140 149 159 / 0.2);
+  --shadow-xl: 0 12px 28px rgb(140 149 159 / 0.25);
+  --shadow-2xl: 0 24px 48px rgb(140 149 159 / 0.3);
+
+  /* Status colors - GitHub palette */
+  --status-success: oklch(0.5 0.15 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.6 0.15 80);
+  --status-warning-foreground: oklch(0.2 0 0);
+  --status-error: oklch(0.55 0.2 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.55 0.15 250);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.55 0.12 55);
+  --status-running-foreground: oklch(0.2 0 0);
+
+  --background: oklch(0.99 0 0);
+  --foreground: oklch(0.15 0.01 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.01 250);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.01 250);
+  --primary: oklch(0.5 0.15 145);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.96 0.005 250);
+  --secondary-foreground: oklch(0.15 0.01 250);
+  --muted: oklch(0.94 0.005 250);
+  --muted-foreground: oklch(0.4 0.01 250);
+  --accent: oklch(0.6 0.12 250);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.85 0.01 250);
+  --input: oklch(0.85 0.01 250);
+  --ring: oklch(0.5 0.15 145);
+  --chart-1: oklch(0.5 0.15 145);
+  --chart-2: oklch(0.6 0.12 250);
+  --chart-3: oklch(0.55 0.15 280);
+  --chart-4: oklch(0.6 0.12 55);
+  --chart-5: oklch(0.55 0.2 25);
+  --sidebar: oklch(0.97 0 0);
+  --sidebar-foreground: oklch(0.15 0.01 250);
+  --sidebar-primary: oklch(0.5 0.15 145);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.94 0.005 250);
+  --sidebar-accent-foreground: oklch(0.15 0.01 250);
+  --sidebar-border: oklch(0.85 0.01 250);
+  --sidebar-ring: oklch(0.5 0.15 145);
+}
+
+/* Dark mode */
+:root[data-theme-style="github"].dark {
+  /* Status colors - GitHub palette */
+  --status-success: oklch(0.55 0.15 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.7 0.15 55);
+  --status-warning-foreground: oklch(0.15 0 0);
+  --status-error: oklch(0.6 0.2 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.65 0.15 250);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.65 0.15 55);
+  --status-running-foreground: oklch(0.15 0 0);
+
+  /* Background - GitHub dark mode */
+  --background: oklch(0.13 0.015 250);
+  --foreground: oklch(0.9 0 0);
+
+  /* Cards */
+  --card: oklch(0.16 0.012 250);
+  --card-foreground: oklch(0.9 0 0);
+
+  /* Popovers */
+  --popover: oklch(0.18 0.012 250);
+  --popover-foreground: oklch(0.9 0 0);
+
+  /* Primary - GitHub Green #238636 */
+  --primary: oklch(0.5 0.15 145);
+  --primary-foreground: oklch(1 0 0);
+
+  /* Secondary */
+  --secondary: oklch(0.2 0.01 250);
+  --secondary-foreground: oklch(0.85 0 0);
+
+  /* Muted */
+  --muted: oklch(0.22 0.01 250);
+  --muted-foreground: oklch(0.6 0 0);
+
+  /* Accent - GitHub Blue #58a6ff */
+  --accent: oklch(0.7 0.15 250);
+  --accent-foreground: oklch(0 0 0);
+
+  /* Destructive - GitHub Red */
+  --destructive: oklch(0.6 0.2 25);
+
+  /* Borders */
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.5 0.15 145);
+
+  /* Charts - GitHub palette */
+  --chart-1: oklch(0.5 0.15 145);
+  --chart-2: oklch(0.7 0.15 250);
+  --chart-3: oklch(0.65 0.15 280);
+  --chart-4: oklch(0.7 0.12 55);
+  --chart-5: oklch(0.6 0.2 25);
+
+  /* Sidebar */
+  --sidebar: oklch(0.11 0.015 250);
+  --sidebar-foreground: oklch(0.9 0 0);
+  --sidebar-primary: oklch(0.5 0.15 145);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.2 0.01 250);
+  --sidebar-accent-foreground: oklch(0.9 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
+  --sidebar-ring: oklch(0.5 0.15 145);
+}

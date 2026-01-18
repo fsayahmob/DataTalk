@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ModelsTab, ApiKeysTab, UsageTab, DatabaseTab, PromptsTab } from "@/components/settings";
+import { ModelsTab, ApiKeysTab, UsageTab, DatabaseTab, PromptsTab, AppearanceTab } from "@/components/settings";
 import * as api from "@/lib/api";
 import type { LLMProvider, LLMModel, LLMCosts, LLMStatus } from "@/lib/api";
 
@@ -109,9 +109,9 @@ export default function SettingsPage() {
             <p className="text-xs text-muted-foreground">
               LLM:{" "}
               {llmStatus?.status === "ok" ? (
-                <span className="text-emerald-400">{llmStatus.model}</span>
+                <span className="text-status-success">{llmStatus.model}</span>
               ) : (
-                <span className="text-red-400">Not configured</span>
+                <span className="text-status-error">Not configured</span>
               )}
             </p>
           </div>
@@ -133,6 +133,9 @@ export default function SettingsPage() {
             </TabsTrigger>
             <TabsTrigger value="database" className="text-xs px-3 h-7">
               Database
+            </TabsTrigger>
+            <TabsTrigger value="appearance" className="text-xs px-3 h-7">
+              Appearance
             </TabsTrigger>
           </TabsList>
 
@@ -172,6 +175,10 @@ export default function SettingsPage() {
 
           <TabsContent value="database" className="mt-0">
             <DatabaseTab />
+          </TabsContent>
+
+          <TabsContent value="appearance" className="mt-0">
+            <AppearanceTab />
           </TabsContent>
         </Tabs>
       </div>

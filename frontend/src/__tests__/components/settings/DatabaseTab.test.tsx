@@ -128,7 +128,7 @@ describe('DatabaseTab', () => {
 
       await waitFor(() => {
         const badge = screen.getByText('disconnected');
-        expect(badge).toHaveClass('text-red-400');
+        expect(badge).toHaveClass('text-status-error');
       });
     });
   });

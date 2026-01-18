@@ -171,15 +171,15 @@ export function ApiKeysTab({
               </TableCell>
               <TableCell className="py-2">
                 {provider.is_available ? (
-                  <Badge variant="outline" className="text-[10px] h-5 text-emerald-400 border-emerald-400/30">
+                  <Badge variant="outline" className="text-[10px] h-5 text-status-success border-status-success/30">
                     ready
                   </Badge>
                 ) : !provider.requires_api_key ? (
-                  <Badge variant="outline" className="text-[10px] h-5 text-amber-400 border-amber-400/30">
+                  <Badge variant="outline" className="text-[10px] h-5 text-status-warning border-status-warning/30">
                     offline
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="text-[10px] h-5 text-red-400 border-red-400/30">
+                  <Badge variant="outline" className="text-[10px] h-5 text-status-error border-status-error/30">
                     missing key
                   </Badge>
                 )}
@@ -202,7 +202,7 @@ export function ApiKeysTab({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 text-xs px-2 text-red-400 hover:text-red-300"
+                        className="h-6 text-xs px-2 text-status-error hover:text-status-error/80"
                         onClick={() => void onDeleteApiKey(provider.name)}
                       >
                         Delete

@@ -118,8 +118,8 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
           <span
             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
               llmStatus?.status === "ok"
-                ? "bg-emerald-500 shadow-sm shadow-emerald-500/50"
-                : "bg-red-500 shadow-sm shadow-red-500/50"
+                ? "bg-status-success shadow-sm shadow-status-success/50"
+                : "bg-status-error shadow-sm shadow-status-error/50"
             }`}
           />
           {!collapsed && (

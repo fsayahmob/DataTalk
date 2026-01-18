@@ -93,7 +93,7 @@ export function CatalogActions({
               disabled={isLoading}
               variant="outline"
               size="sm"
-              className="justify-start text-red-400 hover:text-red-300 hover:bg-red-500/10 border-red-500/30"
+              className="justify-start text-status-error hover:text-status-error/80 hover:bg-status-error/10 border-status-error/30"
             >
               {isDeleting ? (
                 <span className="flex items-center gap-2">
@@ -119,7 +119,7 @@ export function CatalogActions({
               <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={onDelete}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-destructive hover:bg-destructive/90"
               >
                 {t("common.delete")}
               </AlertDialogAction>

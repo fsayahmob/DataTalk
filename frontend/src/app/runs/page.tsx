@@ -33,18 +33,18 @@ const defaultEdgeOptions = {
 // Helper functions pour le style des jobs (réduit la complexité)
 function getStatusBgClass(status: string): string {
   switch (status) {
-    case "completed": return "bg-green-500/20";
-    case "running": return "bg-orange-500/20";
-    case "failed": return "bg-red-500/20";
+    case "completed": return "bg-status-success/20";
+    case "running": return "bg-status-running/20";
+    case "failed": return "bg-status-error/20";
     default: return "bg-gray-500/20";
   }
 }
 
 function getStatusTextClass(status: string): string {
   switch (status) {
-    case "completed": return "text-green-400";
-    case "running": return "text-orange-400";
-    case "failed": return "text-red-400";
+    case "completed": return "text-status-success";
+    case "running": return "text-status-running";
+    case "failed": return "text-status-error";
     default: return "text-gray-400";
   }
 }

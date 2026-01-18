@@ -1,0 +1,131 @@
+/* Dracula Theme */
+/* Colors from the official Dracula color palette */
+
+/* Light mode - Dracula adapted for light backgrounds */
+:root[data-theme-style="dracula"] {
+  /* Shadows - purple tinted */
+  --shadow-sm: 0 1px 2px 0 rgb(139 107 199 / 0.08);
+  --shadow-md: 0 4px 6px -1px rgb(139 107 199 / 0.1), 0 2px 4px -2px rgb(139 107 199 / 0.08);
+  --shadow-lg: 0 10px 15px -3px rgb(139 107 199 / 0.1), 0 4px 6px -4px rgb(139 107 199 / 0.08);
+  --shadow-xl: 0 20px 25px -5px rgb(139 107 199 / 0.1), 0 8px 10px -6px rgb(139 107 199 / 0.08);
+  --shadow-2xl: 0 25px 50px -12px rgb(139 107 199 / 0.15);
+
+  /* Status colors - Dracula palette for light mode */
+  --status-success: oklch(0.55 0.2 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.65 0.18 90);
+  --status-warning-foreground: oklch(0.15 0 0);
+  --status-error: oklch(0.55 0.22 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.6 0.18 200);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.65 0.18 90);
+  --status-running-foreground: oklch(0.15 0 0);
+
+  --background: oklch(0.98 0.01 280);
+  --foreground: oklch(0.2 0.02 270);
+  --card: oklch(1 0.005 280);
+  --card-foreground: oklch(0.2 0.02 270);
+  --popover: oklch(1 0.005 280);
+  --popover-foreground: oklch(0.2 0.02 270);
+  --primary: oklch(0.55 0.18 280);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.95 0.01 280);
+  --secondary-foreground: oklch(0.2 0.02 270);
+  --muted: oklch(0.93 0.01 280);
+  --muted-foreground: oklch(0.45 0.05 270);
+  --accent: oklch(0.6 0.2 145);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.88 0.01 280);
+  --input: oklch(0.88 0.01 280);
+  --ring: oklch(0.55 0.18 280);
+  --chart-1: oklch(0.55 0.18 280);
+  --chart-2: oklch(0.6 0.2 145);
+  --chart-3: oklch(0.6 0.18 200);
+  --chart-4: oklch(0.65 0.18 90);
+  --chart-5: oklch(0.6 0.2 330);
+  --sidebar: oklch(0.96 0.01 280);
+  --sidebar-foreground: oklch(0.2 0.02 270);
+  --sidebar-primary: oklch(0.55 0.18 280);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.93 0.01 280);
+  --sidebar-accent-foreground: oklch(0.2 0.02 270);
+  --sidebar-border: oklch(0.88 0.01 280);
+  --sidebar-ring: oklch(0.55 0.18 280);
+}
+
+/* Dark mode */
+:root[data-theme-style="dracula"].dark {
+  /* Shadows - Dracula purple tinted */
+  --shadow-sm: 0 1px 2px 0 rgb(189 147 249 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(189 147 249 / 0.15), 0 2px 4px -2px rgb(189 147 249 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(189 147 249 / 0.15), 0 4px 6px -4px rgb(189 147 249 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(189 147 249 / 0.15), 0 8px 10px -6px rgb(189 147 249 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(189 147 249 / 0.25);
+
+  /* Status colors - Dracula palette */
+  --status-success: oklch(0.85 0.25 145);
+  --status-success-foreground: oklch(0.15 0 0);
+  --status-warning: oklch(0.85 0.2 90);
+  --status-warning-foreground: oklch(0.15 0 0);
+  --status-error: oklch(0.65 0.25 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.8 0.2 200);
+  --status-info-foreground: oklch(0.15 0 0);
+  --status-running: oklch(0.85 0.2 90);
+  --status-running-foreground: oklch(0.15 0 0);
+
+  /* Background - Dracula #282a36 */
+  --background: oklch(0.2 0.02 270);
+  --foreground: oklch(0.95 0.01 90);
+
+  /* Cards - Dracula Current Line #44475a */
+  --card: oklch(0.32 0.02 270);
+  --card-foreground: oklch(0.95 0.01 90);
+
+  /* Popovers */
+  --popover: oklch(0.28 0.02 270);
+  --popover-foreground: oklch(0.95 0.01 90);
+
+  /* Primary - Dracula Purple #bd93f9 */
+  --primary: oklch(0.7 0.2 280);
+  --primary-foreground: oklch(0.15 0 0);
+
+  /* Secondary - Dracula Comment #6272a4 */
+  --secondary: oklch(0.5 0.08 250);
+  --secondary-foreground: oklch(0.95 0.01 90);
+
+  /* Muted */
+  --muted: oklch(0.35 0.02 270);
+  --muted-foreground: oklch(0.55 0.05 250);
+
+  /* Accent - Dracula Green #50fa7b */
+  --accent: oklch(0.85 0.25 145);
+  --accent-foreground: oklch(0.15 0 0);
+
+  /* Destructive - Dracula Red #ff5555 */
+  --destructive: oklch(0.65 0.25 25);
+
+  /* Borders */
+  --border: oklch(1 0 0 / 15%);
+  --input: oklch(1 0 0 / 18%);
+  --ring: oklch(0.7 0.2 280);
+
+  /* Charts - Dracula palette */
+  --chart-1: oklch(0.7 0.2 280);
+  --chart-2: oklch(0.85 0.25 145);
+  --chart-3: oklch(0.8 0.2 200);
+  --chart-4: oklch(0.85 0.2 90);
+  --chart-5: oklch(0.75 0.2 330);
+
+  /* Sidebar - Dracula darker */
+  --sidebar: oklch(0.17 0.02 270);
+  --sidebar-foreground: oklch(0.95 0.01 90);
+  --sidebar-primary: oklch(0.7 0.2 280);
+  --sidebar-primary-foreground: oklch(0.15 0 0);
+  --sidebar-accent: oklch(0.32 0.02 270);
+  --sidebar-accent-foreground: oklch(0.95 0.01 90);
+  --sidebar-border: oklch(1 0 0 / 15%);
+  --sidebar-ring: oklch(0.7 0.2 280);
+}

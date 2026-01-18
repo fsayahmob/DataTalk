@@ -4,6 +4,18 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* Status colors - map to Tailwind classes like text-status-success, bg-status-error */
+  --color-status-success: var(--status-success);
+  --color-status-success-foreground: var(--status-success-foreground);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-foreground: var(--status-warning-foreground);
+  --color-status-error: var(--status-error);
+  --color-status-error-foreground: var(--status-error-foreground);
+  --color-status-info: var(--status-info);
+  --color-status-info-foreground: var(--status-info-foreground);
+  --color-status-running: var(--status-running);
+  --color-status-running-foreground: var(--status-running-foreground);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -48,6 +60,26 @@
 
 :root {
   --radius: 0.375rem;
+
+  /* Shadow tokens */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+  /* Status colors - light mode */
+  --status-success: oklch(0.7 0.17 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.75 0.15 85);
+  --status-warning-foreground: oklch(0.2 0 0);
+  --status-error: oklch(0.6 0.2 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.6 0.15 250);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.7 0.18 55);
+  --status-running-foreground: oklch(0.2 0 0);
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -82,6 +114,25 @@
 }
 
 .dark {
+  /* Shadow tokens - dark mode (more pronounced) */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.4), 0 8px 10px -6px rgb(0 0 0 / 0.3);
+  --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.5);
+
+  /* Status colors - dark mode (slightly adjusted for dark backgrounds) */
+  --status-success: oklch(0.65 0.17 145);
+  --status-success-foreground: oklch(1 0 0);
+  --status-warning: oklch(0.75 0.15 85);
+  --status-warning-foreground: oklch(0.15 0 0);
+  --status-error: oklch(0.62 0.22 25);
+  --status-error-foreground: oklch(1 0 0);
+  --status-info: oklch(0.65 0.15 250);
+  --status-info-foreground: oklch(1 0 0);
+  --status-running: oklch(0.72 0.18 55);
+  --status-running-foreground: oklch(0.15 0 0);
+
   /* Fond - gris bleuté corporate (hue 220) */
   --background: oklch(0.12 0.01 220);
   --foreground: oklch(0.9 0 0);
@@ -136,6 +187,14 @@
   --sidebar-ring: oklch(0.6 0.18 250);
 }
 
+/* Theme style palettes - MUST be after .dark to override */
+@import "../styles/themes/corporate.css";
+@import "../styles/themes/gcp.css";
+@import "../styles/themes/linux.css";
+@import "../styles/themes/bloomberg.css";
+@import "../styles/themes/github.css";
+@import "../styles/themes/dracula.css";
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -170,57 +229,44 @@
   background: oklch(0.35 0.01 220);
 }
 
-/* ReactFlow MiniMap theme support - light mode */
+/* ReactFlow Background dots - uses theme colors */
+.react-flow__background pattern circle {
+  fill: var(--muted-foreground) !important;
+}
+
+/* ReactFlow MiniMap theme support - uses theme colors */
 .react-flow__minimap {
-  background-color: oklch(1 0 0) !important;
-  border: 1px solid oklch(0.9 0 0) !important;
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
   border-radius: 0.5rem;
 }
 
 .react-flow__minimap-mask {
-  fill: oklch(1 0 0 / 0.8) !important;
+  fill: var(--background) !important;
+  opacity: 0.8;
 }
 
-/* ReactFlow MiniMap theme support - dark mode */
-.dark .react-flow__minimap {
-  background-color: oklch(0.14 0.008 220) !important;
-  border: 1px solid oklch(1 0 0 / 0.12) !important;
-}
-
-.dark .react-flow__minimap-mask {
-  fill: oklch(0.12 0.01 220 / 0.8) !important;
-}
-
-/* ReactFlow edge styling - light mode */
+/* ReactFlow edge styling - uses theme colors */
 .react-flow__edge-path {
-  stroke: oklch(0.5 0 0) !important;
+  stroke: var(--muted-foreground) !important;
   stroke-width: 2px !important;
   stroke-dasharray: none !important;
 }
 
-/* ReactFlow edge styling - dark mode */
 .dark .react-flow__edge-path {
-  stroke: oklch(0.6 0.15 250) !important;
+  stroke: var(--primary) !important;
   stroke-dasharray: none !important;
 }
 
 .react-flow__edge-text {
-  fill: oklch(0.3 0 0) !important;
+  fill: var(--foreground) !important;
   font-size: 10px !important;
 }
 
-.dark .react-flow__edge-text {
-  fill: oklch(0.85 0 0) !important;
-}
-
 .react-flow__edge-textbg {
-  fill: oklch(0.97 0 0) !important;
+  fill: var(--card) !important;
   rx: 3px !important;
   ry: 3px !important;
-}
-
-.dark .react-flow__edge-textbg {
-  fill: oklch(0.16 0.008 220) !important;
 }
 
 /* Run pipeline edge styling */

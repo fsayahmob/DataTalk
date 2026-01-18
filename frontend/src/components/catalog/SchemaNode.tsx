@@ -112,7 +112,7 @@ function SchemaNodeComponent({ data }: SchemaNodeProps) {
             </span>
           )}
           {isEnabled && !isEnriched && (
-            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 uppercase">
+            <span className="text-[9px] px-1.5 py-0.5 rounded bg-status-warning/20 text-status-warning uppercase">
               {t("catalog.not_enriched")}
             </span>
           )}

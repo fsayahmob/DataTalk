@@ -131,17 +131,17 @@ export function ModelsTab({
                         {provider?.display_name}
                       </span>
                       {status === "ready" && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-emerald-400 border-emerald-400/30">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-status-success border-status-success/30">
                           ready
                         </Badge>
                       )}
                       {status === "missing" && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-red-400 border-red-400/30">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-status-error border-status-error/30">
                           no key
                         </Badge>
                       )}
                       {status === "unavailable" && (
-                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-amber-400 border-amber-400/30">
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-status-warning border-status-warning/30">
                           offline
                         </Badge>
                       )}

@@ -1,0 +1,13 @@
+/* Corporate Theme (Default) - Blue Corporate Style */
+/* This is the current default theme - values match globals.css .dark */
+/* No overrides needed for corporate - it uses the base styles from globals.css */
+
+/* Light mode - no changes */
+:root[data-theme-style="corporate"] {
+  /* Uses defaults from :root in globals.css */
+}
+
+/* Dark mode - no changes, uses .dark from globals.css */
+:root[data-theme-style="corporate"].dark {
+  /* Uses defaults from .dark in globals.css */
+}

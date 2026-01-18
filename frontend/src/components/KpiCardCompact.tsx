@@ -68,8 +68,8 @@ export function KpiCardCompact({ data }: KpiCardCompactProps) {
             variant="outline"
             className={`text-[10px] px-1.5 py-0 ${
               isPositiveTrend
-                ? "text-emerald-400 border-emerald-400/30"
-                : "text-rose-400 border-rose-400/30"
+                ? "text-status-success border-status-success/30"
+                : "text-status-error border-status-error/30"
             }`}
           >
             {trend.direction === "up" ? <TrendUpIcon size={10} /> : <TrendDownIcon size={10} />}
@@ -97,9 +97,9 @@ export function KpiCardCompact({ data }: KpiCardCompactProps) {
             <span className="flex items-center gap-1 text-foreground/80 mb-0.5">
               {trend.label}
               {trend.direction === "up" ? (
-                <TrendUpIcon size={12} className={isPositiveTrend ? "text-emerald-400" : "text-rose-400"} />
+                <TrendUpIcon size={12} className={isPositiveTrend ? "text-status-success" : "text-status-error"} />
               ) : (
-                <TrendDownIcon size={12} className={isPositiveTrend ? "text-emerald-400" : "text-rose-400"} />
+                <TrendDownIcon size={12} className={isPositiveTrend ? "text-status-success" : "text-status-error"} />
               )}
             </span>
           )}

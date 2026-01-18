@@ -3,3 +3,4 @@ export { ApiKeysTab } from "./ApiKeysTab";
 export { UsageTab } from "./UsageTab";
 export { DatabaseTab } from "./DatabaseTab";
 export { PromptsTab } from "./PromptsTab";
+export { AppearanceTab } from "./AppearanceTab";

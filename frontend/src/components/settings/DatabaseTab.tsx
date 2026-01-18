@@ -197,8 +197,8 @@ export function DatabaseTab() {
                 variant="outline"
                 className={`text-[10px] h-5 ${
                   status?.status === "connected"
-                    ? "text-emerald-400 border-emerald-400/30"
-                    : "text-red-400 border-red-400/30"
+                    ? "text-status-success border-status-success/30"
+                    : "text-status-error border-status-error/30"
                 }`}
               >
                 {status?.status || "unknown"}

@@ -88,11 +88,11 @@ export function PipelineLog({ runId }: PipelineLogProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "completed":
-        return "text-green-400";
+        return "text-status-success";
       case "failed":
-        return "text-red-400";
+        return "text-status-error";
       case "running":
-        return "text-blue-400 animate-spin";
+        return "text-status-info animate-spin";
       case "pending":
         return "text-muted-foreground";
       default:
@@ -189,7 +189,7 @@ export function PipelineLog({ runId }: PipelineLogProps) {
 
           {/* Error Message */}
           {job.status === "failed" && job.error_message && (
-            <div className="ml-6 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2 py-1">
+            <div className="ml-6 text-xs text-status-error bg-status-error/10 border border-status-error/20 rounded px-2 py-1">
               {job.error_message}
             </div>
           )}
@@ -208,17 +208,17 @@ export function PipelineLog({ runId }: PipelineLogProps) {
                 </span>
               )}
               {job.result.synonyms !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">
+                <span className="px-1.5 py-0.5 rounded bg-status-success/10 text-status-success">
                   {String(job.result.synonyms)} synonymes
                 </span>
               )}
               {job.result.kpis !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
+                <span className="px-1.5 py-0.5 rounded bg-status-info/10 text-status-info">
                   {String(job.result.kpis)} KPIs
                 </span>
               )}
               {job.result.questions !== undefined && (
-                <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                <span className="px-1.5 py-0.5 rounded bg-status-warning/10 text-status-warning">
                   {String(job.result.questions)} questions
                 </span>
               )}

@@ -295,9 +295,9 @@ function CatalogPageContent() {
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Indicateur d'extraction */}
       {isExtracting && (
-        <div className="px-4 py-2 bg-blue-500/20 border-b border-blue-500/30 flex items-center gap-3">
-          <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-blue-400">
+        <div className="px-4 py-2 bg-status-info/20 border-b border-status-info/30 flex items-center gap-3">
+          <span className="w-3 h-3 border-2 border-status-info border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-status-info">
             {t("catalog.extracting")}
           </span>
         </div>
@@ -378,10 +378,10 @@ function CatalogPageContent() {
 
             {/* Status Badge (si running) */}
             {isRunning && (
-              <div className="absolute bottom-4 left-4 px-4 py-2 bg-orange-500/20 border border-orange-500/50 rounded-lg backdrop-blur-sm">
+              <div className="absolute bottom-4 left-4 px-4 py-2 bg-status-running/20 border border-status-running/50 rounded-lg backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="animate-spin">⟳</span>
-                  <span className="text-sm text-orange-400">{t("catalog.pipeline_running")}</span>
+                  <span className="text-sm text-status-running">{t("catalog.pipeline_running")}</span>
                 </div>
               </div>
             )}

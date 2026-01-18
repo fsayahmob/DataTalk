@@ -90,7 +90,7 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
               </span>
             )}
             {isEnabled && !isEnriched && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 uppercase">
+              <span className="text-[9px] px-1.5 py-0.5 rounded bg-status-warning/20 text-status-warning uppercase">
                 {t("catalog.not_enriched")}
               </span>
             )}
@@ -132,8 +132,8 @@ export function TableDetailPanel({ table, onClose, onTableToggle }: TableDetailP
 
       {/* Avertissement si non enrichie */}
       {isEnabled && !isEnriched && (
-        <div className="px-4 py-3 border-b border-border/20 bg-amber-500/10">
-          <p className="text-xs text-amber-400">
+        <div className="px-4 py-3 border-b border-border/20 bg-status-warning/10">
+          <p className="text-xs text-status-warning">
             {t("catalog.not_enriched_warning")}
           </p>
         </div>
