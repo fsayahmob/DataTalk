@@ -17,10 +17,23 @@
   },
   "db": {
     "not_connected": "Database not connected.",
-    "query_error": "SQL execution error: {error}",
+    "no_dataset": "No active dataset. Create or activate a dataset in Datasets.",
+    "no_data": "The dataset is empty. Import data to start analysis.",
+    "query_error": "Error executing the query.",
     "connection_error": "Unable to connect to the database.",
     "file_not_found": "File not found: {path}",
-    "schema_refreshed": "Schema refreshed."
+    "schema_refreshed": "Schema refreshed.",
+    "table_not_found": "Table not found in database.",
+    "column_not_found": "Column not found.",
+    "catalog_error": "Catalog access error.",
+    "syntax_error": "Syntax error in query.",
+    "binding_error": "Parameter binding error.",
+    "constraint_violated": "Data constraint violated.",
+    "permission_denied": "Access denied.",
+    "query_timeout": "Query took too long.",
+    "out_of_memory": "Insufficient memory to execute query.",
+    "division_by_zero": "Division by zero in query.",
+    "invalid_input": "Invalid input data."
   },
   "catalog": {
     "empty": "Catalog is empty. Generate it from Settings > Database.",
@@ -85,5 +98,23 @@
   },
   "generic": {
     "error": "Error: {error}"
+  },
+  "connector": {
+    "airbyte_unavailable": "PyAirbyte is not installed on this server.",
+    "airbyte_available": "PyAirbyte is available.",
+    "connection_success": "Connection to {connector_id} successful.",
+    "connection_error": "Connection error: {error}",
+    "spec_not_found": "Unable to retrieve configuration for {connector_id}. Check that PyAirbyte is installed and the connector exists.",
+    "discovery_error": "Error discovering catalog: {error}"
+  },
+  "datasource": {
+    "not_found": "Datasource not found.",
+    "created": "Datasource created.",
+    "deleted": "Datasource deleted.",
+    "updated": "Datasource updated.",
+    "create_failed": "Failed to create datasource.",
+    "created_not_found": "Datasource created but not found.",
+    "no_sync_config": "Datasource has no sync configuration.",
+    "sync_triggered": "Sync started."
   }
 }
