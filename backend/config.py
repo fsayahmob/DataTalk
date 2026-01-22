@@ -10,20 +10,25 @@ import os
 from pathlib import Path
 
 # =============================================================================
-# CHEMINS BASES DE DONNÉES
+# BASE DE DONNÉES POSTGRESQL (Catalogue)
 # =============================================================================
-# SQLite: catalogue sémantique, conversations, settings
-# Docker: /data/sqlite/catalog.sqlite (named volume datatalk-sqlite)
-# Local: ./catalog.sqlite (relatif au backend)
-_sqlite_env = os.getenv("SQLITE_PATH")
-SQLITE_PATH = Path(_sqlite_env) if _sqlite_env else Path(__file__).parent / "catalog.sqlite"
+# PostgreSQL: catalogue sémantique, conversations, settings
+# Docker: postgresql://datatalk:password@postgres:5432/datatalk
+# Local: postgresql://localhost:5432/datatalk (ou SQLite fallback)
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://datatalk:datatalk_dev@localhost:5432/datatalk",
+)
 
+# =============================================================================
+# DUCKDB (Données analytiques OLAP)
+# =============================================================================
 # DuckDB: données analytiques
 # Docker: /data/duckdb/datatalk.duckdb (named volume datatalk-duckdb)
-# Local: ./data/g7_analytics.duckdb ou via setting "duckdb_path" dans SQLite
+# Local: ./data/datatalk.duckdb
 _duckdb_env = os.getenv("DUCKDB_PATH")
 DUCKDB_PATH = (
-    Path(_duckdb_env) if _duckdb_env else Path(__file__).parent / "data" / "g7_analytics.duckdb"
+    Path(_duckdb_env) if _duckdb_env else Path(__file__).parent / "data" / "datatalk.duckdb"
 )
 
 # Répertoire pour les fichiers DuckDB des datasets (un fichier par dataset)
@@ -43,10 +48,10 @@ CACHE_DIR = Path(_cache_env) if _cache_env else Path(__file__).parent / "cache"
 # =============================================================================
 # DATA_DIR (rétrocompatibilité)
 # =============================================================================
-# Utilisé par certains modules legacy. Pointe vers le parent de SQLITE_PATH.
-DATA_DIR = SQLITE_PATH.parent
+# Utilisé par certains modules legacy. Pointe vers le dossier data/.
+DATA_DIR = Path(__file__).parent / "data"
 
-# Schéma SQL pour initialisation
+# Schéma SQL pour initialisation PostgreSQL
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 # =============================================================================
@@ -66,7 +71,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 # Créer les dossiers nécessaires au démarrage
 def init_directories() -> None:
     """Crée les dossiers requis s'ils n'existent pas."""
-    SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     DUCKDB_PATH.parent.mkdir(parents=True, exist_ok=True)
     DUCKDB_DIR.mkdir(parents=True, exist_ok=True)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,5 +79,5 @@ def init_directories() -> None:
 
 
 # Auto-init si variable d'environnement Docker détectée
-if _sqlite_env or _duckdb_env or _cache_env:
+if _duckdb_env or _cache_env:
     init_directories()

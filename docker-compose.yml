@@ -2,10 +2,10 @@
 # DataTalk - Docker Compose Stack
 # =============================================================================
 # Architecture:
-#   Frontend (React/Next.js) → API (FastAPI) → Redis ← Worker (Celery)
-#        ↑                         ↓    ↑         │
-#        │                   Named Volumes    Pub/Sub (task events)
-#        │               (SQLite / DuckDB / Cache)
+#   Frontend (React/Next.js) → API (FastAPI) → PostgreSQL ← Worker (Celery)
+#        ↑                         ↓    ↑              │
+#        │                   Named Volumes         Redis (broker)
+#        │               (PostgreSQL / DuckDB / Cache)
 #        │
 #        └──────── SSE (Server-Sent Events) ────────┘
 #                  /api/v1/tasks/{id}/stream
@@ -15,11 +15,9 @@
 #   docker compose logs -f api        # Voir les logs de l'API
 #   docker compose down               # Arrêter tous les services
 #
-# Migration depuis bind mounts:
-#   docker run --rm -v ./data:/src -v datatalk-sqlite:/dst alpine \
-#     cp /src/catalog.sqlite /dst/catalog.sqlite
-#   docker run --rm -v ./data:/src -v datatalk-duckdb:/dst alpine \
-#     cp /src/datatalk.duckdb /dst/datatalk.duckdb
+# Migration SQLite → PostgreSQL:
+#   Les métadonnées (catalogue) sont stockées dans PostgreSQL.
+#   Les données analytiques restent dans DuckDB (OLAP optimisé).
 # =============================================================================
 
 name: datatalk
@@ -52,6 +50,35 @@ services:
           memory: 128M
 
   # ---------------------------------------------------------------------------
+  # PostgreSQL (catalogue métadonnées - remplace SQLite)
+  # ---------------------------------------------------------------------------
+  postgres:
+    container_name: datatalk-postgres
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: datatalk
+      POSTGRES_USER: datatalk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datatalk_dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U datatalk -d datatalk"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - datatalk-net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+
+  # ---------------------------------------------------------------------------
   # API FastAPI
   # ---------------------------------------------------------------------------
   api:
@@ -60,7 +87,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - SQLITE_PATH=/data/sqlite/catalog.sqlite
+      - DATABASE_URL=postgresql://datatalk:${POSTGRES_PASSWORD:-datatalk_dev}@postgres:5432/datatalk
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
       - DUCKDB_DIR=/data/duckdb/datasets
       - CACHE_DIR=/data/cache
@@ -71,12 +98,13 @@ services:
       - path: .env
         required: false
     volumes:
-      - sqlite-data:/data/sqlite
       - duckdb-data:/data/duckdb
       - cache-data:/data/cache
       # Docker socket pour PyAirbyte (connecteurs Docker)
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
@@ -130,7 +158,7 @@ services:
     build: ./backend
     command: celery -A celery_app worker --loglevel=info --concurrency=2
     environment:
-      - SQLITE_PATH=/data/sqlite/catalog.sqlite
+      - DATABASE_URL=postgresql://datatalk:${POSTGRES_PASSWORD:-datatalk_dev}@postgres:5432/datatalk
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
       - DUCKDB_DIR=/data/duckdb/datasets
       - CACHE_DIR=/data/cache
@@ -143,7 +171,6 @@ services:
       - path: .env
         required: false
     volumes:
-      - sqlite-data:/data/sqlite
       - duckdb-data:/data/duckdb  # Read-write pour sync PyAirbyte
       - cache-data:/data/cache
       # Docker socket pour PyAirbyte (connecteurs Docker)
@@ -153,6 +180,8 @@ services:
       # connecteurs Docker puissent lire les fichiers de config temporaires
       - /tmp:/tmp
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     # Désactiver le healthcheck hérité du Dockerfile (Celery n'expose pas /health)
@@ -191,8 +220,8 @@ services:
 # VOLUMES (Named volumes - best practice 2025)
 # =============================================================================
 volumes:
-  sqlite-data:
-    name: datatalk-sqlite
+  postgres-data:
+    name: datatalk-postgres
   duckdb-data:
     name: datatalk-duckdb
   cache-data:

@@ -1,13 +1,13 @@
 """
-Migrations de base de données atomiques.
+Migrations de base de données atomiques pour PostgreSQL.
 
 Chaque migration est exécutée dans une transaction.
 En cas d'échec, le rollback est automatique.
 """
 
 import logging
-import sqlite3
 import uuid
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +16,24 @@ class MigrationError(Exception):
     """Erreur lors d'une migration."""
 
 
-def _column_exists(cursor: sqlite3.Cursor, table: str, column: str) -> bool:
-    """Vérifie si une colonne existe dans une table."""
-    cursor.execute(f"PRAGMA table_info({table})")
-    return column in [col[1] for col in cursor.fetchall()]
+def _column_exists(cursor: Any, table: str, column: str) -> bool:
+    """Vérifie si une colonne existe dans une table (PostgreSQL)."""
+    cursor.execute("""
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+        AND table_name = %s
+        AND column_name = %s
+    """, (table, column))
+    return cursor.fetchone() is not None
 
 
-def _table_exists(cursor: sqlite3.Cursor, table: str) -> bool:
-    """Vérifie si une table existe."""
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,))
+def _table_exists(cursor: Any, table: str) -> bool:
+    """Vérifie si une table existe (PostgreSQL)."""
+    cursor.execute("""
+        SELECT 1 FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = %s
+    """, (table,))
     return cursor.fetchone() is not None
 
 
@@ -33,7 +42,7 @@ def _table_exists(cursor: sqlite3.Cursor, table: str) -> bool:
 # =============================================================================
 
 
-def _migration_001_share_token(cursor: sqlite3.Cursor) -> None:
+def _migration_001_share_token(cursor: Any) -> None:
     """Ajoute share_token à saved_reports."""
     if not _table_exists(cursor, "saved_reports"):
         return
@@ -48,12 +57,12 @@ def _migration_001_share_token(cursor: sqlite3.Cursor) -> None:
     cursor.execute("SELECT id FROM saved_reports WHERE share_token IS NULL")
     for row in cursor.fetchall():
         cursor.execute(
-            "UPDATE saved_reports SET share_token = ? WHERE id = ?",
+            "UPDATE saved_reports SET share_token = %s WHERE id = %s",
             (str(uuid.uuid4()), row[0]),
         )
 
 
-def _migration_002_chart_config(cursor: sqlite3.Cursor) -> None:
+def _migration_002_chart_config(cursor: Any) -> None:
     """Ajoute chart_config à messages."""
     if not _table_exists(cursor, "messages"):
         return
@@ -61,13 +70,13 @@ def _migration_002_chart_config(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE messages ADD COLUMN chart_config TEXT")
 
 
-def _migration_003_costs_columns(cursor: sqlite3.Cursor) -> None:
+def _migration_003_costs_columns(cursor: Any) -> None:
     """Ajoute colonnes à llm_costs."""
     if not _table_exists(cursor, "llm_costs"):
         return
     columns = [
         ("conversation_id", "INTEGER"),
-        ("success", "INTEGER DEFAULT 1"),
+        ("success", "BOOLEAN DEFAULT TRUE"),
         ("error_message", "TEXT"),
     ]
     for col, typ in columns:
@@ -75,7 +84,7 @@ def _migration_003_costs_columns(cursor: sqlite3.Cursor) -> None:
             cursor.execute(f"ALTER TABLE llm_costs ADD COLUMN {col} {typ}")
 
 
-def _migration_004_full_context(cursor: sqlite3.Cursor) -> None:
+def _migration_004_full_context(cursor: Any) -> None:
     """Ajoute full_context à columns."""
     if not _table_exists(cursor, "columns"):
         return
@@ -83,7 +92,7 @@ def _migration_004_full_context(cursor: sqlite3.Cursor) -> None:
         cursor.execute("ALTER TABLE columns ADD COLUMN full_context TEXT")
 
 
-def _migration_005_datasource_fields(cursor: sqlite3.Cursor) -> None:
+def _migration_005_datasource_fields(cursor: Any) -> None:
     """Ajoute champs à datasources."""
     if not _table_exists(cursor, "datasources"):
         return
@@ -97,13 +106,13 @@ def _migration_005_datasource_fields(cursor: sqlite3.Cursor) -> None:
             cursor.execute(f"ALTER TABLE datasources ADD COLUMN {col} {typ}")
 
 
-def _migration_006_prompt_v3(cursor: sqlite3.Cursor) -> None:
+def _migration_006_prompt_v3(cursor: Any) -> None:
     """Met à jour le prompt analytics_system vers v3."""
     if not _table_exists(cursor, "llm_prompts"):
         return
 
     cursor.execute(
-        "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = 1"
+        "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = TRUE"
     )
     row = cursor.fetchone()
     if not row or row[0] == "v3":
@@ -157,26 +166,27 @@ RÉPONSE: Un seul objet JSON (pas de tableau):
 
     cursor.execute(
         """UPDATE llm_prompts
-           SET content = ?, version = 'v3', tokens_estimate = 750,
+           SET content = %s, version = 'v3', tokens_estimate = 750,
                description = 'Prompt système pour l''analyse Text-to-SQL. V3: règle agrégation obligatoire.'
-           WHERE key = 'analytics_system' AND is_active = 1""",
+           WHERE key = 'analytics_system' AND is_active = TRUE""",
         (new_prompt,),
     )
 
 
-def _migration_007_datasets(cursor: sqlite3.Cursor) -> None:
+def _migration_007_datasets(cursor: Any) -> None:
     """Crée la table datasets pour le multi-dataset support."""
     if _table_exists(cursor, "datasets"):
         return
 
     cursor.execute("""
         CREATE TABLE datasets (
-            id TEXT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
+            dataset_id TEXT UNIQUE NOT NULL,
             name TEXT NOT NULL,
             description TEXT,
-            duckdb_path TEXT NOT NULL,
+            duckdb_path TEXT,
             status TEXT DEFAULT 'empty' CHECK(status IN ('empty', 'syncing', 'ready', 'error')),
-            is_active INTEGER DEFAULT 0,
+            is_active BOOLEAN DEFAULT FALSE,
             row_count INTEGER DEFAULT 0,
             table_count INTEGER DEFAULT 0,
             size_bytes INTEGER DEFAULT 0,
@@ -189,19 +199,16 @@ def _migration_007_datasets(cursor: sqlite3.Cursor) -> None:
     cursor.execute("CREATE UNIQUE INDEX idx_datasets_name ON datasets(name)")
 
 
-def _migration_008_datasources_sync(cursor: sqlite3.Cursor) -> None:
+def _migration_008_datasources_sync(cursor: Any) -> None:
     """Ajoute les colonnes pour le sync PyAirbyte aux datasources."""
     if not _table_exists(cursor, "datasources"):
         return
 
     columns = [
-        ("dataset_id", "TEXT REFERENCES datasets(id)"),
+        ("dataset_id", "TEXT"),
         ("source_type", "TEXT"),  # postgres, mysql, csv, gcs, s3...
         ("sync_config", "TEXT"),  # JSON config PyAirbyte (encrypted)
-        (
-            "sync_status",
-            "TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'running', 'success', 'error'))",
-        ),
+        ("sync_status", "TEXT DEFAULT 'pending'"),
         ("last_sync_at", "TIMESTAMP"),
         ("last_sync_error", "TEXT"),
     ]
@@ -213,7 +220,7 @@ def _migration_008_datasources_sync(cursor: sqlite3.Cursor) -> None:
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_datasources_dataset ON datasources(dataset_id)")
 
 
-def _migration_009_bedrock_provider(cursor: sqlite3.Cursor) -> None:
+def _migration_009_bedrock_provider(cursor: Any) -> None:
     """Ajoute AWS Bedrock comme provider LLM."""
     if not _table_exists(cursor, "llm_providers"):
         return
@@ -223,14 +230,12 @@ def _migration_009_bedrock_provider(cursor: sqlite3.Cursor) -> None:
     if cursor.fetchone():
         return
 
-    # Ajouter le provider Bedrock (requires_api_key=0 car utilise AWS credentials)
+    # Ajouter le provider Bedrock (requires_api_key=FALSE car utilise AWS credentials)
     cursor.execute("""
         INSERT INTO llm_providers (name, display_name, type, requires_api_key, is_enabled)
-        VALUES ('bedrock', 'AWS Bedrock', 'cloud', 0, 1)
+        VALUES ('bedrock', 'AWS Bedrock', 'cloud', FALSE, TRUE)
+        RETURNING id
     """)
-
-    # Récupérer l'ID du provider
-    cursor.execute("SELECT id FROM llm_providers WHERE name = 'bedrock'")
     row = cursor.fetchone()
     if not row:
         return
@@ -251,7 +256,7 @@ def _migration_009_bedrock_provider(cursor: sqlite3.Cursor) -> None:
             INSERT INTO llm_models
             (provider_id, model_id, display_name, supports_json_mode, supports_structured_output,
              context_window, cost_per_1m_input, cost_per_1m_output, is_enabled)
-            VALUES (?, ?, ?, 1, 1, ?, ?, ?, 1)
+            VALUES (%s, %s, %s, TRUE, TRUE, %s, %s, %s, TRUE)
         """, (provider_id, model_id, display_name, context_window, cost_input, cost_output))
 
 
@@ -274,12 +279,12 @@ MIGRATIONS = [
 ]
 
 
-def run_migrations(conn: sqlite3.Connection) -> int:
+def run_migrations(conn: Any) -> int:
     """
     Exécute les migrations de manière atomique.
 
     Args:
-        conn: Connexion SQLite
+        conn: Connexion PostgreSQL
 
     Returns:
         Nombre de migrations appliquées
@@ -312,7 +317,7 @@ def run_migrations(conn: sqlite3.Connection) -> int:
         try:
             # Chaque migration dans une transaction
             migration_fn(cursor)
-            cursor.execute("INSERT INTO _migrations (version) VALUES (?)", (version,))
+            cursor.execute("INSERT INTO _migrations (version) VALUES (%s)", (version,))
             conn.commit()
             applied_count += 1
             logger.info("Migration %s OK", version)

@@ -1,61 +1,102 @@
 """
-Connexion SQLite centralisée pour G7 Analytics.
+Connexion PostgreSQL centralisée pour DataTalk.
 
 La structure de la base est définie dans schema.sql (source unique de vérité).
-Pour initialiser/recréer la base: sqlite3 catalog.sqlite < schema.sql
+PostgreSQL remplace SQLite pour résoudre les problèmes de concurrence
+(API + Worker Celery écrivant simultanément).
 """
 
 import logging
-import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from pathlib import Path
+from typing import Any
 
-from config import SCHEMA_PATH, SQLITE_PATH
+import psycopg2
+
+from config import DATABASE_URL, SCHEMA_PATH
 from db_migrations import MigrationError, run_migrations
 
 logger = logging.getLogger(__name__)
 
-# Chemin configuré dans config.py (local: backend/, Docker: /data/)
-CATALOG_PATH = str(SQLITE_PATH)
-
 
 def init_database() -> None:
-    """Initialise la base de données avec schema.sql si elle n'existe pas."""
-    if Path(CATALOG_PATH).exists():
-        return  # Base déjà existante
-
+    """Initialise la base de données avec schema.sql si les tables n'existent pas."""
     if not SCHEMA_PATH.exists():
-        return  # Pas de schéma disponible
+        logger.warning("schema.sql not found, skipping database initialization")
+        return
 
-    conn = sqlite3.connect(CATALOG_PATH, timeout=30.0)
-    conn.executescript(SCHEMA_PATH.read_text())
-    conn.commit()
+    conn = psycopg2.connect(DATABASE_URL)
+    conn.autocommit = True
+    cursor = conn.cursor()
+
+    # Vérifier si les tables existent déjà
+    cursor.execute("""
+        SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = 'conversations'
+        )
+    """)
+    tables_exist = cursor.fetchone()[0]
+
+    if not tables_exist:
+        # Exécuter le schéma complet
+        cursor.execute(SCHEMA_PATH.read_text())
+        logger.info("Database initialized from schema.sql")
+
+    cursor.close()
     conn.close()
-    logger.info("Database initialized from schema.sql")
 
 
-def get_connection() -> sqlite3.Connection:
-    """Retourne une connexion au catalogue SQLite.
+class DictRow:
+    """Wrapper pour simuler le comportement de sqlite3.Row avec PostgreSQL.
 
-    Active le mode WAL pour permettre les lectures concurrentes
-    (API + Worker Celery).
+    Permet l'accès par clé (row['column']) et par index (row[0]).
     """
-    # timeout=30: attend jusqu'à 30s si la base est verrouillée
-    # (défaut=5s, trop court quand API + Worker écrivent en parallèle)
-    conn = sqlite3.connect(CATALOG_PATH, timeout=30.0)
-    conn.row_factory = sqlite3.Row
-    # Mode WAL: permet lectures concurrentes (important pour API + Celery)
-    conn.execute("PRAGMA journal_mode=WAL")
-    # busy_timeout en ms (backup si timeout ne suffit pas)
-    conn.execute("PRAGMA busy_timeout=30000")
+
+    def __init__(self, cursor: Any, row: tuple[Any, ...]) -> None:
+        self._keys = [col.name for col in cursor.description]
+        self._data = dict(zip(self._keys, row))
+        self._values = list(row)
+
+    def __getitem__(self, key: str | int) -> Any:
+        if isinstance(key, int):
+            return self._values[key]
+        return self._data[key]
+
+    def __contains__(self, key: str) -> bool:
+        return key in self._data
+
+    def __iter__(self) -> Generator[str, None, None]:
+        yield from self._keys
+
+    def keys(self) -> list[str]:
+        return self._keys
+
+    def values(self) -> list[Any]:
+        return self._values
+
+    def items(self) -> list[tuple[str, Any]]:
+        return list(self._data.items())
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self._data.get(key, default)
+
+
+def get_connection() -> psycopg2.extensions.connection:
+    """Retourne une connexion au catalogue PostgreSQL.
+
+    PostgreSQL gère nativement la concurrence via MVCC.
+    Pas besoin de WAL ou busy_timeout comme avec SQLite.
+    """
+    conn = psycopg2.connect(DATABASE_URL)
     return conn
 
 
 @contextmanager
-def get_db() -> Generator[sqlite3.Connection, None, None]:
+def get_db() -> Generator[psycopg2.extensions.connection, None, None]:
     """
-    Context manager pour les connexions SQLite.
+    Context manager pour les connexions PostgreSQL.
 
     Gère automatiquement le commit/rollback et la fermeture de connexion.
 
