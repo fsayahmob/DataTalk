@@ -201,10 +201,12 @@ function RunsPageContent() {
         const totalTables = (job.details?.table_names as string[])?.length || 0;
         const tablesSynced = (job.result?.tables_synced as number) || 0;
         const rowsSynced = (job.result?.rows_synced as number) || 0;
-        const tablesInProgress =
-          job.status === "running"
-            ? Math.round(((job.progress || 0) * totalTables) / 100)
-            : tablesSynced;
+
+        // Subtitle du step Sync : nombre total pendant le sync, résultat après
+        const syncSubtitle =
+          job.status === "completed"
+            ? `${tablesSynced} tables`
+            : `${totalTables} tables`;
 
         buildSteps(
           [
@@ -216,12 +218,7 @@ function RunsPageContent() {
             {
               key: "syncing",
               title: "Sync",
-              subtitle:
-                job.status === "running" && job.current_step?.startsWith("sync_table_")
-                  ? `${tablesInProgress}/${totalTables} tables`
-                  : job.status === "completed"
-                    ? `${tablesSynced}/${totalTables} tables`
-                    : `0/${totalTables} tables`,
+              subtitle: syncSubtitle,
             },
             { key: "update_stats", title: "Stats", subtitle: "Dataset" },
             {
@@ -236,7 +233,7 @@ function RunsPageContent() {
           "sync",
           (stepKey) =>
             job.current_step === stepKey ||
-            (stepKey === "syncing" && (job.current_step?.startsWith("sync_table_") ?? false))
+            (stepKey === "syncing" && (job.current_step === "syncing" || (job.current_step?.startsWith("sync_table_") ?? false)))
         );
       }
 
