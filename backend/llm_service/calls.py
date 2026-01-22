@@ -339,8 +339,16 @@ def call_llm_structured(
         messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": prompt})
 
+    # Déterminer le mode Instructor basé sur le provider
+    # Gemini ne supporte pas bien le mode TOOLS, utiliser JSON
+    provider = model.get("provider", "").lower()
+    if "gemini" in litellm_model.lower() or "vertex" in provider:
+        instructor_mode = instructor.Mode.JSON
+    else:
+        instructor_mode = instructor.Mode.TOOLS
+
     # Créer le client Instructor avec LiteLLM
-    client = instructor.from_litellm(litellm.completion)
+    client = instructor.from_litellm(litellm.completion, mode=instructor_mode)
 
     # Construire les kwargs avec response_model pour Instructor
     completion_kwargs = _build_completion_kwargs(
