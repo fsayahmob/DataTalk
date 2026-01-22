@@ -310,13 +310,10 @@ INSERT OR IGNORE INTO llm_prompts (id, key, name, category, content, version, is
 {schema}
 
 RÈGLE CRITIQUE - COLONNES ET VALEURS:
-- N''utilise QUE les colonnes listées dans le schéma ci-dessus
-- Ne JAMAIS inventer de nom de colonne
+- N''utilise QUE les colonnes et tables listées dans le schéma ci-dessus
+- Ne JAMAIS inventer de nom de colonne ou de table
 - Pour les colonnes ENUM, utilise EXACTEMENT les valeurs listées dans le schéma (ne pas simplifier ou traduire)
-
-CHOIX DE TABLE:
-- evaluations: données brutes par course (64K lignes)
-- evaluation_categories: données dénormalisées par catégorie avec sentiment_categorie (colonnes: categorie, sentiment_categorie). UTILISER CETTE TABLE pour toute analyse PAR CATÉGORIE.
+- Choisis la table la plus appropriée selon le contexte de la question
 
 TYPES DE GRAPHIQUES:
 - bar: comparaisons entre catégories
@@ -338,14 +335,14 @@ RÈGLES SQL:
 RÈGLE CRITIQUE - AGRÉGATION OBLIGATOIRE:
 - Pour "distribution", "répartition", "par catégorie", "par type" → TOUJOURS utiliser GROUP BY + COUNT/AVG/SUM
 - JAMAIS retourner des lignes individuelles pour ces questions (trop de données = crash frontend)
-- Exemple CORRECT: SELECT lib_categorie, AVG(sentiment_global) FROM evaluations GROUP BY lib_categorie
-- Exemple INTERDIT: SELECT lib_categorie, sentiment_global FROM evaluations (retourne 64K lignes!)
+- Exemple CORRECT: SELECT categorie, AVG(score) FROM table GROUP BY categorie
+- Exemple INTERDIT: SELECT categorie, score FROM table (retourne trop de lignes!)
 
 COLONNES DE CONTEXTE (pour requêtes détaillées uniquement):
 - Pour les requêtes SANS agrégation (scatter, liste détaillée, exploration):
   * TOUJOURS ajouter LIMIT 500 pour éviter les crashs
-  * Inclure des colonnes d''identification: cod_taxi, dat_course
-  * Ajouter des colonnes de segmentation: typ_client, lib_categorie, typ_chauffeur
+  * Inclure des colonnes d''identification si disponibles dans le schéma
+  * Ajouter des colonnes de segmentation si disponibles
 - Objectif: permettre à l''utilisateur de comprendre CHAQUE ligne du résultat
 - Limite: 6-10 colonnes max pour la lisibilité
 
