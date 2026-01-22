@@ -61,6 +61,17 @@ function CatalogPageContent() {
 
   // Track previous running state to detect job completion
   const wasRunningRef = useRef(false);
+  const wasExtractingRef = useRef(false);
+  const wasEnrichingRef = useRef(false);
+
+  // Track extraction/enrichment state changes
+  useEffect(() => {
+    wasExtractingRef.current = isExtracting;
+  }, [isExtracting]);
+
+  useEffect(() => {
+    wasEnrichingRef.current = isEnriching;
+  }, [isEnriching]);
 
   // Reload catalog when active dataset changes
   useEffect(() => {
@@ -77,8 +88,13 @@ function CatalogPageContent() {
       const status = JSON.parse(event.data);
       const isCurrentlyRunning = status.is_running;
 
-      // Detect transition from running → not running (job completed)
-      if (wasRunningRef.current && !isCurrentlyRunning) {
+      // Detect job completion:
+      // 1. SSE shows transition from running → not running
+      // 2. OR we were extracting/enriching and SSE says not running anymore
+      const wasRunning = wasRunningRef.current;
+      const wasWaitingForJob = wasExtractingRef.current || wasEnrichingRef.current;
+
+      if ((wasRunning || wasWaitingForJob) && !isCurrentlyRunning) {
         // Job just finished - reload catalog and reset loading states
         void loadCatalog();
         onJobCompleted();
