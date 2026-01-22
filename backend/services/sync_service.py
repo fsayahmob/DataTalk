@@ -263,8 +263,10 @@ def _run_airbyte_sync(
     import sys  # noqa: PLC0415
 
     def update_progress(step: str, progress: int, message: str = "") -> None:
-        """Met à jour le progress via job et callback Celery."""
-        update_job_status(job_id, status="running", current_step=step)
+        """Met à jour le progress via job PostgreSQL et callback Celery."""
+        # Écrire le progress dans PostgreSQL pour le SSE /job-stream
+        update_job_status(job_id, status="running", current_step=step, progress=progress)
+        # Publier aussi sur Redis Pub/Sub pour le SSE /tasks/{task_id}/stream
         if progress_callback:
             progress_callback(
                 state="PROGRESS",

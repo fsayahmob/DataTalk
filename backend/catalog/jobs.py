@@ -52,6 +52,7 @@ def update_job_status(
     current_step: str | None = None,
     step_index: int | None = None,
     error_message: str | None = None,
+    progress: int | None = None,
 ) -> None:
     """
     Met à jour le statut d'un job.
@@ -60,22 +61,28 @@ def update_job_status(
         job_id: ID du job
         status: 'pending', 'running', 'completed', 'failed'
         current_step: Nom du step actuel (ex: "llm_batch_2")
-        step_index: Index du step (0-based)
+        step_index: Index du step (0-based) - calcule progress automatiquement
         error_message: Message d'erreur si status='failed'
+        progress: Pourcentage de progression (0-100) - priorité sur step_index
     """
     conn = get_connection()
     try:
         cursor = conn.cursor()
 
-        # Calculer le progress si step_index fourni
-        if step_index is not None:
+        # Déterminer le progress final
+        final_progress = progress  # Utiliser progress explicite si fourni
+
+        # Sinon calculer depuis step_index
+        if final_progress is None and step_index is not None:
             cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = %s", (job_id,))
             row = cursor.fetchone()
             if row and row["total_steps"]:
-                progress = int((step_index + 1) / row["total_steps"] * 100)
+                final_progress = int((step_index + 1) / row["total_steps"] * 100)
             else:
-                progress = 0
+                final_progress = 0
 
+        # Update avec ou sans progress
+        if final_progress is not None:
             cursor.execute(
                 """
                 UPDATE catalog_jobs
@@ -83,7 +90,7 @@ def update_job_status(
                     error_message = %s, completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
                 WHERE id = %s
             """,
-                (status, current_step, step_index, progress, error_message, status, job_id),
+                (status, current_step, step_index, final_progress, error_message, status, job_id),
             )
         else:
             cursor.execute(
