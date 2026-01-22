@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Maintenant au prochain rebuild Docker, les anciens datasources avec `source_type = NULL` seront automatiquement corrigés avec `source_type = type` (qui contient \"duckdb\", \"postgres\", etc.).\n\n**Résumé des fixes :**\n1. **Frontend** : `getConnectorName()` gère maintenant les valeurs null/vides\n2. **Backend** : Migration auto qui fixe `source_type` NULL → copie depuis `type`\n3. **Donnée Docker** : Déjà corrigée manuellement avec le UPDATE précédent\n",
+  "lastMessage": "Corrigé. Maintenant quand tu essaies de créer un datasource avec un nom qui existe déjà, tu auras une erreur 400 avec le message \"A datasource with this name already exists\" au lieu d'un crash 500.\n\nPour appliquer le fix en Docker :\n\n```bash\ndocker compose down && docker compose build --no-cache api worker && docker compose up -d\n```\n\nOu plus rapide si tu veux juste restart sans rebuild :\n```bash\ndocker compose restart api worker\n```\n\n(Mais le restart simple ne prendra pas le nouveau code - il faut rebuild pour ça)\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-22T09:39:52Z"
+  "timestamp": "2026-01-22T09:41:42Z"
 }

@@ -103,20 +103,16 @@ async def create_new_datasource(request: CreateDatasourceRequest) -> dict[str, A
     La datasource définit comment se connecter à la source externe.
     La synchronisation est lancée séparément via POST /{id}/sync.
     """
-    try:
-        datasource_id = add_datasource(
-            name=request.name,
-            ds_type=request.source_type,
-            dataset_id=request.dataset_id,
-            source_type=request.source_type,
-            description=request.description,
-            sync_config=request.sync_config,
-            sync_mode=request.sync_mode,
-            ingestion_catalog=request.ingestion_catalog,
-        )
-    except ValueError as e:
-        # Duplicate name error
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    datasource_id = add_datasource(
+        name=request.name,
+        ds_type=request.source_type,
+        dataset_id=request.dataset_id,
+        source_type=request.source_type,
+        description=request.description,
+        sync_config=request.sync_config,
+        sync_mode=request.sync_mode,
+        ingestion_catalog=request.ingestion_catalog,
+    )
 
     if not datasource_id:
         raise HTTPException(status_code=500, detail=t("datasource.create_failed"))

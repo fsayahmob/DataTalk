@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 CREATE TABLE IF NOT EXISTS datasources (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
             type TEXT NOT NULL,  -- 'duckdb', 'postgres', 'mysql', etc.
             dataset_id TEXT,     -- UUID du dataset associé
             source_type TEXT,    -- Type PyAirbyte (postgres, mysql, csv, gcs, s3...)
@@ -459,3 +459,38 @@ CONSIGNES:
 
 -- Data migrations: Fix NULL source_type on legacy datasources
 UPDATE datasources SET source_type = type WHERE source_type IS NULL OR source_type = '';
+
+-- Migration: Remove UNIQUE constraint on datasources.name (allow same name in different datasets)
+-- SQLite doesn't support ALTER TABLE DROP CONSTRAINT, so we recreate the table
+CREATE TABLE IF NOT EXISTS datasources_new (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    dataset_id TEXT,
+    source_type TEXT,
+    path TEXT,
+    description TEXT,
+    sync_config TEXT,
+    sync_status TEXT DEFAULT 'pending',
+    sync_mode TEXT DEFAULT 'full_refresh',
+    ingestion_catalog TEXT,
+    last_sync_at TIMESTAMP,
+    last_sync_error TEXT,
+    is_active INTEGER DEFAULT 1,
+    file_size_bytes INTEGER,
+    last_modified TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Only migrate if the old table has the UNIQUE constraint (check if new table is empty)
+INSERT OR IGNORE INTO datasources_new SELECT * FROM datasources WHERE (SELECT COUNT(*) FROM datasources_new) = 0;
+
+-- Drop old table and rename new one (only if migration was successful)
+DROP TABLE IF EXISTS datasources_old;
+ALTER TABLE datasources RENAME TO datasources_old;
+ALTER TABLE datasources_new RENAME TO datasources;
+DROP TABLE IF EXISTS datasources_old;
+
+-- Recreate index
+CREATE INDEX IF NOT EXISTS idx_datasources_dataset ON datasources(dataset_id);

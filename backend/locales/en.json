@@ -116,7 +116,7 @@
     "updated": "Datasource updated.",
     "create_failed": "Failed to create datasource.",
     "created_not_found": "Datasource created but not found.",
-    "name_exists": "A datasource with this name already exists.",
+    "name_exists": "A datasource with this name already exists in this dataset.",
     "no_sync_config": "Datasource has no sync configuration.",
     "sync_triggered": "Sync started.",
     "sync_already_running": "A sync is already running for this datasource."
