@@ -45,18 +45,26 @@ log_info "Répertoires OK"
 # =============================================================================
 log_info "Vérification de la connexion PostgreSQL..."
 
-# Extraire host et port de DATABASE_URL
-# Format: postgresql://user:pass@host:port/dbname
-PG_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):.*|\1|p')
-PG_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
-PG_HOST=${PG_HOST:-postgres}
-PG_PORT=${PG_PORT:-5432}
-
 MAX_RETRIES=30
 RETRY_COUNT=0
 
+# Utiliser Python/psycopg2 pour tester la connexion (pg_isready n'est pas installé)
+check_postgres() {
+    python3 << 'PYEOF'
+import psycopg2
+import os
+import sys
+try:
+    conn = psycopg2.connect(os.environ.get('DATABASE_URL', 'postgresql://datatalk:datatalk_dev@postgres:5432/datatalk'))
+    conn.close()
+    sys.exit(0)
+except Exception as e:
+    sys.exit(1)
+PYEOF
+}
+
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    if pg_isready -h "$PG_HOST" -p "$PG_PORT" -q 2>/dev/null; then
+    if check_postgres; then
         log_info "PostgreSQL est prêt!"
         break
     fi

@@ -26,26 +26,36 @@ def init_database() -> None:
         return
 
     conn = psycopg2.connect(DATABASE_URL)
-    conn.autocommit = True
+    conn.autocommit = False  # Transaction pour atomicité
     cursor = conn.cursor()
 
-    # Vérifier si les tables existent déjà
-    cursor.execute("""
-        SELECT EXISTS (
-            SELECT FROM information_schema.tables
-            WHERE table_schema = 'public'
-            AND table_name = 'conversations'
-        )
-    """)
-    tables_exist = cursor.fetchone()[0]
+    try:
+        # Vérifier si les tables existent déjà
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_schema = 'public'
+                AND table_name = 'conversations'
+            )
+        """)
+        tables_exist = cursor.fetchone()[0]
 
-    if not tables_exist:
-        # Exécuter le schéma complet
-        cursor.execute(SCHEMA_PATH.read_text())
-        logger.info("Database initialized from schema.sql")
-
-    cursor.close()
-    conn.close()
+        if not tables_exist:
+            # Exécuter le schéma complet via psycopg2
+            # psycopg2 supporte les multi-statements avec autocommit=False
+            schema_sql = SCHEMA_PATH.read_text()
+            cursor.execute(schema_sql)
+            conn.commit()
+            logger.info("Database initialized from schema.sql")
+        else:
+            logger.info("Database already initialized")
+    except Exception as e:
+        conn.rollback()
+        logger.error("Failed to initialize database: %s", e)
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
 
 class DictRow:

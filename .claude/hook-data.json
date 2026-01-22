@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Oui, il faut relancer le build pour appliquer les nouvelles ressources:\n\n```bash\ndocker compose down && docker compose up --build -d\n```\n\n**Note importante**: Si tu avais déjà un volume PostgreSQL avec l'ancienne config, il faut aussi le supprimer pour que la nouvelle config `shared_buffers=512MB` soit prise en compte:\n\n```bash\ndocker compose down -v && docker compose up --build -d\n```\n\n⚠️ Le `-v` supprime les volumes (données PostgreSQL). Si tu as des données à garder, ne pas utiliser `-v`.\n",
+  "lastMessage": "Maintenant relance:\n\n```bash\ndocker compose down && docker compose up --build\n```\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-22T10:40:50Z"
+  "timestamp": "2026-01-22T10:56:00Z"
 }
