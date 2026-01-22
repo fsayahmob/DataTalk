@@ -75,9 +75,9 @@ async def stream_catalog_status() -> StreamingResponse:
 
         try:
             while True:
-                # Vérifier si un job tourne
+                # Vérifier si un job tourne (pending = créé mais pas encore pris par Celery)
                 recent_jobs = get_catalog_jobs(limit=5)
-                is_running = any(j["status"] == "running" for j in recent_jobs)
+                is_running = any(j["status"] in ("pending", "running") for j in recent_jobs)
                 current_run_id = get_latest_run_id() if is_running else None
 
                 status: dict[str, Any] = {

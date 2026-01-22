@@ -41,10 +41,14 @@ export async function extractCatalog(): Promise<CatalogExtractResponse | null> {
   try {
     const res = await apiFetch(`${API_BASE}/catalog/extract`, { method: "POST" });
     const data = await res.json();
+    if (!res.ok) {
+      // Propager l'erreur métier du backend
+      throw new Error(data.detail || "Erreur extraction catalogue");
+    }
     return data;
   } catch (e) {
     console.error("Erreur extraction catalogue:", e);
-    return null;
+    throw e; // Re-throw pour que le store puisse afficher le message
   }
 }
 

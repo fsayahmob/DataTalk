@@ -38,11 +38,19 @@ export const useDatasourceStore = create<DatasourceStore>()(
       loadedDatasetId: null,
 
       loadDatasources: async (datasetId: string, force = false) => {
-        // Skip si déjà chargé pour ce dataset (sauf si force)
+        const state = get();
+
+        // Force reload si un sync était "running" (peut avoir fini pendant navigation)
+        const hasRunningSync = state.datasources.some(
+          (d) => d.sync_status === "running"
+        );
+
+        // Skip uniquement si même dataset, pas de sync running, et pas force
         if (
           !force &&
-          get().loadedDatasetId === datasetId &&
-          get().datasources.length > 0
+          !hasRunningSync &&
+          state.loadedDatasetId === datasetId &&
+          state.datasources.length > 0
         ) {
           return;
         }

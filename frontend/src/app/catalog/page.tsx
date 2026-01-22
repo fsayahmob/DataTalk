@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useMemo, useRef } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import {
   ReactFlow,
   Background,
@@ -24,7 +24,6 @@ import {
 } from "@/components/catalog";
 import { SyncWarningBanner } from "@/components/SyncWarningBanner";
 import { LoadingState } from "@/components/ui/spinner";
-import { API_BASE } from "@/lib/api";
 import { t } from "@/hooks/useTranslation";
 import { useCatalogStore, useDatasetStore } from "@/stores";
 
@@ -45,7 +44,6 @@ function CatalogPageContent() {
     deleteCatalog,
     selectTable,
     toggleTable,
-    setIsRunning,
     enabledTablesCount,
   } = useCatalogStore();
 
@@ -57,21 +55,6 @@ function CatalogPageContent() {
 
   // Get store actions for refreshing after job completion
   const loadCatalog = useCatalogStore((state) => state.loadCatalog);
-  const onJobCompleted = useCatalogStore((state) => state.onJobCompleted);
-
-  // Track previous running state to detect job completion
-  const wasRunningRef = useRef(false);
-  const wasExtractingRef = useRef(false);
-  const wasEnrichingRef = useRef(false);
-
-  // Track extraction/enrichment state changes
-  useEffect(() => {
-    wasExtractingRef.current = isExtracting;
-  }, [isExtracting]);
-
-  useEffect(() => {
-    wasEnrichingRef.current = isEnriching;
-  }, [isEnriching]);
 
   // Reload catalog when active dataset changes
   useEffect(() => {
@@ -80,38 +63,7 @@ function CatalogPageContent() {
     }
   }, [activeDataset?.id, loadCatalog]);
 
-  // SSE: Listen to global status (running or not)
-  useEffect(() => {
-    const eventSource = new EventSource(`${API_BASE}/catalog/status-stream`);
-
-    eventSource.onmessage = (event) => {
-      const status = JSON.parse(event.data);
-      const isCurrentlyRunning = status.is_running;
-
-      // Detect job completion:
-      // 1. SSE shows transition from running → not running
-      // 2. OR we were extracting/enriching and SSE says not running anymore
-      const wasRunning = wasRunningRef.current;
-      const wasWaitingForJob = wasExtractingRef.current || wasEnrichingRef.current;
-
-      if ((wasRunning || wasWaitingForJob) && !isCurrentlyRunning) {
-        // Job just finished - reload catalog and reset loading states
-        void loadCatalog();
-        onJobCompleted();
-      }
-
-      wasRunningRef.current = isCurrentlyRunning;
-      setIsRunning(isCurrentlyRunning);
-    };
-
-    eventSource.onerror = () => {
-      console.log("SSE status-stream disconnected");
-      eventSource.close();
-    };
-
-    return () => eventSource.close();
-  }, [setIsRunning, loadCatalog, onJobCompleted]);
-
+  // Note: SSE job completion listener is now global (in StoreProvider)
   // Note: loadCatalog() is called once by StoreProvider
 
   // All tables from catalog - derive from catalog state directly

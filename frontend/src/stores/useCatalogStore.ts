@@ -65,12 +65,14 @@ export const useCatalogStore = create<CatalogStore>()(
 
       extractCatalog: async () => {
         set({ isExtracting: true, selectedTable: null });
-        toast.info(t("catalog.extracting"), {
-          description: t("catalog.extraction_no_llm"),
-        });
 
         try {
           const result = await api.extractCatalog();
+
+          // Toast info seulement après succès de l'appel API
+          toast.info(t("catalog.extracting"), {
+            description: t("catalog.extraction_no_llm"),
+          });
 
           if (result) {
             // Mode async (Celery): job lancé en background
@@ -96,8 +98,10 @@ export const useCatalogStore = create<CatalogStore>()(
             set({ isExtracting: false });
             return false;
           }
-        } catch {
-          toast.error(t("catalog.extraction_error"));
+        } catch (e) {
+          // Afficher le message d'erreur métier du backend
+          const errorMsg = e instanceof Error ? e.message : t("catalog.extraction_error");
+          toast.error(errorMsg);
           set({ isExtracting: false });
           return false;
         }
@@ -140,6 +144,16 @@ export const useCatalogStore = create<CatalogStore>()(
 
         try {
           const result = await api.enrichCatalog(tableIds);
+
+          if (result && result.status === "pending") {
+            // Mode async (Celery): job lancé en background
+            // Le catalogue sera rechargé par le SSE quand le job termine
+            // isEnriching reste true, sera mis à false par onJobCompleted()
+            // Le polling continue pour les mises à jour en temps réel
+            return true;
+          }
+
+          // Mode sync ou résultat immédiat - arrêter le polling
           clearInterval(pollInterval);
 
           if (result && result.status === "ok") {

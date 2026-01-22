@@ -137,7 +137,14 @@ def enrich_catalog_task(
 
         result = enrich_selected_tables(db_connection=db_conn, job_id=job_id, table_ids=table_ids)
 
-        # Marquer le job comme terminé
+        # Vérifier si l'enrichissement a retourné une erreur (sans exception)
+        if isinstance(result, dict) and result.get("status") == "error":
+            error_msg = result.get("message", "Enrichissement échoué")
+            logger.error("[Celery] Enrich job %s failed (no exception): %s", job_id, error_msg)
+            update_job_status(job_id, status="failed", error_message=error_msg)
+            return {"status": "error", "result": result}
+
+        # Marquer le job comme terminé seulement si succès
         update_job_status(job_id, status="completed")
 
         logger.info("[Celery] Enrich job %s completed", job_id)

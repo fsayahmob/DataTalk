@@ -305,9 +305,9 @@ function ConfigureConnectionStep({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4 max-h-[70vh]">
       {/* Connector header */}
-      <div className="flex items-center gap-3 pb-3 border-b border-border">
+      <div className="flex items-center gap-3 pb-3 border-b border-border flex-shrink-0">
         <button
           onClick={onBack}
           className="p-1.5 rounded-lg hover:bg-secondary transition-colors"
@@ -326,7 +326,7 @@ function ConfigureConnectionStep({
       </div>
 
       {/* Dynamic form */}
-      <div className="rjsf-container max-h-[50vh] overflow-y-auto pr-1">
+      <div className="rjsf-container flex-1 min-h-0 overflow-y-auto pr-1">
         <Form
           schema={connectorSpec.config_schema as RJSFSchema}
           uiSchema={uiSchema}
@@ -340,7 +340,7 @@ function ConfigureConnectionStep({
       {/* Test result */}
       {testResult && (
         <div
-          className={`p-3 rounded-lg text-sm ${
+          className={`p-3 rounded-lg text-sm flex-shrink-0 ${
             testResult.success
               ? "bg-status-success/10 text-status-success"
               : "bg-status-error/10 text-status-error"
@@ -352,19 +352,19 @@ function ConfigureConnectionStep({
               {t("connector.test_success")}
             </span>
           ) : (
-            <div className="max-h-24 overflow-y-auto">
+            <div className="max-h-20 overflow-y-auto">
               <span className="flex items-center gap-2 mb-1">
                 <CloseIcon size={14} />
                 {t("connector.test_failed")}
               </span>
-              <p className="text-xs opacity-80 break-words">{testResult.message}</p>
+              <p className="text-xs opacity-80 break-words whitespace-pre-wrap">{testResult.message}</p>
             </div>
           )}
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex justify-between pt-2">
+      <div className="flex justify-between pt-2 flex-shrink-0 border-t border-border">
         <button
           onClick={() => void handleTest()}
           disabled={testing}

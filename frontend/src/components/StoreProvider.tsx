@@ -8,11 +8,14 @@
  * - Catalog (schema metadata)
  * - Runs (job history)
  *
- * This avoids duplicate API calls in each page component.
+ * Also sets up the global SSE listener for job completion events.
+ * This ensures stores are refreshed when Celery jobs complete,
+ * regardless of which page the user is on.
  */
 
 import { ReactNode, useEffect, useSyncExternalStore } from "react";
 import { useDatasetStore, useCatalogStore, useRunStore } from "@/stores";
+import { useJobCompletionListener } from "@/hooks/useJobCompletionListener";
 
 interface StoreProviderProps {
   children: ReactNode;
@@ -27,6 +30,9 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const { loadDatasets } = useDatasetStore();
   const { loadCatalog } = useCatalogStore();
   const { loadRuns } = useRunStore();
+
+  // Global SSE listener for job completion
+  useJobCompletionListener();
 
   // Load all global data once on app mount
   useEffect(() => {

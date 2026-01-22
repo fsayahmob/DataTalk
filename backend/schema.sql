@@ -309,6 +309,11 @@ INSERT OR IGNORE INTO llm_prompts (id, key, name, category, content, version, is
 
 {schema}
 
+RÈGLE CRITIQUE - COLONNES ET VALEURS:
+- N''utilise QUE les colonnes listées dans le schéma ci-dessus
+- Ne JAMAIS inventer de nom de colonne
+- Pour les colonnes ENUM, utilise EXACTEMENT les valeurs listées dans le schéma (ne pas simplifier ou traduire)
+
 CHOIX DE TABLE:
 - evaluations: données brutes par course (64K lignes)
 - evaluation_categories: données dénormalisées par catégorie avec sentiment_categorie (colonnes: categorie, sentiment_categorie). UTILISER CETTE TABLE pour toute analyse PAR CATÉGORIE.
