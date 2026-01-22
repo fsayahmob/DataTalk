@@ -236,8 +236,8 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
     """
     tables_result: list[TableMetadata] = []
 
-    # Tables internes à exclure (PyAirbyte, système, etc.)
-    EXCLUDED_TABLE_PREFIXES = ("_airbyte_", "_dlt_", "__")
+    # Tables et colonnes internes à exclure (PyAirbyte, système, etc.)
+    EXCLUDED_PREFIXES = ("_airbyte_", "_dlt_", "__")
 
     # Récupérer les tables (exclure les tables internes)
     tables = conn.execute("""
@@ -250,7 +250,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
     # Filtrer les tables internes
     tables = [
         t for t in tables
-        if not any(t[0].startswith(prefix) for prefix in EXCLUDED_TABLE_PREFIXES)
+        if not any(t[0].startswith(prefix) for prefix in EXCLUDED_PREFIXES)
     ]
 
     logger.info("Extraction avancée de %d tables (après exclusion tables internes)", len(tables))
@@ -273,6 +273,9 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
         columns_result: list[ColumnMetadata] = []
 
         for col_name, col_type in columns_info:
+            # Exclure les colonnes internes (Airbyte, DLT, etc.)
+            if any(col_name.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
+                continue
             col_metadata = extract_column_stats(conn, table_name, col_name, col_type, row_count)
             columns_result.append(col_metadata)
 

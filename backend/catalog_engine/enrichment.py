@@ -73,6 +73,15 @@ class PromptNotConfiguredError(Exception):
 # =============================================================================
 
 
+# Préfixes de colonnes internes à exclure (Airbyte, DLT, etc.)
+EXCLUDED_COLUMN_PREFIXES = ("_airbyte_", "_dlt_", "__")
+
+
+def _is_internal_column(col_name: str) -> bool:
+    """Vérifie si une colonne est interne (Airbyte, DLT, etc.)."""
+    return any(col_name.startswith(prefix) for prefix in EXCLUDED_COLUMN_PREFIXES)
+
+
 def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
     """
     Crée dynamiquement un modèle Pydantic basé sur la structure du catalogue.
@@ -87,6 +96,9 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
             }
         }
     }
+
+    Note: Les colonnes internes (prefixées par _airbyte_, _dlt_, __) sont exclues
+    car Pydantic n'accepte pas les noms commençant par underscore.
     """
 
     # Modèle pour une colonne enrichie
@@ -98,9 +110,12 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
     table_models: dict[str, tuple[type, Any]] = {}
 
     for table in catalog.tables:
-        # Créer le modèle des colonnes pour cette table
+        # Créer le modèle des colonnes pour cette table (exclure colonnes internes)
         column_fields: dict[str, tuple[type, Any]] = {}
         for col in table.columns:
+            # Exclure les colonnes internes (Airbyte, DLT, etc.)
+            if _is_internal_column(col.name):
+                continue
             column_fields[col.name] = (
                 ColumnEnrichment,
                 Field(description=f"Enrichissement pour la colonne {col.name}"),
@@ -147,11 +162,16 @@ def _build_full_context(catalog: ExtractedCatalog) -> str:
     - Statistiques numériques (mean, median, range)
     - Statistiques texte (longueurs)
     - Patterns détectés
+
+    Note: Les colonnes internes (prefixées par _airbyte_, _dlt_, __) sont exclues.
     """
     tables_context = []
     for table in catalog.tables:
         cols_desc = []
         for col in table.columns:
+            # Exclure les colonnes internes
+            if _is_internal_column(col.name):
+                continue
             # Ligne principale: nom, type, stats de base
             col_info = f"  - {col.name} ({col.data_type})"
 
@@ -307,9 +327,11 @@ def validate_catalog_enrichment(
             result.tables_warning += 1
             result.issues.append(f"Table '{table.name}': description manquante")
 
-        # Vérifier chaque colonne
+        # Vérifier chaque colonne (exclure colonnes internes)
         columns_enrichment = table_enrichment.get("columns", {})
         for col in table.columns:
+            if _is_internal_column(col.name):
+                continue
             col_enrichment = columns_enrichment.get(col.name, {})
 
             col_desc = col_enrichment.get("description")
