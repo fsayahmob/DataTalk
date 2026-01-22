@@ -1,11 +1,11 @@
 // API functions for conversations and analysis
 
 import { Message, Conversation } from "@/types";
-import { API_BASE, AnalysisResponse, AnalysisFilters } from "./types";
+import { API_BASE, apiFetch, AnalysisResponse, AnalysisFilters } from "./types";
 
 export async function fetchConversations(): Promise<Conversation[]> {
   try {
-    const res = await fetch(`${API_BASE}/conversations`);
+    const res = await apiFetch(`${API_BASE}/conversations`);
     const data = await res.json();
     return data.conversations || [];
   } catch (e) {
@@ -16,7 +16,7 @@ export async function fetchConversations(): Promise<Conversation[]> {
 
 export async function createConversation(): Promise<number | null> {
   try {
-    const res = await fetch(`${API_BASE}/conversations`, { method: "POST" });
+    const res = await apiFetch(`${API_BASE}/conversations`, { method: "POST" });
     const data = await res.json();
     return data.id;
   } catch (e) {
@@ -29,7 +29,7 @@ export async function fetchConversationMessages(
   conversationId: number
 ): Promise<Message[]> {
   try {
-    const res = await fetch(`${API_BASE}/conversations/${conversationId}/messages`);
+    const res = await apiFetch(`${API_BASE}/conversations/${conversationId}/messages`);
     const data = await res.json();
     return data.messages || [];
   } catch (e) {
@@ -40,7 +40,7 @@ export async function fetchConversationMessages(
 
 export async function deleteAllConversations(): Promise<number> {
   try {
-    const res = await fetch(`${API_BASE}/conversations`, { method: "DELETE" });
+    const res = await apiFetch(`${API_BASE}/conversations`, { method: "DELETE" });
     const data = await res.json();
     return data.count || 0;
   } catch (e) {
@@ -56,7 +56,7 @@ export async function analyzeInConversation(
   useContext = false,
   signal?: AbortSignal
 ): Promise<AnalysisResponse> {
-  const res = await fetch(`${API_BASE}/conversations/${conversationId}/analyze`, {
+  const res = await apiFetch(`${API_BASE}/conversations/${conversationId}/analyze`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, filters, use_context: useContext }),

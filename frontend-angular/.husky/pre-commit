@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Vérification du code..."
+
+cd frontend-angular
+
+# 1. ESLint
+echo "📝 ESLint..."
+npm run lint || {
+  echo "❌ ESLint a trouvé des erreurs. Commit bloqué."
+  exit 1
+}
+
+# 2. TypeScript
+echo "📘 TypeScript..."
+npm run typecheck || {
+  echo "❌ Erreurs TypeScript. Commit bloqué."
+  exit 1
+}
+
+# 3. Dependency Cruiser (Architecture)
+echo "🏗️ Vérification architecture..."
+npx depcruise src --config .dependency-cruiser.js || {
+  echo "❌ Violation d'architecture détectée. Commit bloqué."
+  exit 1
+}
+
+echo "✅ Toutes les vérifications passées!"

@@ -16,6 +16,7 @@ import {
   fetchPrompt,
   updatePrompt,
 } from '@/lib/api/llm';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -45,7 +46,7 @@ describe('LLM API', () => {
 
       const result = await fetchLLMStatus();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/status');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/status');
       expect(result).toEqual(mockStatus);
     });
 
@@ -64,7 +65,7 @@ describe('LLM API', () => {
 
       const result = await saveApiKey('google', 'my-api-key');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ provider_name: 'google', api_key: 'my-api-key' }),
@@ -95,7 +96,7 @@ describe('LLM API', () => {
 
       const result = await saveProviderConfig('ollama', 'http://localhost:11434');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/providers/ollama/config', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/providers/ollama/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base_url: 'http://localhost:11434' }),
@@ -108,7 +109,7 @@ describe('LLM API', () => {
 
       const result = await saveProviderConfig('google', null);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/providers/google/config', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/providers/google/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base_url: null }),
@@ -138,7 +139,7 @@ describe('LLM API', () => {
 
       const result = await fetchLLMProviders();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/providers');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/providers');
       expect(result).toEqual(mockProviders);
     });
 
@@ -173,7 +174,7 @@ describe('LLM API', () => {
 
       const result = await fetchLLMModels();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/models');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/models');
       expect(result).toEqual(mockModels);
     });
 
@@ -184,7 +185,7 @@ describe('LLM API', () => {
 
       await fetchLLMModels('google');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/models?provider_name=google');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/models?provider_name=google');
     });
 
     it('should return empty array on error', async () => {
@@ -207,7 +208,7 @@ describe('LLM API', () => {
 
       const result = await fetchDefaultModel();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/models/default');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/models/default');
       expect(result).toEqual(mockModel);
     });
 
@@ -234,7 +235,7 @@ describe('LLM API', () => {
 
       const result = await setDefaultModel('5');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/models/default/5', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/models/default/5', {
         method: 'PUT',
       });
       expect(result).toBe(true);
@@ -270,7 +271,7 @@ describe('LLM API', () => {
 
       const result = await fetchLLMCosts();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/costs?days=30');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/costs?days=30');
       expect(result).toEqual(mockCosts);
     });
 
@@ -281,7 +282,7 @@ describe('LLM API', () => {
 
       await fetchLLMCosts(7);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/costs?days=7');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/costs?days=7');
     });
 
     it('should return null on error', async () => {
@@ -303,7 +304,7 @@ describe('LLM API', () => {
 
       const result = await fetchLLMPrompts();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/prompts');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/prompts');
       expect(result).toEqual(mockPrompts);
     });
 
@@ -314,7 +315,7 @@ describe('LLM API', () => {
 
       await fetchLLMPrompts('analysis');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/prompts?category=analysis');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/prompts?category=analysis');
     });
 
     it('should return empty array on error', async () => {
@@ -332,7 +333,7 @@ describe('LLM API', () => {
 
       const result = await setActivePromptVersion('sql_gen', 'v2');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/llm/prompts/sql_gen/active', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/llm/prompts/sql_gen/active', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ version: 'v2' }),
@@ -360,7 +361,7 @@ describe('LLM API', () => {
 
       const result = await fetchPrompts();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/prompts');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/prompts');
       expect(result).toEqual(mockPrompts);
     });
 
@@ -392,7 +393,7 @@ describe('LLM API', () => {
 
       const result = await fetchPrompt('sql_gen');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/prompts/sql_gen');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/prompts/sql_gen');
       expect(result).toEqual(mockPrompt);
     });
 
@@ -419,7 +420,7 @@ describe('LLM API', () => {
 
       const result = await updatePrompt('sql_gen', 'New content');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/prompts/sql_gen', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/prompts/sql_gen', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: 'New content' }),

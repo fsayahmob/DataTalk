@@ -1,8 +1,31 @@
 // Types et interfaces partagés pour l'API G7 Analytics
 
 import { ChartConfig } from "@/types";
+import { getStoredLocale } from "@/components/LanguageProvider";
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/**
+ * Wrapper autour de fetch qui ajoute automatiquement le header Accept-Language.
+ * Utilise la locale stockée dans localStorage via getStoredLocale().
+ */
+export async function apiFetch(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  const locale = getStoredLocale();
+  const headers = new Headers(init?.headers);
+
+  // Ajouter Accept-Language s'il n'est pas déjà défini
+  if (!headers.has("Accept-Language")) {
+    headers.set("Accept-Language", locale);
+  }
+
+  return fetch(input, {
+    ...init,
+    headers,
+  });
+}
 
 // Ré-export des types depuis @/types pour centralisation
 export type {
@@ -203,10 +226,12 @@ export interface ToggleTableResponse {
   message: string;
 }
 
+export type JobType = "extraction" | "enrichment" | "sync";
+
 export interface CatalogJob {
   id: number;
   run_id: string;
-  job_type: "extraction" | "enrichment";
+  job_type: JobType;
   status: "pending" | "running" | "completed" | "failed";
   current_step: string | null;
   step_index: number | null;
@@ -222,7 +247,7 @@ export interface CatalogJob {
 export interface Run {
   id: number;
   run_id: string;
-  job_type: "extraction" | "enrichment";
+  job_type: JobType;
   started_at: string;
   completed_at: string | null;
   status: "pending" | "running" | "completed" | "failed";
@@ -320,4 +345,82 @@ export interface DatasetsResponse {
 export interface DatasetCreateRequest {
   name: string;
   description?: string;
+}
+
+// ============ Datasources Types ============
+
+export type DatasourceSyncStatus = "idle" | "running" | "success" | "partial_success" | "error";
+export type SyncMode = "full_refresh" | "incremental";
+
+export interface ForeignKey {
+  column: string;
+  references_table: string;
+  references_column: string;
+}
+
+export interface IngestionColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
+}
+
+export interface IngestionTable {
+  schema?: string;
+  name: string;
+  enabled: boolean;
+  row_count?: number;
+  columns: IngestionColumn[];
+  primary_key?: string[];
+  foreign_keys?: ForeignKey[];
+}
+
+export interface IngestionCatalog {
+  discovered_at: string;
+  tables: IngestionTable[];
+}
+
+export interface Datasource {
+  id: number;
+  name: string;
+  dataset_id: string;
+  source_type: string;
+  description: string | null;
+  sync_config: Record<string, unknown> | null;
+  sync_status: DatasourceSyncStatus | null;
+  last_sync_at: string | null;
+  last_sync_error: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  sync_mode: SyncMode;
+  ingestion_catalog: IngestionCatalog | null;
+}
+
+export interface DatasourcesResponse {
+  datasources: Datasource[];
+  count: number;
+}
+
+export interface CreateDatasourceRequest {
+  name: string;
+  dataset_id: string;
+  source_type: string;
+  description?: string;
+  sync_config?: Record<string, unknown>;
+  sync_mode?: SyncMode;
+  ingestion_catalog?: IngestionCatalog;
+}
+
+// Discovered catalog from connector (before selection)
+export interface DiscoveredTable {
+  schema?: string;
+  name: string;
+  columns: IngestionColumn[];
+  primary_key?: string[];
+  foreign_keys?: ForeignKey[];
+  row_count?: number;
+}
+
+export interface DiscoveredCatalog {
+  tables: DiscoveredTable[];
 }

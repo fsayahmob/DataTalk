@@ -48,12 +48,9 @@ def _get_duckdb_stats(duckdb_path: str, max_retries: int = 3) -> dict[str, int]:
     # Retry avec délai exponentiel en cas de conflit de connexion
     for attempt in range(max_retries):
         try:
-            # Essayer d'abord en read_only, sinon en mode normal
-            try:
-                conn = duckdb.connect(duckdb_path, read_only=True)
-            except duckdb.IOException:
-                # Si read_only échoue (fichier verrouillé), essayer sans
-                conn = duckdb.connect(duckdb_path)
+            # TOUJOURS read_only - l'API ne doit jamais écrire dans DuckDB
+            # Seul le worker Celery/PyAirbyte a le droit d'écrire
+            conn = duckdb.connect(duckdb_path, read_only=True)
 
             # Compter les tables (exclure les tables système)
             tables = conn.execute(
@@ -441,7 +438,7 @@ def update_dataset_stats_from_sync(
     cursor.execute(
         """
         UPDATE datasets
-        SET row_count = ?, table_count = ?, size_bytes = ?, status = 'active',
+        SET row_count = ?, table_count = ?, size_bytes = ?, status = 'ready',
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
         """,

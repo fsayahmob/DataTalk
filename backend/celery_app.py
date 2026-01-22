@@ -20,7 +20,7 @@ celery_app = Celery(
     "g7_analytics",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=["tasks.catalog"],
+    include=["tasks.catalog", "tasks.datasources", "tasks.maintenance"],
 )
 
 celery_app.conf.update(
@@ -39,4 +39,16 @@ celery_app.conf.update(
     # Retry policy
     task_acks_late=True,  # Ack après exécution (pas avant)
     task_reject_on_worker_lost=True,  # Requeue si worker crash
+    # Result backend - éviter la corruption et les fuites mémoire
+    result_expires=3600,  # Résultats expirent après 1h (TTL Redis)
+    result_extended=True,  # Inclure traceback complet
+    task_ignore_result=False,  # On a besoin des résultats pour le SSE
+    # Celery Beat - tâches périodiques de maintenance
+    beat_schedule={
+        "cleanup-old-jobs": {
+            "task": "tasks.maintenance.cleanup_old_jobs_task",
+            "schedule": 86400,  # Toutes les 24h
+            "options": {"expires": 3600},
+        },
+    },
 )

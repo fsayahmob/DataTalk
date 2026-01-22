@@ -1,9 +1,13 @@
 /**
  * Tests for ThemeProvider component and theming system
+ *
+ * Note: ThemeProvider now uses useThemeStore (Zustand) for state management.
+ * We test the store directly for state-related tests.
  */
 import { render, screen, act } from '@testing-library/react';
 import { renderHook } from '@testing-library/react';
-import { ThemeProvider, useThemeStyle, THEME_STYLES, type ThemeStyle } from '@/components/ThemeProvider';
+import { ThemeProvider, THEME_STYLES, type ThemeStyle } from '@/components/ThemeProvider';
+import { useThemeStore } from '@/stores/useThemeStore';
 
 // Mock next-themes
 jest.mock('next-themes', () => ({
@@ -12,24 +16,15 @@ jest.mock('next-themes', () => ({
   ),
 }));
 
-// Mock localStorage
-const mockLocalStorage = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: jest.fn((key: string) => store[key] || null),
-    setItem: jest.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: jest.fn((key: string) => { delete store[key]; }),
-    clear: jest.fn(() => { store = {}; }),
-  };
-})();
-
-Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+// Helper to reset store between tests
+const resetStore = () => {
+  useThemeStore.setState({ style: 'corporate' });
+  document.documentElement.removeAttribute('data-theme-style');
+};
 
 describe('ThemeProvider', () => {
   beforeEach(() => {
-    mockLocalStorage.clear();
-    jest.clearAllMocks();
-    document.documentElement.removeAttribute('data-theme-style');
+    resetStore();
   });
 
   it('renders children correctly', () => {
@@ -80,22 +75,9 @@ describe('ThemeProvider', () => {
     expect(document.documentElement.getAttribute('data-theme-style')).toBe('corporate');
   });
 
-  it('persists theme style to localStorage', async () => {
-    render(
-      <ThemeProvider>
-        <div>Content</div>
-      </ThemeProvider>
-    );
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    expect(mockLocalStorage.setItem).toHaveBeenCalledWith('theme-style', 'corporate');
-  });
-
-  it('loads saved theme style from localStorage', async () => {
-    mockLocalStorage.getItem.mockReturnValueOnce('bloomberg');
+  it('applies saved theme style from store', async () => {
+    // Set store state before rendering
+    useThemeStore.setState({ style: 'bloomberg' });
 
     render(
       <ThemeProvider>
@@ -109,54 +91,39 @@ describe('ThemeProvider', () => {
 
     expect(document.documentElement.getAttribute('data-theme-style')).toBe('bloomberg');
   });
-
-  it('ignores invalid theme style from localStorage', async () => {
-    mockLocalStorage.getItem.mockReturnValueOnce('invalid-theme');
-
-    render(
-      <ThemeProvider>
-        <div>Content</div>
-      </ThemeProvider>
-    );
-
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    expect(document.documentElement.getAttribute('data-theme-style')).toBe('corporate');
-  });
 });
 
-describe('useThemeStyle hook', () => {
+describe('useThemeStore', () => {
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <ThemeProvider>{children}</ThemeProvider>
   );
 
   beforeEach(() => {
-    mockLocalStorage.clear();
-    jest.clearAllMocks();
-    document.documentElement.removeAttribute('data-theme-style');
+    resetStore();
   });
 
   it('returns current style', async () => {
-    const { result } = renderHook(() => useThemeStyle(), { wrapper });
+    const { result } = renderHook(() => useThemeStore((state) => state.style), { wrapper });
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(result.current.style).toBe('corporate');
+    expect(result.current).toBe('corporate');
   });
 
   it('returns list of available styles', () => {
-    const { result } = renderHook(() => useThemeStyle(), { wrapper });
+    const { result } = renderHook(() => useThemeStore((state) => state.styles), { wrapper });
 
-    expect(result.current.styles).toEqual(THEME_STYLES);
-    expect(result.current.styles.length).toBe(6);
+    expect(result.current).toEqual(THEME_STYLES);
+    expect(result.current.length).toBe(6);
   });
 
   it('setStyle updates the current style', async () => {
-    const { result } = renderHook(() => useThemeStyle(), { wrapper });
+    const { result } = renderHook(() => ({
+      style: useThemeStore((state) => state.style),
+      setStyle: useThemeStore((state) => state.setStyle),
+    }), { wrapper });
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -170,7 +137,10 @@ describe('useThemeStyle hook', () => {
   });
 
   it('setStyle updates document attribute', async () => {
-    const { result } = renderHook(() => useThemeStyle(), { wrapper });
+    const { result } = renderHook(() => ({
+      style: useThemeStore((state) => state.style),
+      setStyle: useThemeStore((state) => state.setStyle),
+    }), { wrapper });
 
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 0));
@@ -187,15 +157,10 @@ describe('useThemeStyle hook', () => {
     expect(document.documentElement.getAttribute('data-theme-style')).toBe('github');
   });
 
-  it('throws error when used outside provider', () => {
-    // Suppress console.error for this test
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    expect(() => {
-      renderHook(() => useThemeStyle());
-    }).toThrow('useThemeStyle must be used within ThemeProvider');
-
-    consoleSpy.mockRestore();
+  it('works outside provider with Zustand store', () => {
+    // With Zustand, the hook works without a provider
+    const { result } = renderHook(() => useThemeStore((state) => state.style));
+    expect(result.current).toBe('corporate');
   });
 });
 

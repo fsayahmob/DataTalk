@@ -53,6 +53,7 @@ export {
   fetchRun,
   fetchCatalogJobs,
   fetchRuns,
+  retryJob,
 } from "./catalog";
 
 // ============ Settings ============
@@ -83,4 +84,46 @@ export {
   activateDataset,
   fetchActiveDataset,
   refreshDatasetStats,
+  checkDatasetSyncStatus,
 } from "./datasets";
+
+// ============ Datasources ============
+export {
+  createDatasource,
+  fetchDatasources,
+  fetchDatasource,
+  updateDatasource,
+  deleteDatasource,
+  triggerDatasourceSync,
+} from "./datasources";
+export type { CreateDatasourceRequest, UpdateDatasourceRequest, TriggerSyncResponse } from "./datasources";
+
+// ============ Connectors ============
+export {
+  fetchConnectors,
+  fetchConnectorCategories,
+  fetchConnectorSpec,
+  testConnection,
+  discoverCatalog,
+  checkAirbyteStatus,
+} from "./connectors";
+export type {
+  Connector,
+  ConnectorCategory,
+  ConnectorsResponse,
+  CategoriesResponse,
+  ConnectorSpec,
+  TestConnectionResponse,
+  DiscoveredStream,
+  DiscoveredColumn,
+  DiscoverResponse,
+} from "./connectors";
+
+// ============ Tasks (Celery) ============
+export {
+  fetchTaskStatus,
+  revokeTask,
+  isTaskRunning,
+  isTaskComplete,
+} from "./tasks";
+export type { TaskState, TaskStatusResponse } from "./tasks";

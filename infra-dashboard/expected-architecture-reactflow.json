@@ -1,0 +1,225 @@
+{
+  "$schema": "./expected-architecture-reactflow.schema.json",
+  "_comment": "GCP-style flat topology - auto-layout with dagre",
+  "_version": "3.0.0",
+
+  "metadata": {
+    "title": "DataTalk Infrastructure",
+    "lastUpdated": "2026-01-18",
+    "author": "Claude"
+  },
+
+  "config": {
+    "autoLayout": true,
+    "layoutDirection": "TB",
+    "nodeSpacing": 80,
+    "rankSpacing": 120
+  },
+
+  "groups": [
+    {
+      "id": "datatalk",
+      "label": "datatalk",
+      "type": "compose",
+      "network": "datatalk-net"
+    },
+    {
+      "id": "infra",
+      "label": "infra-dashboard",
+      "type": "compose",
+      "network": "infra-dashboard_default"
+    }
+  ],
+
+  "nodes": [
+    {
+      "id": "frontend",
+      "type": "service",
+      "data": {
+        "label": "Frontend",
+        "service": "datatalk-frontend",
+        "image": "datatalk-frontend:latest",
+        "ports": ["3000:3000"],
+        "status": "expected",
+        "group": "datatalk",
+        "icon": "web"
+      }
+    },
+    {
+      "id": "api",
+      "type": "service",
+      "data": {
+        "label": "API",
+        "service": "datatalk-api",
+        "image": "datatalk/api:latest",
+        "ports": ["8000:8000"],
+        "status": "expected",
+        "group": "datatalk",
+        "icon": "api"
+      }
+    },
+    {
+      "id": "worker",
+      "type": "service",
+      "data": {
+        "label": "Worker",
+        "service": "datatalk-worker",
+        "image": "datatalk/worker:latest",
+        "ports": [],
+        "status": "expected",
+        "group": "datatalk",
+        "icon": "memory"
+      }
+    },
+    {
+      "id": "redis",
+      "type": "service",
+      "data": {
+        "label": "Redis",
+        "service": "datatalk-redis",
+        "image": "redis:7-alpine",
+        "ports": [],
+        "status": "expected",
+        "group": "datatalk",
+        "icon": "database"
+      }
+    },
+    {
+      "id": "redis-volume",
+      "type": "datastore",
+      "data": {
+        "label": "Redis Data",
+        "volume": "redis-data",
+        "mountPath": "/data",
+        "group": "datatalk",
+        "icon": "storage"
+      }
+    },
+    {
+      "id": "sqlite",
+      "type": "datastore",
+      "data": {
+        "label": "SQLite",
+        "volume": "datatalk-sqlite",
+        "mountPath": "/data/sqlite",
+        "group": "datatalk",
+        "icon": "storage"
+      }
+    },
+    {
+      "id": "duckdb",
+      "type": "datastore",
+      "data": {
+        "label": "DuckDB",
+        "volume": "datatalk-duckdb",
+        "mountPath": "/data/duckdb",
+        "group": "datatalk",
+        "icon": "analytics"
+      }
+    },
+    {
+      "id": "cache",
+      "type": "datastore",
+      "data": {
+        "label": "Cache",
+        "volume": "datatalk-cache",
+        "mountPath": "/data/cache",
+        "group": "datatalk",
+        "icon": "cached"
+      }
+    },
+    {
+      "id": "infra-dashboard",
+      "type": "service",
+      "data": {
+        "label": "Infra Dashboard",
+        "service": "infra-dashboard",
+        "image": "infra-dashboard:latest",
+        "ports": ["3001:3001"],
+        "status": "expected",
+        "group": "infra",
+        "icon": "dashboard"
+      }
+    }
+  ],
+
+  "edges": [
+    {
+      "id": "e-frontend-api",
+      "source": "frontend",
+      "target": "api",
+      "data": { "protocol": "HTTP", "port": 8000 }
+    },
+    {
+      "id": "e-api-redis",
+      "source": "api",
+      "target": "redis",
+      "data": { "protocol": "Redis", "port": 6379 }
+    },
+    {
+      "id": "e-worker-redis",
+      "source": "worker",
+      "target": "redis",
+      "data": { "protocol": "Redis", "port": 6379 }
+    },
+    {
+      "id": "e-redis-volume",
+      "source": "redis",
+      "target": "redis-volume",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
+      "id": "e-api-sqlite",
+      "source": "api",
+      "target": "sqlite",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
+      "id": "e-worker-sqlite",
+      "source": "worker",
+      "target": "sqlite",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
+      "id": "e-api-duckdb",
+      "source": "api",
+      "target": "duckdb",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
+      "id": "e-worker-duckdb",
+      "source": "worker",
+      "target": "duckdb",
+      "data": { "type": "volume", "mode": "ro" }
+    },
+    {
+      "id": "e-api-cache",
+      "source": "api",
+      "target": "cache",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
+      "id": "e-worker-cache",
+      "source": "worker",
+      "target": "cache",
+      "data": { "type": "volume", "mode": "rw" }
+    }
+  ],
+
+  "legend": {
+    "nodeTypes": [
+      { "type": "service", "label": "Service", "icon": "hexagon" },
+      { "type": "datastore", "label": "Datastore", "icon": "cylinder" }
+    ],
+    "statusColors": {
+      "running": "#1e8e3e",
+      "stopped": "#f9ab00",
+      "missing": "#d93025",
+      "expected": "#5f6368"
+    },
+    "edgeTypes": [
+      { "type": "network", "label": "Network", "style": "solid" },
+      { "type": "volume", "label": "Volume Mount", "style": "dashed" }
+    ]
+  }
+}

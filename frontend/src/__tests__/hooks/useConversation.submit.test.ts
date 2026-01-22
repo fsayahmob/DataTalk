@@ -1,8 +1,12 @@
 /**
  * Tests for useConversation hook - handleSubmit functionality
+ *
+ * Note: useConversation now uses useConversationStore (Zustand) for state management.
+ * We reset the store between tests.
  */
 import { renderHook, act } from '@testing-library/react';
 import { useConversation } from '@/hooks/useConversation';
+import { useConversationStore } from '@/stores/useConversationStore';
 import * as api from '@/lib/api';
 
 // Mock the API module
@@ -31,6 +35,22 @@ const localStorageMock = (() => {
 })();
 Object.defineProperty(window, 'localStorage', { value: localStorageMock });
 
+// Helper to reset store between tests
+const resetStore = () => {
+  useConversationStore.setState({
+    question: "",
+    loading: false,
+    messages: [],
+    selectedMessage: null,
+    conversations: [],
+    currentConversationId: null,
+    showHistory: false,
+    useContext: false,
+    error: null,
+    _abortController: null,
+  });
+};
+
 describe('useConversation - handleSubmit', () => {
   const mockEvent = { preventDefault: jest.fn() } as unknown as React.FormEvent;
   const mockFilters = { dateStart: '', dateEnd: '', noteMin: '', noteMax: '' };
@@ -38,6 +58,7 @@ describe('useConversation - handleSubmit', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorageMock.clear();
+    resetStore();
   });
 
   it('should not submit if question is empty', async () => {

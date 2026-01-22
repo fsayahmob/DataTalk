@@ -1,15 +1,15 @@
-import { useState, useCallback, useEffect, useRef } from "react";
-import * as api from "@/lib/api";
+/**
+ * useConversation - Wrapper de compatibilité
+ *
+ * MIGRATION: Ce hook redirige maintenant vers useConversationStore (Zustand)
+ * Les anciens imports continuent de fonctionner pour backward compatibility.
+ */
+import { useCallback } from "react";
+import { useConversationStore, type Filters } from "@/stores/useConversationStore";
 import { Message, Conversation } from "@/types";
 
-const STORAGE_KEY = "g7_current_conversation_id";
-
-interface Filters {
-  dateStart: string;
-  dateEnd: string;
-  noteMin: string;
-  noteMax: string;
-}
+// Re-export Filters type for backward compatibility
+export type { Filters } from "@/stores/useConversationStore";
 
 interface UseConversationReturn {
   // États
@@ -20,8 +20,8 @@ interface UseConversationReturn {
   conversations: Conversation[];
   currentConversationId: number | null;
   showHistory: boolean;
-  useContext: boolean;  // Mode stateful/stateless
-  error: string | null;  // Erreur technique à afficher dans le footer
+  useContext: boolean;
+  error: string | null;
 
   // Setters
   setQuestion: (q: string) => void;
@@ -40,190 +40,43 @@ interface UseConversationReturn {
   handleReplayMessage: (msg: Message) => void;
 }
 
+/**
+ * Hook legacy - redirige vers Zustand store
+ */
 export function useConversation(): UseConversationReturn {
-  const [question, setQuestion] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
-  const [showHistory, setShowHistory] = useState(false);
-  const [useContext, setUseContext] = useState(false);  // Stateless par défaut
-  const [error, setError] = useState<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // Get state from store
+  const question = useConversationStore((state) => state.question);
+  const loading = useConversationStore((state) => state.loading);
+  const messages = useConversationStore((state) => state.messages);
+  const selectedMessage = useConversationStore((state) => state.selectedMessage);
+  const conversations = useConversationStore((state) => state.conversations);
+  const currentConversationId = useConversationStore((state) => state.currentConversationId);
+  const showHistory = useConversationStore((state) => state.showHistory);
+  const useContext = useConversationStore((state) => state.useContext);
+  const error = useConversationStore((state) => state.error);
 
-  const clearError = useCallback(() => setError(null), []);
+  // Get actions from store
+  const setQuestion = useConversationStore((state) => state.setQuestion);
+  const setSelectedMessage = useConversationStore((state) => state.setSelectedMessage);
+  const setShowHistory = useConversationStore((state) => state.setShowHistory);
+  const setUseContext = useConversationStore((state) => state.setUseContext);
+  const clearError = useConversationStore((state) => state.clearError);
+  const loadConversations = useConversationStore((state) => state.loadConversations);
+  const restoreSession = useConversationStore((state) => state.restoreSession);
+  const storeHandleSubmit = useConversationStore((state) => state.handleSubmit);
+  const handleStop = useConversationStore((state) => state.handleStop);
+  const handleLoadConversation = useConversationStore((state) => state.handleLoadConversation);
+  const handleNewConversation = useConversationStore((state) => state.handleNewConversation);
+  const handleReplayMessage = useConversationStore((state) => state.handleReplayMessage);
 
-  const loadConversations = useCallback(async () => {
-    const convs = await api.fetchConversations();
-    setConversations(convs);
-  }, []);
-
-  // Persister l'ID de conversation dans localStorage
-  useEffect(() => {
-    if (currentConversationId !== null) {
-      localStorage.setItem(STORAGE_KEY, String(currentConversationId));
-    }
-  }, [currentConversationId]);
-
-  // Restaurer la session précédente au chargement
-  const restoreSession = useCallback(async () => {
-    const savedId = localStorage.getItem(STORAGE_KEY);
-    if (!savedId) return;
-
-    const convId = parseInt(savedId, 10);
-    if (isNaN(convId)) return;
-
-    try {
-      // Charger les messages de la conversation
-      const msgs = await api.fetchConversationMessages(convId);
-      if (msgs.length > 0) {
-        setCurrentConversationId(convId);
-        setMessages(msgs);
-
-        // Sélectionner le dernier message assistant avec chart pour afficher
-        const lastAssistant = [...msgs].reverse().find(m => m.role === "assistant" && m.chart);
-        if (lastAssistant) {
-          setSelectedMessage(lastAssistant);
-        }
-      }
-    } catch (e) {
-      // Si la conversation n'existe plus, supprimer du localStorage
-      console.warn("Conversation non trouvée, suppression du localStorage:", e);
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  }, []);
-
-  const createNewConversation = useCallback(async () => {
-    try {
-      const id = await api.createConversation();
-      if (id) {
-        setCurrentConversationId(id);
-        setMessages([]);
-        setSelectedMessage(null);
-        await loadConversations();
-      }
-      return id;
-    } catch (e) {
-      console.error("Erreur création conversation:", e);
-      return null;
-    }
-  }, [loadConversations]);
-
-  // Convertir les filtres UI en filtres API (ne garde que les valeurs non vides)
-  const toApiFilters = useCallback((filters: Filters): api.AnalysisFilters | undefined => {
-    const apiFilters: api.AnalysisFilters = {};
-    if (filters.dateStart) apiFilters.dateStart = filters.dateStart;
-    if (filters.dateEnd) apiFilters.dateEnd = filters.dateEnd;
-    if (filters.noteMin) apiFilters.noteMin = filters.noteMin;
-    if (filters.noteMax) apiFilters.noteMax = filters.noteMax;
-    return Object.keys(apiFilters).length > 0 ? apiFilters : undefined;
-  }, []);
-
-  const handleSubmit = useCallback(async (e: React.FormEvent, filters: Filters) => {
-    e.preventDefault();
-    if (!question.trim() || loading) return;
-
-    setLoading(true);
-
-    // Créer un AbortController pour permettre l'annulation
-    const abortController = new AbortController();
-    abortControllerRef.current = abortController;
-
-    // Créer une conversation si nécessaire
-    let convId = currentConversationId;
-    if (!convId) {
-      convId = await createNewConversation();
-      if (!convId) {
-        setLoading(false);
-        abortControllerRef.current = null;
-        return;
-      }
-    }
-
-    // Convertir les filtres pour l'API
-    const apiFilters = toApiFilters(filters);
-
-    // Ajouter le message user localement
-    const userMessage: Message = {
-      id: Date.now(),
-      role: "user",
-      content: question,
-    };
-    setMessages((prev) => [...prev, userMessage]);
-    setQuestion("");
-
-    try {
-      const data = await api.analyzeInConversation(convId, question, apiFilters, useContext, abortController.signal);
-
-      const assistantMessage: Message = {
-        id: data.message_id,
-        role: "assistant",
-        content: data.message,
-        sql: data.sql,
-        sql_error: data.sql_error,
-        chart: data.chart,
-        data: data.data,
-        chart_disabled: data.chart_disabled,
-        chart_disabled_reason: data.chart_disabled_reason,
-        model_name: data.model_name,
-        tokens_input: data.tokens_input,
-        tokens_output: data.tokens_output,
-        response_time_ms: data.response_time_ms,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-      setSelectedMessage(assistantMessage);
-      await loadConversations();
-    } catch (e) {
-      // Si annulé par l'utilisateur, ne pas afficher d'erreur
-      if (e instanceof Error && e.name === "AbortError") {
-        // Supprimer le message user qui a été annulé
-        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
-      } else {
-        // Erreur technique → affichée dans le footer, pas dans la conversation
-        setError(e instanceof Error ? e.message : "Erreur inconnue");
-        // Supprimer le message user qui n'a pas abouti
-        setMessages((prev) => prev.filter((m) => m.id !== userMessage.id));
-      }
-    } finally {
-      setLoading(false);
-      abortControllerRef.current = null;
-    }
-  }, [question, loading, currentConversationId, createNewConversation, toApiFilters, loadConversations, useContext]);
-
-  const handleStop = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-  }, []);
-
-  const handleLoadConversation = useCallback(async (conv: Conversation) => {
-    setCurrentConversationId(conv.id);
-    try {
-      const msgs = await api.fetchConversationMessages(conv.id);
-      setMessages(msgs);
-      // Sélectionner le dernier message assistant avec chart
-      const lastAssistant = [...msgs].reverse().find(m => m.role === "assistant" && m.chart);
-      setSelectedMessage(lastAssistant || null);
-      setShowHistory(false);
-    } catch (e) {
-      console.error("Erreur chargement messages:", e);
-    }
-  }, []);
-
-  const handleNewConversation = useCallback(() => {
-    setCurrentConversationId(null);
-    setMessages([]);
-    setSelectedMessage(null);
-    localStorage.removeItem(STORAGE_KEY);
-  }, []);
-
-  const handleReplayMessage = useCallback((msg: Message) => {
-    if (msg.role === "user") {
-      setQuestion(msg.content);
-    }
-  }, []);
+  // Wrapper for handleSubmit to match original signature (with e.preventDefault())
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent, filters: Filters) => {
+      e.preventDefault();
+      await storeHandleSubmit(filters);
+    },
+    [storeHandleSubmit]
+  );
 
   return {
     question,

@@ -28,7 +28,7 @@ def init_database() -> None:
     if not SCHEMA_PATH.exists():
         return  # Pas de schéma disponible
 
-    conn = sqlite3.connect(CATALOG_PATH)
+    conn = sqlite3.connect(CATALOG_PATH, timeout=30.0)
     conn.executescript(SCHEMA_PATH.read_text())
     conn.commit()
     conn.close()
@@ -41,10 +41,14 @@ def get_connection() -> sqlite3.Connection:
     Active le mode WAL pour permettre les lectures concurrentes
     (API + Worker Celery).
     """
-    conn = sqlite3.connect(CATALOG_PATH)
+    # timeout=30: attend jusqu'à 30s si la base est verrouillée
+    # (défaut=5s, trop court quand API + Worker écrivent en parallèle)
+    conn = sqlite3.connect(CATALOG_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     # Mode WAL: permet lectures concurrentes (important pour API + Celery)
     conn.execute("PRAGMA journal_mode=WAL")
+    # busy_timeout en ms (backup si timeout ne suffit pas)
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 

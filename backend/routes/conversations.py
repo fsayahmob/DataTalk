@@ -135,6 +135,9 @@ async def analyze_in_conversation(conversation_id: int, request: QuestionRequest
         try:
             data = execute_query(sql)
             sql_exec_ms = int((time.perf_counter() - sql_start) * 1000)
+        except HTTPException:
+            # Laisser passer les HTTPException (ex: pas de dataset actif)
+            raise
         except Exception as sql_exec_error:
             sql_exec_ms = int((time.perf_counter() - sql_start) * 1000)
             total_ms = int((time.perf_counter() - total_start) * 1000)

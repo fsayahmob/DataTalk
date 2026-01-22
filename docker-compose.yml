@@ -2,10 +2,13 @@
 # DataTalk - Docker Compose Stack
 # =============================================================================
 # Architecture:
-#   Frontend (Next.js) → API (FastAPI) → Redis ← Worker (Celery)
-#                              ↓
-#                      Named Volumes
-#                  (SQLite / DuckDB / Cache)
+#   Frontend (React/Next.js) → API (FastAPI) → Redis ← Worker (Celery)
+#        ↑                         ↓    ↑         │
+#        │                   Named Volumes    Pub/Sub (task events)
+#        │               (SQLite / DuckDB / Cache)
+#        │
+#        └──────── SSE (Server-Sent Events) ────────┘
+#                  /api/v1/tasks/{id}/stream
 #
 # Usage:
 #   docker compose up -d              # Démarrer tous les services
@@ -23,15 +26,16 @@ name: datatalk
 
 services:
   # ---------------------------------------------------------------------------
-  # Frontend Next.js
+  # Frontend React (Next.js)
   # ---------------------------------------------------------------------------
   frontend:
     container_name: datatalk-frontend
     build: ./frontend
+    image: datatalk-frontend
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_URL=http://api:8000
     depends_on:
       api:
         condition: service_healthy
@@ -41,10 +45,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 256M
+          cpus: "1.0"
+          memory: 512M
         reservations:
-          cpus: "0.1"
+          cpus: "0.25"
           memory: 128M
 
   # ---------------------------------------------------------------------------
@@ -58,6 +62,7 @@ services:
     environment:
       - SQLITE_PATH=/data/sqlite/catalog.sqlite
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
+      - DUCKDB_DIR=/data/duckdb/datasets
       - CACHE_DIR=/data/cache
       - REDIS_URL=redis://redis:6379/0
       # Production: ALLOWED_ORIGINS=https://mondomaine.com,https://www.mondomaine.com
@@ -69,6 +74,8 @@ services:
       - sqlite-data:/data/sqlite
       - duckdb-data:/data/duckdb
       - cache-data:/data/cache
+      # Docker socket pour PyAirbyte (connecteurs Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       redis:
         condition: service_healthy
@@ -91,7 +98,7 @@ services:
           memory: 256M
 
   # ---------------------------------------------------------------------------
-  # Redis (broker Celery)
+  # Redis (Celery broker + Pub/Sub for real-time task events)
   # ---------------------------------------------------------------------------
   redis:
     container_name: datatalk-redis
@@ -125,15 +132,26 @@ services:
     environment:
       - SQLITE_PATH=/data/sqlite/catalog.sqlite
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
+      - DUCKDB_DIR=/data/duckdb/datasets
       - CACHE_DIR=/data/cache
       - REDIS_URL=redis://redis:6379/0
+      # PyAirbyte: utiliser un chemin sur l'hôte pour les bind mounts Docker-in-Docker
+      - AIRBYTE_LOCAL_ROOT=${AIRBYTE_LOCAL_ROOT:-/tmp/airbyte_local}
+      # Debug: afficher les logs PyAirbyte dans la console
+      - AIRBYTE_DEBUG=true
     env_file:
       - path: .env
         required: false
     volumes:
       - sqlite-data:/data/sqlite
-      - duckdb-data:/data/duckdb:ro
+      - duckdb-data:/data/duckdb  # Read-write pour sync PyAirbyte
       - cache-data:/data/cache
+      # Docker socket pour PyAirbyte (connecteurs Docker)
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Volumes partagés pour PyAirbyte Docker-in-Docker (Mac compatibility)
+      # IMPORTANT: /tmp du worker doit être partagé avec l'hôte pour que les
+      # connecteurs Docker puissent lire les fichiers de config temporaires
+      - /tmp:/tmp
     depends_on:
       redis:
         condition: service_healthy

@@ -1,0 +1,23 @@
+services:
+  infra-dashboard:
+    container_name: infra-dashboard
+    build: .
+    ports:
+      - "${INFRA_PORT:-3002}:3001"
+    volumes:
+      # Mount Docker socket for container detection
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Mount expected architecture config
+      - ./expected-architecture.json:/app/expected-architecture.json:ro
+    environment:
+      - NODE_ENV=production
+      - INFRA_DASHBOARD_PORT=3001
+    restart: unless-stopped
+    # Read-only filesystem for security
+    read_only: true
+    # Tmpfs for node runtime needs
+    tmpfs:
+      - /tmp
+    # Security options
+    security_opt:
+      - no-new-privileges:true

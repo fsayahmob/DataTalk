@@ -69,6 +69,16 @@
   --sidebar-ring: oklch(0.55 0.18 55);
 }
 
+/* Bloomberg terminal link style - underlined like classic terminals */
+:root[data-theme-style="bloomberg"] a:not([class*="btn"]):not([class*="button"]) {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+:root[data-theme-style="bloomberg"] a:not([class*="btn"]):not([class*="button"]):hover {
+  text-decoration-thickness: 2px;
+}
+
 /* Dark mode */
 :root[data-theme-style="bloomberg"].dark {
   /* Design tokens - Terminal aesthetic (same as light) */

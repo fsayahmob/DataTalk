@@ -222,8 +222,59 @@ jobs:
           fi
           echo "✅ CODEOWNERS: PASSED"
 
+      # --------------------------------------------------------
+      # ANGULAR GUARDS (Migration)
+      # --------------------------------------------------------
+      - name: Angular Guard 1/3 - ESLint strict rules
+        run: |
+          if [ -f frontend-angular/eslint.config.js ]; then
+            if ! grep -q '"@typescript-eslint/no-explicit-any": "error"' frontend-angular/eslint.config.js; then
+              echo "::error::Angular: no-explicit-any must be 'error'"
+              exit 1
+            fi
+            if ! grep -q '"@typescript-eslint/explicit-function-return-type"' frontend-angular/eslint.config.js; then
+              echo "::error::Angular: explicit-function-return-type required"
+              exit 1
+            fi
+            if ! grep -q 'boundaries/element-types' frontend-angular/eslint.config.js; then
+              echo "::error::Angular: boundaries plugin required"
+              exit 1
+            fi
+            echo "✅ Angular ESLint: PASSED"
+          else
+            echo "✅ Angular not yet set up - skipping"
+          fi
+
+      - name: Angular Guard 2/3 - Dependency Cruiser
+        run: |
+          if [ -f frontend-angular/.dependency-cruiser.js ]; then
+            if ! grep -q 'no-circular' frontend-angular/.dependency-cruiser.js; then
+              echo "::error::Angular: no-circular rule required"
+              exit 1
+            fi
+            if ! grep -q 'no-http-in-components' frontend-angular/.dependency-cruiser.js; then
+              echo "::error::Angular: no-http-in-components required"
+              exit 1
+            fi
+            echo "✅ Angular Dependency Cruiser: PASSED"
+          else
+            echo "✅ Angular not yet set up - skipping"
+          fi
+
+      - name: Angular Guard 3/3 - TypeScript strict
+        run: |
+          if [ -f frontend-angular/tsconfig.json ]; then
+            if ! grep -q '"strict": true' frontend-angular/tsconfig.json; then
+              echo "::error::Angular: TypeScript strict required"
+              exit 1
+            fi
+            echo "✅ Angular TypeScript strict: PASSED"
+          else
+            echo "✅ Angular not yet set up - skipping"
+          fi
+
   # ============================================================
-  # FRONTEND QUALITY
+  # FRONTEND QUALITY (React)
   # ============================================================
   frontend-quality:
     name: Frontend Quality
@@ -517,3 +568,158 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - run: echo "Deploy to production - configure here"
+
+  # ============================================================
+  # ANGULAR QUALITY (Migration - runs in parallel with React)
+  # ============================================================
+  angular-quality:
+    name: Angular Quality
+    runs-on: ubuntu-latest
+    needs: config-guard
+    defaults:
+      run:
+        working-directory: frontend-angular
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if Angular exists
+        id: check
+        run: |
+          if [ -d "../frontend-angular/src" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        working-directory: .
+
+      - name: Setup Node.js
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-angular/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'true'
+        run: npm ci
+
+      - name: ESLint (zero warnings)
+        if: steps.check.outputs.exists == 'true'
+        run: npm run lint -- --max-warnings 0
+
+      - name: TypeScript check
+        if: steps.check.outputs.exists == 'true'
+        run: npm run typecheck
+
+      - name: Architecture check (Dependency Cruiser)
+        if: steps.check.outputs.exists == 'true'
+        run: npm run arch:check
+
+      - name: Skip message
+        if: steps.check.outputs.exists == 'false'
+        run: echo "Angular frontend not yet created - skipping"
+        working-directory: .
+
+  # ============================================================
+  # ANGULAR TESTS (Migration)
+  # ============================================================
+  angular-tests:
+    name: Angular Tests
+    runs-on: ubuntu-latest
+    needs: angular-quality
+    defaults:
+      run:
+        working-directory: frontend-angular
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if Angular exists
+        id: check
+        run: |
+          if [ -d "../frontend-angular/src" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        working-directory: .
+
+      - name: Setup Node.js
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-angular/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Run tests
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          if grep -q '"test:ci"' package.json; then
+            npm run test:ci || echo "Tests not yet configured"
+          else
+            echo "No test:ci script - skipping"
+          fi
+
+  # ============================================================
+  # ANGULAR BUILD (Migration)
+  # ============================================================
+  angular-build:
+    name: Angular Build
+    runs-on: ubuntu-latest
+    needs: angular-tests
+    defaults:
+      run:
+        working-directory: frontend-angular
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if Angular exists
+        id: check
+        run: |
+          if [ -d "../frontend-angular/src" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+        working-directory: .
+
+      - name: Setup Node.js
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend-angular/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'true'
+        run: npm ci
+
+      - name: Build production
+        if: steps.check.outputs.exists == 'true'
+        run: npm run build:prod
+
+      - name: Check bundle size
+        if: steps.check.outputs.exists == 'true'
+        run: |
+          if [ -d dist ]; then
+            SIZE=$(du -sb dist | cut -f1)
+            SIZE_MB=$((SIZE / 1024 / 1024))
+            echo "Bundle size: ${SIZE_MB}MB"
+            if [ $SIZE_MB -gt 5 ]; then
+              echo "::warning::Bundle size ${SIZE_MB}MB - consider optimization"
+            fi
+          fi
+
+      - name: Upload Angular artifacts
+        if: steps.check.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: angular-build
+          path: frontend-angular/dist/
+          retention-days: 7

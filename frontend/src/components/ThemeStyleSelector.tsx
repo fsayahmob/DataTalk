@@ -1,6 +1,6 @@
 "use client";
 
-import { useThemeStyle, type ThemeStyle } from "./ThemeProvider";
+import { useThemeStore, type ThemeStyle } from "@/stores";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 
@@ -15,7 +15,9 @@ const themePreviewColors: Record<ThemeStyle, { bg: string; primary: string; acce
 };
 
 export function ThemeStyleSelector() {
-  const { style, setStyle, styles } = useThemeStyle();
+  const style = useThemeStore((state) => state.style);
+  const setStyle = useThemeStore((state) => state.setStyle);
+  const styles = useThemeStore((state) => state.styles);
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

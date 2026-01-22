@@ -1,12 +1,12 @@
 // API functions for LLM providers, models, and prompts
 
-import { API_BASE, LLMStatus, LLMProvider, LLMModel, LLMCosts, LLMPrompt } from "./types";
+import { API_BASE, apiFetch, LLMStatus, LLMProvider, LLMModel, LLMCosts, LLMPrompt } from "./types";
 
 // ============ LLM Status & Config ============
 
 export async function fetchLLMStatus(): Promise<LLMStatus> {
   try {
-    const res = await fetch(`${API_BASE}/llm/status`);
+    const res = await apiFetch(`${API_BASE}/llm/status`);
     return await res.json();
   } catch {
     return { status: "error", message: "Connexion impossible" };
@@ -18,7 +18,7 @@ export async function saveApiKey(
   apiKey: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/settings`, {
+    const res = await apiFetch(`${API_BASE}/settings`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider_name: providerName, api_key: apiKey }),
@@ -34,7 +34,7 @@ export async function saveProviderConfig(
   baseUrl: string | null
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/llm/providers/${providerName}/config`, {
+    const res = await apiFetch(`${API_BASE}/llm/providers/${providerName}/config`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ base_url: baseUrl }),
@@ -49,7 +49,7 @@ export async function saveProviderConfig(
 
 export async function fetchLLMProviders(): Promise<LLMProvider[]> {
   try {
-    const res = await fetch(`${API_BASE}/llm/providers`);
+    const res = await apiFetch(`${API_BASE}/llm/providers`);
     const data = await res.json();
     return data.providers || [];
   } catch (e) {
@@ -65,7 +65,7 @@ export async function fetchLLMModels(
     const url = providerName
       ? `${API_BASE}/llm/models?provider_name=${providerName}`
       : `${API_BASE}/llm/models`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     const data = await res.json();
     return data.models || [];
   } catch (e) {
@@ -76,7 +76,7 @@ export async function fetchLLMModels(
 
 export async function fetchDefaultModel(): Promise<LLMModel | null> {
   try {
-    const res = await fetch(`${API_BASE}/llm/models/default`);
+    const res = await apiFetch(`${API_BASE}/llm/models/default`);
     if (!res.ok) return null;
     const data = await res.json();
     return data.model;
@@ -87,7 +87,7 @@ export async function fetchDefaultModel(): Promise<LLMModel | null> {
 
 export async function setDefaultModel(modelId: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/llm/models/default/${modelId}`, {
+    const res = await apiFetch(`${API_BASE}/llm/models/default/${modelId}`, {
       method: "PUT",
     });
     return res.ok;
@@ -100,7 +100,7 @@ export async function setDefaultModel(modelId: string): Promise<boolean> {
 
 export async function fetchLLMCosts(days = 30): Promise<LLMCosts | null> {
   try {
-    const res = await fetch(`${API_BASE}/llm/costs?days=${days}`);
+    const res = await apiFetch(`${API_BASE}/llm/costs?days=${days}`);
     return await res.json();
   } catch {
     return null;
@@ -114,7 +114,7 @@ export async function fetchLLMPrompts(category?: string): Promise<LLMPrompt[]> {
     const url = category
       ? `${API_BASE}/llm/prompts?category=${category}`
       : `${API_BASE}/llm/prompts`;
-    const res = await fetch(url);
+    const res = await apiFetch(url);
     const data = await res.json();
     return data.prompts || [];
   } catch (e) {
@@ -128,7 +128,7 @@ export async function setActivePromptVersion(
   version: string
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/llm/prompts/${key}/active`, {
+    const res = await apiFetch(`${API_BASE}/llm/prompts/${key}/active`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ version }),
@@ -143,7 +143,7 @@ export async function setActivePromptVersion(
 
 export async function fetchPrompts(): Promise<LLMPrompt[]> {
   try {
-    const res = await fetch(`${API_BASE}/prompts`);
+    const res = await apiFetch(`${API_BASE}/prompts`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.prompts || [];
@@ -155,7 +155,7 @@ export async function fetchPrompts(): Promise<LLMPrompt[]> {
 
 export async function fetchPrompt(key: string): Promise<LLMPrompt | null> {
   try {
-    const res = await fetch(`${API_BASE}/prompts/${key}`);
+    const res = await apiFetch(`${API_BASE}/prompts/${key}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (e) {
@@ -166,7 +166,7 @@ export async function fetchPrompt(key: string): Promise<LLMPrompt | null> {
 
 export async function updatePrompt(key: string, content: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/prompts/${key}`, {
+    const res = await apiFetch(`${API_BASE}/prompts/${key}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),

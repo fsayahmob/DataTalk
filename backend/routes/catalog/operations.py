@@ -87,12 +87,20 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
 
     # 0. Créer un nouveau run_id et un job d'extraction
     run_id = str(uuid.uuid4())
+    dataset_id = active_dataset.get("id")
+    dataset_name = active_dataset.get("name", "Unknown")
+
     # Extraction a 2 steps: extract_metadata, save_to_catalog (géré par WorkflowManager)
     job_id = create_catalog_job(
         job_type="extraction",
         run_id=run_id,
         total_steps=2,
-        details={"mode": "extraction_only"},
+        details={
+            "mode": "extraction_only",
+            "dataset_id": dataset_id,
+            "dataset_name": dataset_name,
+            "duckdb_path": duckdb_path,
+        },
     )
 
     # 1. Vider le catalogue existant
@@ -113,8 +121,8 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
 
     # 2. Lancer l'extraction
     if CELERY_AVAILABLE:
-        # Mode async: dispatcher vers Celery
-        extract_catalog_task.delay(run_id=run_id, job_id=job_id)
+        # Mode async: dispatcher vers Celery avec dataset_id pour isolation
+        extract_catalog_task.delay(run_id=run_id, job_id=job_id, dataset_id=dataset_id)
         return {
             "status": "pending",
             "message": "Extraction démarrée en arrière-plan",
@@ -203,6 +211,14 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     if not request.table_ids:
         raise HTTPException(status_code=400, detail=t("catalog.no_tables_selected"))
 
+    # Récupérer le dataset actif pour isolation
+    active_dataset = get_active_dataset()
+    if not active_dataset:
+        raise HTTPException(status_code=400, detail=t("dataset.no_active_dataset"))
+
+    dataset_id = active_dataset.get("id")
+    dataset_name = active_dataset.get("name", "Unknown")
+
     # Créer un nouveau run_id pour l'enrichissement (séparé de l'extraction)
     run_id = str(uuid.uuid4())
 
@@ -219,15 +235,18 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
         total_steps=total_steps,
         details={
             "table_ids": request.table_ids,
+            "table_count": len(request.table_ids),
             "batch_size": max_tables_per_batch,
             "num_batches": num_batches,
+            "dataset_id": dataset_id,
+            "dataset_name": dataset_name,
         },
     )
 
     # Lancer l'enrichissement
     if CELERY_AVAILABLE:
-        # Mode async: dispatcher vers Celery
-        enrich_catalog_task.delay(run_id=run_id, job_id=job_id, table_ids=request.table_ids)
+        # Mode async: dispatcher vers Celery avec dataset_id pour isolation
+        enrich_catalog_task.delay(run_id=run_id, job_id=job_id, table_ids=request.table_ids, dataset_id=dataset_id)
         return {
             "status": "pending",
             "message": "Enrichissement démarré en arrière-plan",

@@ -2,6 +2,7 @@
  * Tests for widgets API module
  */
 import { fetchSuggestedQuestions, fetchKpis } from '@/lib/api/widgets';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -50,7 +51,7 @@ describe('Widgets API', () => {
 
       const result = await fetchSuggestedQuestions();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/suggested-questions');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/suggested-questions');
       expect(result).toEqual(mockQuestions);
     });
 
@@ -120,7 +121,7 @@ describe('Widgets API', () => {
 
       const result = await fetchKpis();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/kpis');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/kpis');
       expect(result).toEqual(mockKpis);
     });
 

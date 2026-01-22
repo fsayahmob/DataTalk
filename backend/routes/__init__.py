@@ -10,11 +10,14 @@ from fastapi import APIRouter
 
 from routes.analytics import router as analytics_router
 from routes.catalog import router as catalog_router
+from routes.connectors import router as connectors_router
 from routes.conversations import router as conversations_router
 from routes.datasets import router as datasets_router
+from routes.datasources import router as datasources_router
 from routes.llm import router as llm_router
 from routes.reports import router as reports_router
 from routes.settings import router as settings_router
+from routes.tasks import router as tasks_router
 from routes.widgets import router as widgets_router
 
 # Router versionné /api/v1
@@ -25,17 +28,23 @@ v1_router.include_router(conversations_router)
 v1_router.include_router(reports_router)
 v1_router.include_router(catalog_router)
 v1_router.include_router(datasets_router)
+v1_router.include_router(datasources_router)
+v1_router.include_router(connectors_router)
 v1_router.include_router(llm_router)
 v1_router.include_router(widgets_router)
+v1_router.include_router(tasks_router)
 
 __all__ = [
     "analytics_router",
     "catalog_router",
+    "connectors_router",
     "conversations_router",
     "datasets_router",
+    "datasources_router",
     "llm_router",
     "reports_router",
     "settings_router",
+    "tasks_router",
     "v1_router",
     "widgets_router",
 ]

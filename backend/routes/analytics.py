@@ -16,6 +16,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 
 from catalog import get_messages
+from core.error_sanitizer import sanitize_sql_error
 from core.query import build_filter_context, execute_query, should_disable_chart
 from core.state import PromptNotConfiguredError, get_system_instruction
 from i18n import t
@@ -209,4 +210,6 @@ async def analyze(request: QuestionRequest) -> AnalysisResponse:
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        # Utiliser le sanitizer pour convertir l'erreur SQL en message i18n
+        error_key = sanitize_sql_error(e)
+        raise HTTPException(status_code=500, detail=t(error_key)) from e

@@ -14,6 +14,7 @@ import {
   fetchCatalogJobs,
   fetchRuns,
 } from '@/lib/api/catalog';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -55,7 +56,7 @@ describe('Catalog API', () => {
 
       const result = await fetchCatalog();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog');
       expect(result).toEqual(mockCatalog);
     });
 
@@ -83,7 +84,7 @@ describe('Catalog API', () => {
 
       const result = await generateCatalog();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/generate', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/generate', {
         method: 'POST',
       });
       expect(result).toEqual(mockResponse);
@@ -113,7 +114,7 @@ describe('Catalog API', () => {
 
       const result = await extractCatalog();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/extract', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/extract', {
         method: 'POST',
       });
       expect(result).toEqual(mockResponse);
@@ -144,7 +145,7 @@ describe('Catalog API', () => {
 
       const result = await enrichCatalog([1, 2, 3]);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/enrich', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ table_ids: [1, 2, 3] }),
@@ -167,7 +168,7 @@ describe('Catalog API', () => {
 
       const result = await deleteCatalog();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog', {
         method: 'DELETE',
       });
       expect(result).toBe(true);
@@ -206,7 +207,7 @@ describe('Catalog API', () => {
 
       const result = await toggleTableEnabled(5);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/tables/5/toggle', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/tables/5/toggle', {
         method: 'PATCH',
       });
       expect(result).toEqual(mockResponse);
@@ -235,7 +236,8 @@ describe('Catalog API', () => {
 
       const result = await updateColumnDescription(10, 'New description');
 
-      expect(mockFetch).toHaveBeenCalledWith(
+      expectFetchCalledWith(
+        mockFetch,
         'http://localhost:8000/catalog/columns/10/description',
         {
           method: 'PATCH',
@@ -278,7 +280,7 @@ describe('Catalog API', () => {
 
       const result = await fetchLatestRun();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/latest-run');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/latest-run');
       expect(result).toEqual(mockRun);
     });
 
@@ -328,7 +330,7 @@ describe('Catalog API', () => {
 
       const result = await fetchRun('run-123');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/run/run-123');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/run/run-123');
       expect(result).toEqual(mockRun);
     });
 
@@ -365,7 +367,7 @@ describe('Catalog API', () => {
 
       const result = await fetchCatalogJobs();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/jobs?limit=50');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/jobs?limit=50');
       expect(result).toEqual(mockJobs);
     });
 
@@ -376,7 +378,7 @@ describe('Catalog API', () => {
 
       await fetchCatalogJobs(10);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/jobs?limit=10');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/jobs?limit=10');
     });
 
     it('should return empty array on error', async () => {
@@ -412,7 +414,7 @@ describe('Catalog API', () => {
 
       const result = await fetchRuns();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/catalog/runs');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/catalog/runs');
       expect(result).toEqual(mockRuns);
     });
 

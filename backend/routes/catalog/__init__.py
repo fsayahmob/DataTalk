@@ -20,6 +20,7 @@ from .jobs import (
     get_run,
     list_all_runs,
     list_catalog_jobs,
+    retry_job,
 )
 from .operations import (
     enrich_catalog_endpoint,
@@ -45,6 +46,7 @@ router.add_api_route("/enrich", enrich_catalog_endpoint, methods=["POST"])
 # Jobs routes
 router.add_api_route("/jobs", list_catalog_jobs, methods=["GET"])
 router.add_api_route("/jobs/{job_id}", get_catalog_job_by_id, methods=["GET"])
+router.add_api_route("/jobs/{job_id}/retry", retry_job, methods=["POST"])
 router.add_api_route("/run/{run_id}", get_run, methods=["GET"])
 router.add_api_route("/latest-run", get_latest_run, methods=["GET"])
 router.add_api_route("/runs", list_all_runs, methods=["GET"])

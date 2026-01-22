@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { toast } from "sonner";
+import { useEffect, useCallback, useMemo, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -23,33 +22,70 @@ import {
   CatalogActions,
   getLayoutedElements,
 } from "@/components/catalog";
-import * as api from "@/lib/api";
+import { SyncWarningBanner } from "@/components/SyncWarningBanner";
+import { LoadingState } from "@/components/ui/spinner";
 import { API_BASE } from "@/lib/api";
 import { t } from "@/hooks/useTranslation";
+import { useCatalogStore, useDatasetStore } from "@/stores";
 
 const nodeTypes = { schemaNode: SchemaNode };
 
 function CatalogPageContent() {
-  const [currentCatalog, setCurrentCatalog] = useState<api.CatalogDatasource[]>([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(true);
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [isEnriching, setIsEnriching] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<api.CatalogTable | null>(null);
-  const [isRunning, setIsRunning] = useState(false); // SSE status
+  // Zustand stores
+  const {
+    catalog,
+    selectedTable,
+    loading,
+    isExtracting,
+    isEnriching,
+    isDeleting,
+    isRunning,
+    extractCatalog,
+    enrichCatalog,
+    deleteCatalog,
+    selectTable,
+    toggleTable,
+    setIsRunning,
+    enabledTablesCount,
+  } = useCatalogStore();
+
+  // Dataset store (loaded by StoreProvider)
+  const { activeDataset } = useDatasetStore();
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  // Get store actions for refreshing after job completion
+  const loadCatalog = useCatalogStore((state) => state.loadCatalog);
+  const onJobCompleted = useCatalogStore((state) => state.onJobCompleted);
 
-  // SSE: Écouter l'état global (running ou pas)
+  // Track previous running state to detect job completion
+  const wasRunningRef = useRef(false);
+
+  // Reload catalog when active dataset changes
+  useEffect(() => {
+    if (activeDataset?.id) {
+      void loadCatalog();
+    }
+  }, [activeDataset?.id, loadCatalog]);
+
+  // SSE: Listen to global status (running or not)
   useEffect(() => {
     const eventSource = new EventSource(`${API_BASE}/catalog/status-stream`);
 
     eventSource.onmessage = (event) => {
       const status = JSON.parse(event.data);
-      setIsRunning(status.is_running);
+      const isCurrentlyRunning = status.is_running;
+
+      // Detect transition from running → not running (job completed)
+      if (wasRunningRef.current && !isCurrentlyRunning) {
+        // Job just finished - reload catalog and reset loading states
+        void loadCatalog();
+        onJobCompleted();
+      }
+
+      wasRunningRef.current = isCurrentlyRunning;
+      setIsRunning(isCurrentlyRunning);
     };
 
     eventSource.onerror = () => {
@@ -58,217 +94,58 @@ function CatalogPageContent() {
     };
 
     return () => eventSource.close();
-  }, []);
+  }, [setIsRunning, loadCatalog, onJobCompleted]);
 
-  // Charger le catalogue au montage
-  useEffect(() => {
-    void (async () => {
-      const result = await api.fetchCatalog();
-      if (result) {
-        setCurrentCatalog(result.catalog);
-      }
-      setLoadingCatalog(false);
-    })();
-  }, []);
+  // Note: loadCatalog() is called once by StoreProvider
 
-  // Fonction utilitaire pour recharger le catalogue
-  const refreshCatalog = async () => {
-    const result = await api.fetchCatalog();
-    if (result) {
-      setCurrentCatalog(result.catalog);
-    }
-  };
-
-  // Combiner les tables pour l'affichage
+  // All tables from catalog - derive from catalog state directly
+  // (Using catalog as dependency ensures re-render when data changes)
   const allCurrentTables = useMemo(
-    () => currentCatalog.flatMap((ds) => ds.tables),
-    [currentCatalog]
+    () => catalog.flatMap((ds) => ds.tables),
+    [catalog]
   );
 
-  // Gérer le clic sur une table
+  // Handle node click
   const handleNodeClick: NodeMouseHandler = useCallback(
     (_, node) => {
       const tableName = node.id.replace("table-", "");
       const table = allCurrentTables.find((t) => t.name === tableName);
       if (table) {
-        setSelectedTable(table);
+        selectTable(table);
       }
     },
-    [allCurrentTables]
+    [allCurrentTables, selectTable]
   );
 
-  // ÉTAPE 1: Extraire le schéma (sans LLM)
-  const handleExtract = useCallback(async () => {
-    setIsExtracting(true);
-    setSelectedTable(null);
-    toast.info(t("catalog.extracting"), {
-      description: t("catalog.extraction_no_llm"),
-    });
+  // Extract handler
+  const handleExtract = useCallback(() => {
+    void extractCatalog();
+  }, [extractCatalog]);
 
-    const result = await api.extractCatalog();
-
-    if (result) {
-      toast.success(t("catalog.schema_extracted"), {
-        description: t("catalog.extraction_result", { tables: result.tables_count, columns: result.columns_count }),
-      });
-      await refreshCatalog();
-    } else {
-      toast.error(t("catalog.extraction_error"));
-    }
-
-    setIsExtracting(false);
-  }, []);
-
-  // ÉTAPE 2: Enrichir les tables sélectionnées (avec LLM)
-  const handleEnrich = useCallback(async () => {
-    // Récupérer les IDs des tables activées (sélection locale)
+  // Enrich handler
+  const handleEnrich = useCallback(() => {
     const selectedTableIds = allCurrentTables
       .filter((table) => table.is_enabled && table.id)
       .map((table) => table.id as number);
 
-    if (selectedTableIds.length === 0) {
-      toast.error(t("catalog.no_tables_selected"), {
-        description: t("catalog.select_tables_hint"),
-      });
-      return;
-    }
+    void enrichCatalog(selectedTableIds);
+  }, [allCurrentTables, enrichCatalog]);
 
-    const llmStatus = await api.fetchLLMStatus();
-    if (llmStatus.status === "error") {
-      toast.error(t("catalog.llm_not_configured"), {
-        description: t("catalog.llm_configure_hint"),
-        action: {
-          label: t("catalog.configure"),
-          onClick: () => window.location.href = "/settings",
-        },
-      });
-      return;
-    }
-
-    setIsEnriching(true);
-    setSelectedTable(null);
-    toast.info(t("catalog.enriching"), {
-      description: t("catalog.tables_selected", { count: selectedTableIds.length }),
+  // Delete handler
+  const handleDelete = useCallback(() => {
+    void deleteCatalog().then((success) => {
+      if (success) {
+        setNodes([]);
+        setEdges([]);
+      }
     });
+  }, [deleteCatalog, setNodes, setEdges]);
 
-    // Polling pour mises à jour en temps réel
-    const pollInterval = setInterval(() => {
-      void api.fetchCatalog().then((catalogResult) => {
-        if (catalogResult) {
-          setCurrentCatalog(catalogResult.catalog);
-        }
-      });
-    }, 3000);
-    pollingRef.current = pollInterval;
-
-    try {
-      // Passer les IDs des tables sélectionnées
-      const result = await api.enrichCatalog(selectedTableIds);
-
-      // Arrêter le polling immédiatement
-      clearInterval(pollInterval);
-      if (pollingRef.current === pollInterval) {
-        pollingRef.current = null;
-      }
-
-      if (result && result.status === "ok") {
-        toast.success(t("catalog.enrichment_success"), {
-          description: t("catalog.enrichment_result", { tables: result.tables_count || 0, columns: result.columns_count || 0, kpis: result.kpis_count || 0 }),
-        });
-        await refreshCatalog();
-        // Notifier les autres pages/onglets de recharger les questions
-        localStorage.setItem("catalog-updated", Date.now().toString());
-      } else if (result && result.status === "error") {
-        // Erreur structurée du backend
-        if (result.error_type === "vertex_ai_schema_too_complex") {
-          toast.error(t("catalog.vertex_ai_schema_complex"), {
-            description: result.suggestion || t("catalog.reduce_batch_size"),
-            duration: 10000,
-            action: {
-              label: t("settings.title"),
-              onClick: () => window.location.href = "/settings",
-            },
-          });
-        } else {
-          toast.error(t("catalog.llm_error"), {
-            description: result.message,
-            duration: 8000,
-          });
-        }
-      } else {
-        toast.error(t("catalog.enrichment_error"));
-      }
-    } catch {
-      clearInterval(pollInterval);
-      if (pollingRef.current === pollInterval) {
-        pollingRef.current = null;
-      }
-      toast.error(t("catalog.enrichment_error"));
-    }
-
-    setIsEnriching(false);
-  }, [allCurrentTables]);
-
-  // Supprimer le catalogue
-  const handleDelete = useCallback(async () => {
-    setIsDeleting(true);
-    setSelectedTable(null);
-    const success = await api.deleteCatalog();
-
-    if (success) {
-      toast.success(t("catalog.deleted"));
-      setCurrentCatalog([]);
-      setNodes([]);
-      setEdges([]);
-      // Notifier les autres pages/onglets de recharger les questions
-      localStorage.setItem("catalog-updated", Date.now().toString());
-    } else {
-      toast.error(t("catalog.delete_error"));
-    }
-
-    setIsDeleting(false);
-  }, [setNodes, setEdges]);
-
-  // Callback quand une table est togglée (enable/disable)
-  const handleTableToggle = useCallback(
-    (tableId: number, newState: boolean) => {
-      // Mettre à jour le catalogue local
-      setCurrentCatalog((prev) =>
-        prev.map((ds) => ({
-          ...ds,
-          tables: ds.tables.map((t) =>
-            t.id === tableId ? { ...t, is_enabled: newState } : t
-          ),
-        }))
-      );
-
-      // Mettre à jour la table sélectionnée si c'est celle qui a été togglée
-      setSelectedTable((prev) =>
-        prev && prev.id === tableId ? { ...prev, is_enabled: newState } : prev
-      );
-    },
-    []
-  );
-
-  // Cleanup polling
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-      }
-    };
-  }, []);
-
-  // Compter les tables activées
-  const enabledTablesCount = useMemo(
-    () => allCurrentTables.filter((t) => t.is_enabled).length,
-    [allCurrentTables]
-  );
-
-  // Mettre à jour React Flow
+  // Update React Flow when tables change
   useEffect(() => {
     if (allCurrentTables.length > 0) {
-      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(allCurrentTables);
+      const { nodes: layoutedNodes, edges: layoutedEdges } =
+        getLayoutedElements(allCurrentTables);
       setNodes(layoutedNodes);
       setEdges(layoutedEdges);
     } else {
@@ -293,36 +170,30 @@ function CatalogPageContent() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
-      {/* Indicateur d'extraction */}
+      {/* Sync warning banner */}
+      <SyncWarningBanner datasetId={activeDataset?.id ?? null} />
+
+      {/* Extraction indicator */}
       {isExtracting && (
         <div className="px-4 py-2 bg-status-info/20 border-b border-status-info/30 flex items-center gap-3">
           <span className="w-3 h-3 border-2 border-status-info border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-status-info">
-            {t("catalog.extracting")}
-          </span>
+          <span className="text-sm text-status-info">{t("catalog.extracting")}</span>
         </div>
       )}
 
-      {/* Indicateur d'enrichissement */}
+      {/* Enrichment indicator */}
       {isEnriching && (
         <div className="px-4 py-2 bg-primary/20 border-b border-primary/30 flex items-center gap-3">
           <span className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm text-primary">
-            {t("catalog.enriching_progress")}
-          </span>
+          <span className="text-sm text-primary">{t("catalog.enriching_progress")}</span>
         </div>
       )}
 
       {/* Content */}
-      {loadingCatalog ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <span className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin inline-block mb-4" />
-            <p className="text-muted-foreground">{t("catalog.loading")}</p>
-          </div>
-        </div>
+      {loading ? (
+        <LoadingState message={t("catalog.loading")} />
       ) : !hasContent ? (
-        <CatalogEmptyState isExtracting={isExtracting} onExtract={() => void handleExtract()} />
+        <CatalogEmptyState isExtracting={isExtracting} onExtract={handleExtract} />
       ) : (
         <div className="flex-1 flex overflow-hidden">
           {/* ERD Canvas */}
@@ -355,17 +226,17 @@ function CatalogPageContent() {
               />
             </ReactFlow>
 
-            {/* Actions toolbar - vertical right */}
+            {/* Actions toolbar */}
             <div className="absolute top-4 right-4">
               <CatalogActions
                 hasContent={hasContent}
                 isExtracting={isExtracting}
                 isEnriching={isEnriching}
                 isDeleting={isDeleting}
-                onExtract={() => void handleExtract()}
-                onEnrich={() => void handleEnrich()}
-                onDelete={() => void handleDelete()}
-                enabledTablesCount={enabledTablesCount}
+                onExtract={handleExtract}
+                onEnrich={handleEnrich}
+                onDelete={handleDelete}
+                enabledTablesCount={enabledTablesCount()}
               />
             </div>
 
@@ -376,23 +247,25 @@ function CatalogPageContent() {
               </div>
             )}
 
-            {/* Status Badge (si running) */}
+            {/* Status Badge (if running) */}
             {isRunning && (
               <div className="absolute bottom-4 left-4 px-4 py-2 bg-status-running/20 border border-status-running/50 rounded-lg backdrop-blur-sm">
                 <div className="flex items-center gap-2">
                   <span className="animate-spin">⟳</span>
-                  <span className="text-sm text-status-running">{t("catalog.pipeline_running")}</span>
+                  <span className="text-sm text-status-running">
+                    {t("catalog.pipeline_running")}
+                  </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Panel de détails */}
+          {/* Detail panel */}
           {selectedTable && (
             <TableDetailPanel
               table={selectedTable}
-              onClose={() => setSelectedTable(null)}
-              onTableToggle={handleTableToggle}
+              onClose={() => selectTable(null)}
+              onTableToggle={toggleTable}
             />
           )}
         </div>

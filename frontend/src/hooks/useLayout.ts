@@ -1,4 +1,12 @@
-import { useState, useEffect, useRef, RefObject } from "react";
+/**
+ * useLayout - Wrapper de compatibilité
+ *
+ * MIGRATION: Ce hook utilise maintenant useLayoutStore (Zustand) pour l'état.
+ * La logique de resize avec containerRef reste dans ce hook car les refs
+ * ne peuvent pas être stockées dans Zustand (elles sont mutables).
+ */
+import { useEffect, useRef, RefObject } from "react";
+import { useLayoutStore, type ResizingZone } from "@/stores/useLayoutStore";
 
 interface UseLayoutReturn {
   // États
@@ -6,28 +14,37 @@ interface UseLayoutReturn {
   zone3Collapsed: boolean;
   zone1Width: number;
   zone3Width: number;
-  isResizing: "zone1" | "zone3" | null;
+  isResizing: ResizingZone;
   containerRef: RefObject<HTMLDivElement | null>;
 
   // Setters
   setZone1Collapsed: (collapsed: boolean) => void;
   setZone3Collapsed: (collapsed: boolean) => void;
-  setIsResizing: (resizing: "zone1" | "zone3" | null) => void;
+  setIsResizing: (resizing: ResizingZone) => void;
 }
 
+/**
+ * Hook qui combine le store Zustand avec la logique de resize
+ */
 export function useLayout(): UseLayoutReturn {
-  // États des zones rétractables
-  const [zone1Collapsed, setZone1Collapsed] = useState(false);
-  const [zone3Collapsed, setZone3Collapsed] = useState(false);
+  // Get state from store
+  const zone1Collapsed = useLayoutStore((state) => state.zone1Collapsed);
+  const zone3Collapsed = useLayoutStore((state) => state.zone3Collapsed);
+  const zone1Width = useLayoutStore((state) => state.zone1Width);
+  const zone3Width = useLayoutStore((state) => state.zone3Width);
+  const isResizing = useLayoutStore((state) => state.isResizing);
 
-  // Largeurs des zones (en pourcentage)
-  const [zone1Width, setZone1Width] = useState(25);
-  const [zone3Width, setZone3Width] = useState(20);
-  const [isResizing, setIsResizing] = useState<"zone1" | "zone3" | null>(null);
+  // Get actions from store
+  const setZone1Collapsed = useLayoutStore((state) => state.setZone1Collapsed);
+  const setZone3Collapsed = useLayoutStore((state) => state.setZone3Collapsed);
+  const setZone1Width = useLayoutStore((state) => state.setZone1Width);
+  const setZone3Width = useLayoutStore((state) => state.setZone3Width);
+  const setIsResizing = useLayoutStore((state) => state.setIsResizing);
 
+  // Ref for container (cannot be stored in Zustand)
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Gestion du redimensionnement des zones
+  // Resize logic (uses ref, must stay in hook)
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing || !containerRef.current) return;
@@ -37,12 +54,10 @@ export function useLayout(): UseLayoutReturn {
 
       if (isResizing === "zone1") {
         const newWidth = ((e.clientX - containerRect.left) / containerWidth) * 100;
-        // Limiter entre 15% et 50%
-        setZone1Width(Math.min(50, Math.max(15, newWidth)));
+        setZone1Width(newWidth);
       } else if (isResizing === "zone3") {
         const newWidth = ((containerRect.right - e.clientX) / containerWidth) * 100;
-        // Limiter entre 10% et 35%
-        setZone3Width(Math.min(35, Math.max(10, newWidth)));
+        setZone3Width(newWidth);
       }
     };
 
@@ -63,7 +78,7 @@ export function useLayout(): UseLayoutReturn {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isResizing]);
+  }, [isResizing, setZone1Width, setZone3Width, setIsResizing]);
 
   return {
     zone1Collapsed,

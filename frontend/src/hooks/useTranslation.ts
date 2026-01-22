@@ -3,28 +3,32 @@
  * Charge les traductions depuis les fichiers JSON locaux.
  *
  * Usage:
- *   const { t } = useTranslation();
+ *   const { t, locale } = useTranslation();
  *   t("common.save") // "Sauvegarder"
  *   t("validation.range_error", { min: 1, max: 50 }) // "Valeur entre 1 et 50"
+ *
+ * Architecture: Frontend Agnostic
+ * - Utilise Zustand store pour la locale courante
+ * - Fallback sur "fr" si hors contexte
  */
 
+import { useLanguageStore, type Locale } from "@/stores/useLanguageStore";
 import frLocale from "@/locales/fr.json";
 import enLocale from "@/locales/en.json";
-
-// Type pour les locales disponibles
-type Locale = "fr" | "en";
 
 // Type pour les traductions (structure JSON imbriquée)
 type Translations = typeof frLocale;
 
 // Locale par défaut
-const DEFAULT_LOCALE: Locale = "fr";
+const _DEFAULT_LOCALE: Locale = "fr";
 
 // Map des locales
 const locales: Record<Locale, Translations> = {
   fr: frLocale,
   en: enLocale,
 };
+
+export type { Locale };
 
 /**
  * Récupère une valeur imbriquée par clé pointée (ex: "common.save")
@@ -59,16 +63,19 @@ function interpolate(message: string, vars?: Record<string, unknown>): string {
 
 /**
  * Fonction de traduction.
+ * Lit automatiquement la locale depuis le store Zustand.
+ *
  * @param key - Clé pointée (ex: "common.save")
  * @param vars - Variables à interpoler
- * @param locale - Locale à utiliser (défaut: fr)
  * @returns Message traduit
  */
 export function t(
   key: string,
-  vars?: Record<string, unknown>,
-  locale: Locale = DEFAULT_LOCALE
+  vars?: Record<string, unknown>
 ): string {
+  // Lire la locale depuis le store Zustand
+  const locale = useLanguageStore.getState().locale;
+
   // Essayer la locale demandée
   const translations = locales[locale];
   let message = getNestedValue(translations as unknown as Record<string, unknown>, key);
@@ -89,12 +96,19 @@ export function t(
 
 /**
  * Hook useTranslation pour les composants React.
- * @param locale - Locale à utiliser (défaut: fr)
+ * Utilise Zustand store pour obtenir la locale courante.
+ *
+ * IMPORTANT: Ce hook force un re-render quand la locale change.
+ * Utilise-le dans les composants React pour avoir des traductions réactives.
+ *
  * @returns Objet avec la fonction t() et la locale courante
  */
-export function useTranslation(locale: Locale = DEFAULT_LOCALE) {
+export function useTranslation() {
+  // Subscribe to locale changes - forces re-render when locale changes
+  const locale = useLanguageStore((state) => state.locale);
+
   return {
-    t: (key: string, vars?: Record<string, unknown>) => t(key, vars, locale),
+    t, // t() lit maintenant directement depuis le store
     locale,
   };
 }

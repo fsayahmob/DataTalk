@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { ChartIcon, ChevronLeftIcon, CatalogIcon, SettingsIcon, ActivityIcon, DatabaseIcon } from "@/components/icons";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import * as api from "@/lib/api";
-import type { LLMStatus } from "@/lib/api";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useLLMStore } from "@/stores/useLLMStore";
 import { t } from "@/hooks/useTranslation";
 
 interface SidebarProps {
@@ -51,11 +51,17 @@ const navItems: NavItem[] = [
 
 export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const pathname = usePathname();
-  const [llmStatus, setLlmStatus] = useState<LLMStatus | null>(null);
 
+  // LLM status from store - single source of truth
+  const llmStatus = useLLMStore((state) => state.status);
+  const loadStatus = useLLMStore((state) => state.loadStatus);
+
+  // Load status on mount only (store is updated by settings page on changes)
   useEffect(() => {
-    void api.fetchLLMStatus().then(setLlmStatus);
-  }, [pathname]);
+    if (!llmStatus) {
+      void loadStatus();
+    }
+  }, [llmStatus, loadStatus]);
 
   return (
     <div
@@ -72,7 +78,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         >
           <Image
             src="/logo.png"
-            alt="TalkData"
+            alt={t("home.welcome")}
             width={40}
             height={40}
             className="object-contain"
@@ -80,7 +86,7 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         </button>
         {!collapsed && (
           <span className="ml-2 font-semibold text-foreground whitespace-nowrap">
-            TalkData
+            {t("home.welcome")}
           </span>
         )}
       </div>
@@ -140,11 +146,15 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
         </div>
       </div>
 
-      {/* Theme toggle + Collapse button */}
+      {/* Theme + Language toggle + Collapse button */}
       <div className="p-2 border-t border-border/30 space-y-1">
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-2"}`}>
           {!collapsed && <span className="text-xs text-muted-foreground">{t("settings.theme")}</span>}
           <ThemeToggle />
+        </div>
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-2"}`}>
+          {!collapsed && <span className="text-xs text-muted-foreground">{t("settings.language")}</span>}
+          <LanguageToggle />
         </div>
         <button
           onClick={() => onCollapse(!collapsed)}

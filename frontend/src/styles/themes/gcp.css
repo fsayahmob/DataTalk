@@ -4,9 +4,9 @@
 /* Light mode - Google Cloud light theme */
 :root[data-theme-style="gcp"] {
   /* Design tokens - Material Design aesthetic */
-  --radius: 0.5rem;
-  --font-family-base: "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
-  --font-family-mono: "Roboto Mono", ui-monospace, monospace;
+  --radius: 1rem;
+  --font-family-base: var(--font-roboto), "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
   --font-size-base: 0.875rem;
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -72,9 +72,9 @@
 /* Dark mode - higher specificity to override globals.css .dark */
 :root[data-theme-style="gcp"].dark {
   /* Design tokens - Material Design aesthetic (same as light) */
-  --radius: 0.5rem;
-  --font-family-base: "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
-  --font-family-mono: "Roboto Mono", ui-monospace, monospace;
+  --radius: 1rem;
+  --font-family-base: var(--font-roboto), "Google Sans", "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: var(--font-roboto-mono), "Roboto Mono", ui-monospace, monospace;
   --font-size-base: 0.875rem;
   --font-weight-normal: 400;
   --font-weight-medium: 500;

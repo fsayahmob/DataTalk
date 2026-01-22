@@ -189,11 +189,78 @@ def _migration_007_datasets(cursor: sqlite3.Cursor) -> None:
     cursor.execute("CREATE UNIQUE INDEX idx_datasets_name ON datasets(name)")
 
 
+def _migration_008_datasources_sync(cursor: sqlite3.Cursor) -> None:
+    """Ajoute les colonnes pour le sync PyAirbyte aux datasources."""
+    if not _table_exists(cursor, "datasources"):
+        return
+
+    columns = [
+        ("dataset_id", "TEXT REFERENCES datasets(id)"),
+        ("source_type", "TEXT"),  # postgres, mysql, csv, gcs, s3...
+        ("sync_config", "TEXT"),  # JSON config PyAirbyte (encrypted)
+        (
+            "sync_status",
+            "TEXT DEFAULT 'pending' CHECK(sync_status IN ('pending', 'running', 'success', 'error'))",
+        ),
+        ("last_sync_at", "TIMESTAMP"),
+        ("last_sync_error", "TEXT"),
+    ]
+    for col, typ in columns:
+        if not _column_exists(cursor, "datasources", col):
+            cursor.execute(f"ALTER TABLE datasources ADD COLUMN {col} {typ}")
+
+    # Index pour recherche par dataset
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_datasources_dataset ON datasources(dataset_id)")
+
+
+def _migration_009_bedrock_provider(cursor: sqlite3.Cursor) -> None:
+    """Ajoute AWS Bedrock comme provider LLM."""
+    if not _table_exists(cursor, "llm_providers"):
+        return
+
+    # Vérifier si bedrock existe déjà
+    cursor.execute("SELECT id FROM llm_providers WHERE name = 'bedrock'")
+    if cursor.fetchone():
+        return
+
+    # Ajouter le provider Bedrock (requires_api_key=0 car utilise AWS credentials)
+    cursor.execute("""
+        INSERT INTO llm_providers (name, display_name, type, requires_api_key, is_enabled)
+        VALUES ('bedrock', 'AWS Bedrock', 'cloud', 0, 1)
+    """)
+
+    # Récupérer l'ID du provider
+    cursor.execute("SELECT id FROM llm_providers WHERE name = 'bedrock'")
+    row = cursor.fetchone()
+    if not row:
+        return
+    provider_id = row[0]
+
+    # Ajouter les modèles Bedrock
+    models = [
+        ("bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0", "Claude 3.5 Sonnet v2 (Bedrock)", 200000, 3.0, 15.0),
+        ("bedrock/anthropic.claude-3-5-haiku-20241022-v1:0", "Claude 3.5 Haiku (Bedrock)", 200000, 0.8, 4.0),
+        ("bedrock/anthropic.claude-3-opus-20240229-v1:0", "Claude 3 Opus (Bedrock)", 200000, 15.0, 75.0),
+        ("bedrock/amazon.titan-text-premier-v1:0", "Amazon Titan Premier", 32000, 0.5, 1.5),
+        ("bedrock/meta.llama3-1-70b-instruct-v1:0", "Llama 3.1 70B (Bedrock)", 128000, 0.99, 0.99),
+        ("bedrock/meta.llama3-1-8b-instruct-v1:0", "Llama 3.1 8B (Bedrock)", 128000, 0.22, 0.22),
+    ]
+
+    for model_id, display_name, context_window, cost_input, cost_output in models:
+        cursor.execute("""
+            INSERT INTO llm_models
+            (provider_id, model_id, display_name, supports_json_mode, supports_structured_output,
+             context_window, cost_per_1m_input, cost_per_1m_output, is_enabled)
+            VALUES (?, ?, ?, 1, 1, ?, ?, ?, 1)
+        """, (provider_id, model_id, display_name, context_window, cost_input, cost_output))
+
+
 # =============================================================================
 # EXECUTION
 # =============================================================================
 
 # Liste des migrations dans l'ordre
+# Note: Les connecteurs sont gérés dynamiquement via PyAirbyte (pas de stockage local)
 MIGRATIONS = [
     ("001", _migration_001_share_token),
     ("002", _migration_002_chart_config),
@@ -202,6 +269,8 @@ MIGRATIONS = [
     ("005", _migration_005_datasource_fields),
     ("006", _migration_006_prompt_v3),
     ("007", _migration_007_datasets),
+    ("008", _migration_008_datasources_sync),
+    ("009", _migration_009_bedrock_provider),
 ]
 
 

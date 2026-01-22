@@ -11,6 +11,7 @@ import {
   fetchMaxChartRows,
   setMaxChartRows,
 } from '@/lib/api/settings';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -39,7 +40,7 @@ describe('Settings API', () => {
 
       const result = await fetchCatalogContextMode();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/catalog_context_mode');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/catalog_context_mode');
       expect(result).toBe('compact');
     });
 
@@ -66,7 +67,7 @@ describe('Settings API', () => {
 
       const result = await setCatalogContextMode('compact');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/catalog_context_mode', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/catalog_context_mode', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: 'compact' }),
@@ -79,7 +80,7 @@ describe('Settings API', () => {
 
       const result = await setCatalogContextMode('full');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/catalog_context_mode', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/catalog_context_mode', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: 'full' }),
@@ -120,7 +121,7 @@ describe('Settings API', () => {
 
       const result = await fetchDatabaseStatus();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/database/status');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/database/status');
       expect(result).toEqual(mockStatus);
     });
 
@@ -150,7 +151,7 @@ describe('Settings API', () => {
 
       const result = await setDuckdbPath('/path/to/db.duckdb');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/duckdb_path', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/duckdb_path', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: '/path/to/db.duckdb' }),
@@ -210,7 +211,7 @@ describe('Settings API', () => {
 
       const result = await fetchMaxTablesPerBatch();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/max_tables_per_batch');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/max_tables_per_batch');
       expect(result).toBe(20);
     });
 
@@ -248,7 +249,7 @@ describe('Settings API', () => {
 
       const result = await setMaxTablesPerBatch(25);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/max_tables_per_batch', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/max_tables_per_batch', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: '25' }),
@@ -282,7 +283,7 @@ describe('Settings API', () => {
 
       const result = await fetchMaxChartRows();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/max_chart_rows');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/max_chart_rows');
       expect(result).toBe(10000);
     });
 
@@ -320,7 +321,7 @@ describe('Settings API', () => {
 
       const result = await setMaxChartRows(8000);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/settings/max_chart_rows', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/settings/max_chart_rows', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value: '8000' }),

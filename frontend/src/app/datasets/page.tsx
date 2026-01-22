@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { toast } from "sonner";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   DatabaseIcon,
   PlusIcon,
@@ -10,60 +10,24 @@ import {
   CheckIcon,
   CloseIcon,
 } from "@/components/icons";
-import * as api from "@/lib/api";
+import { StatusBadge, DeleteDatasetModal } from "@/components/datasets";
 import type { Dataset } from "@/lib/api";
+import { formatBytes, formatDateFR } from "@/lib/utils";
 import { t } from "@/hooks/useTranslation";
-
-// Format bytes to human readable
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-}
-
-// Format date
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-// Status badge component
-function StatusBadge({ status }: { status: Dataset["status"] }) {
-  const config = {
-    empty: { label: t("datasets.status_empty"), className: "bg-muted text-muted-foreground" },
-    syncing: { label: t("datasets.status_syncing"), className: "bg-status-info/20 text-status-info" },
-    ready: { label: t("datasets.status_ready"), className: "bg-status-success/20 text-status-success" },
-    error: { label: t("datasets.status_error"), className: "bg-status-error/20 text-status-error" },
-  };
-  const { label, className } = config[status];
-  return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${className}`}>
-      {label}
-    </span>
-  );
-}
+import { useDatasetStore } from "@/stores/useDatasetStore";
 
 // Create dataset modal
 function CreateDatasetModal({
   isOpen,
   onClose,
-  onCreated,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: (dataset: Dataset) => void;
 }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const createDataset = useDatasetStore((state) => state.createDataset);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,14 +35,12 @@ function CreateDatasetModal({
 
     setIsCreating(true);
     try {
-      const dataset = await api.createDataset({ name: name.trim(), description: description.trim() || undefined });
-      toast.success(t("datasets.created"));
-      onCreated(dataset);
-      setName("");
-      setDescription("");
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
+      const dataset = await createDataset(name.trim(), description.trim() || undefined);
+      if (dataset) {
+        setName("");
+        setDescription("");
+        onClose();
+      }
     } finally {
       setIsCreating(false);
     }
@@ -160,66 +122,6 @@ function CreateDatasetModal({
   );
 }
 
-// Delete confirmation modal
-function DeleteConfirmModal({
-  isOpen,
-  datasetName,
-  onClose,
-  onConfirm,
-  isDeleting,
-}: {
-  isOpen: boolean;
-  datasetName: string;
-  onClose: () => void;
-  onConfirm: () => void;
-  isDeleting: boolean;
-}) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-card border border-border rounded-xl shadow-xl w-full max-w-sm p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-2">
-          {t("datasets.delete_confirm_title")}
-        </h2>
-        <p className="text-sm text-muted-foreground mb-1">
-          <strong>{datasetName}</strong>
-        </p>
-        <p className="text-sm text-muted-foreground mb-6">
-          {t("datasets.delete_confirm_desc")}
-        </p>
-
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {t("common.cancel")}
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isDeleting}
-            className="px-4 py-2 bg-status-error text-white rounded-lg text-sm font-medium hover:bg-status-error/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {isDeleting ? (
-              <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                {t("common.deleting")}
-              </>
-            ) : (
-              <>
-                <TrashIcon size={14} />
-                {t("common.delete")}
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Dataset card component
 function DatasetCard({
   dataset,
@@ -232,6 +134,25 @@ function DatasetCard({
   onDelete: () => void;
   onRefresh: () => void;
 }) {
+  // Stop propagation pour éviter que le clic sur les boutons ne navigue vers le détail
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onRefresh();
+  };
+
+  const handleActivate = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onActivate();
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDelete();
+  };
+
   return (
     <div
       className={`bg-card border rounded-xl p-5 hover:border-primary/50 transition-colors ${
@@ -284,12 +205,12 @@ function DatasetCard({
       {/* Footer */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">
-          {t("datasets.created_at")}: {formatDate(dataset.created_at)}
+          {t("datasets.created_at")}: {formatDateFR(dataset.created_at)}
         </p>
 
         <div className="flex items-center gap-1">
           <button
-            onClick={onRefresh}
+            onClick={handleRefresh}
             className="p-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             title={t("datasets.refresh_stats")}
           >
@@ -297,7 +218,7 @@ function DatasetCard({
           </button>
           {!dataset.is_active && (
             <button
-              onClick={onActivate}
+              onClick={handleActivate}
               className="p-2 rounded-lg text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors"
               title={t("datasets.activate")}
             >
@@ -305,7 +226,7 @@ function DatasetCard({
             </button>
           )}
           <button
-            onClick={onDelete}
+            onClick={handleDelete}
             className="p-2 rounded-lg text-muted-foreground hover:bg-status-error/20 hover:text-status-error transition-colors"
             title={t("common.delete")}
           >
@@ -340,49 +261,27 @@ function EmptyState({ onCreate }: { onCreate: () => void }) {
 }
 
 export default function DatasetsPage() {
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use Zustand store instead of local state
+  const datasets = useDatasetStore((state) => state.datasets);
+  const loading = useDatasetStore((state) => state.loading);
+  const loadDatasets = useDatasetStore((state) => state.loadDatasets);
+  const activateDataset = useDatasetStore((state) => state.activateDataset);
+  const deleteDataset = useDatasetStore((state) => state.deleteDataset);
+  const refreshStats = useDatasetStore((state) => state.refreshStats);
+
+  // UI-only state (modals)
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Dataset | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Load datasets
-  const loadDatasets = useCallback(async () => {
-    try {
-      const response = await api.fetchDatasets();
-      setDatasets(response.datasets);
-    } catch (err) {
-      toast.error(t("common.error"));
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Load datasets on mount
   useEffect(() => {
-    void loadDatasets();
+    void loadDatasets(true); // With stats for this page
   }, [loadDatasets]);
-
-  // Handle create
-  const handleCreated = (dataset: Dataset) => {
-    setDatasets((prev) => [dataset, ...prev]);
-  };
 
   // Handle activate
   const handleActivate = async (datasetId: string) => {
-    try {
-      await api.activateDataset(datasetId);
-      toast.success(t("datasets.activated"));
-      // Update local state
-      setDatasets((prev) =>
-        prev.map((d) => ({
-          ...d,
-          is_active: d.id === datasetId,
-        }))
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
-    }
+    await activateDataset(datasetId);
   };
 
   // Handle delete
@@ -391,12 +290,10 @@ export default function DatasetsPage() {
 
     setIsDeleting(true);
     try {
-      await api.deleteDataset(deleteTarget.id);
-      toast.success(t("datasets.deleted"));
-      setDatasets((prev) => prev.filter((d) => d.id !== deleteTarget.id));
-      setDeleteTarget(null);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
+      const success = await deleteDataset(deleteTarget.id);
+      if (success) {
+        setDeleteTarget(null);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -404,12 +301,7 @@ export default function DatasetsPage() {
 
   // Handle refresh stats
   const handleRefresh = async (datasetId: string) => {
-    try {
-      const updated = await api.refreshDatasetStats(datasetId);
-      setDatasets((prev) => prev.map((d) => (d.id === datasetId ? updated : d)));
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
-    }
+    await refreshStats(datasetId);
   };
 
   if (loading) {
@@ -449,13 +341,14 @@ export default function DatasetsPage() {
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {datasets.map((dataset) => (
-              <DatasetCard
-                key={dataset.id}
-                dataset={dataset}
-                onActivate={() => void handleActivate(dataset.id)}
-                onDelete={() => setDeleteTarget(dataset)}
-                onRefresh={() => void handleRefresh(dataset.id)}
-              />
+              <Link key={dataset.id} href={`/datasets/${dataset.id}`} className="block">
+                <DatasetCard
+                  dataset={dataset}
+                  onActivate={() => void handleActivate(dataset.id)}
+                  onDelete={() => setDeleteTarget(dataset)}
+                  onRefresh={() => void handleRefresh(dataset.id)}
+                />
+              </Link>
             ))}
           </div>
         </div>
@@ -465,11 +358,10 @@ export default function DatasetsPage() {
       <CreateDatasetModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreated={handleCreated}
       />
 
       {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
+      <DeleteDatasetModal
         isOpen={!!deleteTarget}
         datasetName={deleteTarget?.name || ""}
         onClose={() => setDeleteTarget(null)}

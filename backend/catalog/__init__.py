@@ -79,6 +79,7 @@ from .jobs import (
     get_catalog_jobs,
     get_latest_run_id,
     get_run_jobs,
+    reset_job_for_retry,
     update_job_result,
     update_job_status,
 )
@@ -114,6 +115,7 @@ __all__ = [
     "clear_widget_cache",
     # Jobs
     "create_catalog_job",
+    "reset_job_for_retry",
     # Conversations
     "create_conversation",
     "delete_all_conversations",

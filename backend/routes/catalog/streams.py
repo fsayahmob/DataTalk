@@ -71,6 +71,7 @@ async def stream_catalog_status() -> StreamingResponse:
 
     async def event_generator() -> AsyncGenerator[str, None]:
         previous_status: dict[str, Any] | None = None
+        first_message = True
 
         try:
             while True:
@@ -84,10 +85,11 @@ async def stream_catalog_status() -> StreamingResponse:
                     "current_run_id": current_run_id,
                 }
 
-                # Envoyer seulement si changement (éviter spam)
-                if status != previous_status:
+                # Toujours envoyer le premier message + envoyer si changement
+                if first_message or status != previous_status:
                     yield f"data: {json.dumps(status)}\n\n"
                     previous_status = status
+                    first_message = False
 
                 await asyncio.sleep(1)
 

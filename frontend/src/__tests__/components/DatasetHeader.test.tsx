@@ -1,10 +1,14 @@
 /**
  * Tests for DatasetHeader component
+ *
+ * Note: DatasetHeader now uses useDatasetStore (Zustand) for state management.
+ * We mock the store directly instead of mocking fetch.
  */
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { DatasetHeader } from '@/components/DatasetHeader';
+import { useDatasetStore } from '@/stores/useDatasetStore';
 
-// Mock fetch API
+// Mock fetch API (still needed for some edge cases)
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
@@ -34,31 +38,40 @@ jest.mock('sonner', () => ({
   },
 }));
 
+// Helper to reset store between tests
+const resetStore = () => {
+  useDatasetStore.setState({
+    datasets: [],
+    activeDataset: null,
+    loading: false,
+    error: null,
+  });
+};
+
 describe('DatasetHeader', () => {
   beforeEach(() => {
     mockFetch.mockReset();
+    resetStore();
   });
 
   it('renders ReactFlowProvider wrapper', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ datasets: [], count: 0, active_dataset_id: null }),
-    });
+    // Set store state directly
+    useDatasetStore.setState({ datasets: [], loading: false });
 
-    await act(async () => {
+    act(() => {
       render(<DatasetHeader />);
     });
 
-    expect(screen.getByTestId('react-flow-provider')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('react-flow-provider')).toBeInTheDocument();
+    });
   });
 
   it('shows create first dataset link when no datasets exist', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ datasets: [], count: 0, active_dataset_id: null }),
-    });
+    // Set store state with empty datasets
+    useDatasetStore.setState({ datasets: [], loading: false });
 
-    await act(async () => {
+    act(() => {
       render(<DatasetHeader />);
     });
 
@@ -74,7 +87,7 @@ describe('DatasetHeader', () => {
         name: 'Test Dataset',
         description: null,
         duckdb_path: '/path/test.duckdb',
-        status: 'ready',
+        status: 'ready' as const,
         is_active: true,
         row_count: 100,
         table_count: 2,
@@ -84,12 +97,10 @@ describe('DatasetHeader', () => {
       },
     ];
 
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ datasets: mockDatasets, count: 1, active_dataset_id: 'test-1' }),
-    });
+    // Set store state with datasets
+    useDatasetStore.setState({ datasets: mockDatasets, loading: false });
 
-    await act(async () => {
+    act(() => {
       render(<DatasetHeader />);
     });
 
@@ -98,11 +109,11 @@ describe('DatasetHeader', () => {
     });
   });
 
-  it('shows loading state initially', async () => {
-    // Don't resolve the fetch immediately to test loading state
-    mockFetch.mockImplementation(() => new Promise(() => {}));
+  it('shows loading state when store is loading', () => {
+    // Set store to loading state
+    useDatasetStore.setState({ datasets: [], loading: true });
 
-    await act(async () => {
+    act(() => {
       render(<DatasetHeader />);
     });
 

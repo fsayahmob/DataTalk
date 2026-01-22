@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
-from catalog import get_schema_for_llm, get_table_by_id, toggle_table_enabled
+from catalog import get_active_dataset, get_schema_for_llm, get_table_by_id, toggle_table_enabled
 from core.state import app_state
 from db import get_connection
 from i18n import t
@@ -27,21 +27,38 @@ router = APIRouter()
 @router.get("")
 async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     """
-    Retourne le catalogue actuel depuis SQLite.
+    Retourne le catalogue du dataset actif depuis SQLite.
     Structure: datasources → tables → columns
     Optimisé: 4 requêtes au lieu de O(N*M*K) requêtes.
+
+    Le catalogue est filtré par le dataset_id actif.
+    Si aucun dataset actif, retourne un catalogue vide.
     """
+    # Récupérer le dataset actif
+    active_dataset = get_active_dataset()
+    if not active_dataset:
+        return {"catalog": []}
+
+    dataset_id = active_dataset.get("id")
+
     conn = get_connection()
     cursor = conn.cursor()
 
-    # 1. Récupérer toutes les datasources
-    cursor.execute("SELECT * FROM datasources")
+    # 1. Récupérer les datasources du dataset actif uniquement
+    cursor.execute("SELECT * FROM datasources WHERE dataset_id = ?", (dataset_id,))
     datasources = {row["id"]: dict(row) for row in cursor.fetchall()}
     for ds in datasources.values():
         ds["tables"] = []
 
-    # 2. Récupérer toutes les tables en une requête
-    cursor.execute("SELECT * FROM tables ORDER BY name")
+    # Si aucune datasource pour ce dataset, retourner vide
+    if not datasources:
+        conn.close()
+        return {"catalog": []}
+
+    # 2. Récupérer les tables des datasources sélectionnées
+    ds_ids = list(datasources.keys())
+    placeholders = ",".join("?" * len(ds_ids))
+    cursor.execute(f"SELECT * FROM tables WHERE datasource_id IN ({placeholders}) ORDER BY name", ds_ids)
     tables = {row["id"]: dict(row) for row in cursor.fetchall()}
     for table in tables.values():
         table["columns"] = []
@@ -49,21 +66,27 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
         if ds_id in datasources:
             datasources[ds_id]["tables"].append(table)
 
-    # 3. Récupérer toutes les colonnes en une requête
-    cursor.execute("SELECT * FROM columns ORDER BY name")
-    columns = {row["id"]: dict(row) for row in cursor.fetchall()}
-    for col in columns.values():
-        col["synonyms"] = []
-        table_id = col["table_id"]
-        if table_id in tables:
-            tables[table_id]["columns"].append(col)
+    # 3. Récupérer les colonnes des tables sélectionnées
+    if tables:
+        table_ids = list(tables.keys())
+        placeholders = ",".join("?" * len(table_ids))
+        cursor.execute(f"SELECT * FROM columns WHERE table_id IN ({placeholders}) ORDER BY name", table_ids)
+        columns = {row["id"]: dict(row) for row in cursor.fetchall()}
+        for col in columns.values():
+            col["synonyms"] = []
+            table_id = col["table_id"]
+            if table_id in tables:
+                tables[table_id]["columns"].append(col)
 
-    # 4. Récupérer tous les synonymes en une requête
-    cursor.execute("SELECT column_id, term FROM synonyms")
-    for row in cursor.fetchall():
-        col_id = row["column_id"]
-        if col_id in columns:
-            columns[col_id]["synonyms"].append(row["term"])
+        # 4. Récupérer les synonymes des colonnes sélectionnées
+        if columns:
+            col_ids = list(columns.keys())
+            placeholders = ",".join("?" * len(col_ids))
+            cursor.execute(f"SELECT column_id, term FROM synonyms WHERE column_id IN ({placeholders})", col_ids)
+            for row in cursor.fetchall():
+                col_id = row["column_id"]
+                if col_id in columns:
+                    columns[col_id]["synonyms"].append(row["term"])
 
     conn.close()
     return {"catalog": list(datasources.values())}
@@ -72,17 +95,49 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
 @router.delete("")
 async def delete_catalog() -> dict[str, str]:
     """
-    Supprime tout le catalogue (pour permettre de retester la génération).
+    Supprime le catalogue du dataset actif (pour permettre de retester la génération).
     Supprime aussi les widgets et questions suggérées associées.
+    Ne supprime que le catalogue du dataset actif, pas les autres datasets.
     """
+    # Récupérer le dataset actif
+    active_dataset = get_active_dataset()
+    if not active_dataset:
+        raise HTTPException(status_code=400, detail=t("dataset.no_active_dataset"))
+
+    dataset_id = active_dataset.get("id")
+
     conn = get_connection()
     cursor = conn.cursor()
 
-    # Supprimer le catalogue sémantique
-    cursor.execute("DELETE FROM synonyms")
-    cursor.execute("DELETE FROM columns")
-    cursor.execute("DELETE FROM tables")
-    cursor.execute("DELETE FROM datasources")
+    # Récupérer les IDs des datasources du dataset actif
+    cursor.execute("SELECT id FROM datasources WHERE dataset_id = ?", (dataset_id,))
+    ds_ids = [row["id"] for row in cursor.fetchall()]
+
+    if ds_ids:
+        # Récupérer les IDs des tables de ces datasources
+        placeholders = ",".join("?" * len(ds_ids))
+        cursor.execute(f"SELECT id FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)
+        table_ids = [row["id"] for row in cursor.fetchall()]
+
+        if table_ids:
+            # Récupérer les IDs des colonnes de ces tables
+            placeholders_t = ",".join("?" * len(table_ids))
+            cursor.execute(f"SELECT id FROM columns WHERE table_id IN ({placeholders_t})", table_ids)
+            col_ids = [row["id"] for row in cursor.fetchall()]
+
+            # Supprimer les synonymes des colonnes
+            if col_ids:
+                placeholders_c = ",".join("?" * len(col_ids))
+                cursor.execute(f"DELETE FROM synonyms WHERE column_id IN ({placeholders_c})", col_ids)
+
+            # Supprimer les colonnes
+            cursor.execute(f"DELETE FROM columns WHERE table_id IN ({placeholders_t})", table_ids)
+
+        # Supprimer les tables
+        cursor.execute(f"DELETE FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)
+
+    # Supprimer les datasources du dataset actif
+    cursor.execute("DELETE FROM datasources WHERE dataset_id = ?", (dataset_id,))
 
     # Supprimer les widgets, questions et KPIs générés
     with contextlib.suppress(Exception):

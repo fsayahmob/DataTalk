@@ -268,16 +268,19 @@ def is_sync_running(dataset_id: str) -> bool:
 
 def delete_datasource(datasource_id: int) -> bool:
     """
-    Supprime une datasource et ses tables dans DuckDB.
+    Supprime une datasource et planifie la suppression async des tables DuckDB.
 
     1. Récupère les tables depuis ingestion_catalog
-    2. Supprime les tables dans DuckDB
-    3. Supprime l'entrée dans SQLite
+    2. Supprime l'entrée dans SQLite (immédiat)
+    3. Lance une tâche Celery pour supprimer les tables DuckDB (async)
     4. Met à jour les stats du dataset
+
+    La suppression DuckDB est asynchrone pour:
+    - Ne pas bloquer l'API
+    - Éviter les conflits avec un sync en cours
+    - Le worker réessaie si le fichier est verrouillé
     """
     import logging
-
-    import duckdb
 
     from catalog.datasets import get_dataset, update_dataset_stats
 
@@ -291,37 +294,44 @@ def delete_datasource(datasource_id: int) -> bool:
     dataset_id = datasource.get("dataset_id")
     ingestion_catalog = datasource.get("ingestion_catalog")
 
-    # 2. Supprimer les tables dans DuckDB si on a les infos
+    # Préparer les infos pour la tâche de cleanup
+    duckdb_path = None
+    tables_to_drop: list[str] = []
+
     if dataset_id and ingestion_catalog:
         dataset = get_dataset(dataset_id)
         if dataset and dataset.get("duckdb_path"):
             duckdb_path = dataset["duckdb_path"]
-            tables_to_drop = []
-
-            # Extraire les noms de tables depuis ingestion_catalog
             if ingestion_catalog.get("tables"):
                 tables_to_drop = [t["name"] for t in ingestion_catalog["tables"]]
 
-            if tables_to_drop:
-                try:
-                    duck_conn = duckdb.connect(duckdb_path)
-                    for table_name in tables_to_drop:
-                        try:
-                            duck_conn.execute(f'DROP TABLE IF EXISTS "{table_name}"')
-                            logger.info("Dropped table %s from %s", table_name, duckdb_path)
-                        except Exception as e:
-                            logger.warning("Failed to drop table %s: %s", table_name, e)
-                    duck_conn.close()
-                except Exception as e:
-                    logger.warning("Failed to connect to DuckDB %s: %s", duckdb_path, e)
-
-    # 3. Supprimer l'entrée dans SQLite
+    # 2. Supprimer l'entrée dans SQLite (immédiat, pas de blocage)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM datasources WHERE id = ?", (datasource_id,))
     conn.commit()
     affected = cursor.rowcount
     conn.close()
+
+    # 3. Lancer la tâche Celery pour supprimer les tables DuckDB (async)
+    if affected > 0 and duckdb_path and tables_to_drop:
+        try:
+            from tasks.datasources import cleanup_datasource_tables_task
+
+            cleanup_datasource_tables_task.delay(
+                duckdb_path=duckdb_path,
+                table_names=tables_to_drop,
+                datasource_id=datasource_id,
+            )
+            logger.info(
+                "Scheduled async cleanup of %d tables for datasource %d",
+                len(tables_to_drop),
+                datasource_id,
+            )
+        except Exception as e:
+            # Si Celery n'est pas disponible, log et continue
+            # Les tables orphelines seront écrasées au prochain sync
+            logger.warning("Cannot schedule cleanup task: %s", e)
 
     # 4. Mettre à jour les stats du dataset
     if affected > 0 and dataset_id:

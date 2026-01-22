@@ -44,6 +44,7 @@ def extract_only(
     db_connection: DuckDBConnection,
     job_id: int | None = None,
     duckdb_path: str | None = None,
+    dataset_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Extrait le schéma depuis DuckDB et sauvegarde dans SQLite SANS enrichissement LLM.
@@ -55,6 +56,7 @@ def extract_only(
         db_connection: Connexion DuckDB native
         job_id: ID du job pour le tracking (optionnel)
         duckdb_path: Chemin du fichier DuckDB (pour la datasource)
+        dataset_id: UUID du dataset pour associer la datasource (critique pour multi-dataset)
 
     Returns:
         Stats d'extraction (tables, colonnes)
@@ -78,10 +80,11 @@ def extract_only(
     with workflow.step("save_to_catalog") if workflow else _dummy_context():
         logger.info("2/2 - Sauvegarde dans SQLite (sans descriptions)")
 
-        # Créer la datasource
+        # Créer la datasource (associée au dataset actif)
         datasource_id = add_datasource(
             name=catalog.datasource.replace(".duckdb", ""),
             ds_type="duckdb",
+            dataset_id=dataset_id,
             path=duckdb_path,
             description="Base analytique - En attente d'enrichissement",
         )

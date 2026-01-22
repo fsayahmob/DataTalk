@@ -11,9 +11,11 @@ import re
 logger = logging.getLogger(__name__)
 
 # Patterns d'erreurs DuckDB/SQL communes
+# Note: "table does not exist" utilise db.no_data car cela indique généralement
+# que le dataset est vide ou que les données n'ont pas été importées
 ERROR_PATTERNS: dict[str, str] = {
-    r"table .* does not exist": "db.table_not_found",
-    r"table .* not found": "db.table_not_found",
+    r"table .* does not exist": "db.no_data",
+    r"table .* not found": "db.no_data",
     r"column .* not found": "db.column_not_found",
     r"column .* does not exist": "db.column_not_found",
     r"catalog error": "db.catalog_error",

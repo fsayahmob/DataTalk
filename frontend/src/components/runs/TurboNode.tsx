@@ -15,20 +15,20 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
     switch (data.status) {
       case 'completed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-accent border-2 border-card flex items-center justify-center">
-            <span className="text-accent-foreground text-xs">✓</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-accent border border-card flex items-center justify-center">
+            <span className="text-accent-foreground text-[8px]">✓</span>
           </div>
         );
       case 'running':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-primary border-2 border-card flex items-center justify-center animate-pulse">
-            <span className="text-primary-foreground text-xs animate-spin">⟳</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary border border-card flex items-center justify-center animate-pulse">
+            <span className="text-primary-foreground text-[8px] animate-spin">⟳</span>
           </div>
         );
       case 'failed':
         return (
-          <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-destructive border-2 border-card flex items-center justify-center">
-            <span className="text-destructive-foreground text-xs">✗</span>
+          <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive border border-card flex items-center justify-center">
+            <span className="text-destructive-foreground text-[8px]">✗</span>
           </div>
         );
       default:
@@ -51,25 +51,25 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
 
   return (
     <>
-      <div className={`relative px-4 py-3 rounded-lg border-2 ${getBorderColor()} transition-all min-w-[180px] bg-card shadow-md`}>
+      <div className={`relative px-2 py-1.5 rounded border ${getBorderColor()} transition-all min-w-[120px] max-w-[140px] bg-card shadow-sm`}>
         {/* Status Badge */}
         {getStatusBadge()}
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5">
           {/* Icon */}
           {data.icon && (
-            <div className="text-2xl flex-shrink-0">
+            <div className="text-base flex-shrink-0">
               {data.icon}
             </div>
           )}
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm text-foreground truncate">
+            <div className="font-medium text-[11px] text-foreground truncate">
               {data.title}
             </div>
             {data.subtitle && (
-              <div className="text-xs text-muted-foreground truncate">
+              <div className="text-[9px] text-muted-foreground truncate">
                 {data.subtitle}
               </div>
             )}
@@ -78,42 +78,25 @@ const TurboNode = memo(({ data }: { data: TurboNodeData }) => {
 
         {/* Progress bar */}
         {data.status === 'running' && data.progress !== undefined && data.progress > 0 && (
-          <div className="mt-2">
-            <div className="h-1 bg-secondary rounded-full overflow-hidden">
+          <div className="mt-1">
+            <div className="h-0.5 bg-secondary rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary transition-all duration-300"
                 style={{ width: `${data.progress}%` }}
               />
             </div>
-            <div className="text-[9px] text-muted-foreground text-right mt-0.5">
-              {data.progress}%
-            </div>
           </div>
         )}
 
-        {/* Result stats */}
+        {/* Result stats - compact inline */}
         {data.status === 'completed' && data.result && (
-          <div className="mt-2 flex flex-wrap gap-1.5 text-[9px]">
-            {data.result.tables !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {String(data.result.tables)} tables
-              </span>
-            )}
-            {data.result.columns !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {String(data.result.columns)} cols
-              </span>
-            )}
-            {data.result.synonyms !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-accent/10 text-accent">
-                {String(data.result.synonyms)} syn
-              </span>
-            )}
-            {data.result.kpis !== undefined && (
-              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {String(data.result.kpis)} KPIs
-              </span>
-            )}
+          <div className="mt-1 text-[8px] text-muted-foreground truncate">
+            {[
+              data.result.tables !== undefined && `${data.result.tables}t`,
+              data.result.columns !== undefined && `${data.result.columns}c`,
+              data.result.synonyms !== undefined && `${data.result.synonyms}s`,
+              data.result.kpis !== undefined && `${data.result.kpis}k`,
+            ].filter(Boolean).join(' · ')}
           </div>
         )}
       </div>

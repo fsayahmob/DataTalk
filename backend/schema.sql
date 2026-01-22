@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS _migrations (
 CREATE TABLE IF NOT EXISTS catalog_jobs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id TEXT NOT NULL,
-    job_type TEXT NOT NULL CHECK(job_type IN ('extraction', 'enrichment')),
+    job_type TEXT NOT NULL CHECK(job_type IN ('extraction', 'enrichment', 'sync')),
     status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'completed', 'failed')),
     current_step TEXT,
     step_index INTEGER,
@@ -51,11 +51,22 @@ CREATE TABLE IF NOT EXISTS datasources (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE NOT NULL,
             type TEXT NOT NULL,  -- 'duckdb', 'postgres', 'mysql', etc.
+            dataset_id TEXT,     -- UUID du dataset associé
+            source_type TEXT,    -- Type PyAirbyte (postgres, mysql, csv, gcs, s3...)
             path TEXT,           -- Chemin ou connection string
             description TEXT,
+            sync_config TEXT,    -- JSON: configuration PyAirbyte
+            sync_status TEXT DEFAULT 'pending',  -- pending, running, success, error
+            sync_mode TEXT DEFAULT 'full_refresh',  -- full_refresh, incremental
+            ingestion_catalog TEXT,  -- JSON: tables sélectionnées pour sync
+            last_sync_at TIMESTAMP,
+            last_sync_error TEXT,
+            is_active INTEGER DEFAULT 1,
+            file_size_bytes INTEGER,
+            last_modified TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        , is_active INTEGER DEFAULT 1, file_size_bytes INTEGER, last_modified TIMESTAMP);
+        );
 
 CREATE TABLE IF NOT EXISTS kpis (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -249,7 +260,7 @@ CREATE INDEX IF NOT EXISTS idx_prompts_category ON llm_prompts(category);
 
 CREATE INDEX IF NOT EXISTS idx_prompts_key ON llm_prompts(key);
 
-CREATE UNIQUE INDEX idx_reports_share_token ON saved_reports(share_token);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_share_token ON saved_reports(share_token);
 
 
 -- =============================================
@@ -262,6 +273,7 @@ INSERT OR IGNORE INTO llm_providers (id, name, display_name, type, base_url, req
 INSERT OR IGNORE INTO llm_providers (id, name, display_name, type, base_url, requires_api_key, is_enabled, created_at) VALUES (8, 'anthropic', 'Anthropic', 'cloud', NULL, '1', '1', '2026-01-11 15:21:08');
 INSERT OR IGNORE INTO llm_providers (id, name, display_name, type, base_url, requires_api_key, is_enabled, created_at) VALUES (9, 'mistral', 'Mistral AI', 'cloud', NULL, '1', '1', '2026-01-11 15:21:08');
 INSERT OR IGNORE INTO llm_providers (id, name, display_name, type, base_url, requires_api_key, is_enabled, created_at) VALUES (10, 'ollama', 'Ollama', 'self-hosted', NULL, '0', '1', '2026-01-11 15:21:08');
+INSERT OR IGNORE INTO llm_providers (id, name, display_name, type, base_url, requires_api_key, is_enabled, created_at) VALUES (11, 'bedrock', 'AWS Bedrock', 'cloud', NULL, '0', '1', '2026-01-22 00:00:00');
 
 -- LLM Models
 INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (12, 6, 'gemini-2.0-flash', 'Gemini 2.0 Flash', 1, 1, 1000000, 0.1, 0.4, 0, 1, '2026-01-11 15:21:08');
@@ -284,6 +296,13 @@ INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, suppo
 INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (29, 10, 'llama3.2', 'Llama 3.2 (Local)', 1, 1, 128000, NULL, NULL, 0, 1, '2026-01-11 15:21:08');
 INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (30, 10, 'mistral', 'Mistral (Local)', 1, 1, 32000, NULL, NULL, 0, 1, '2026-01-11 15:21:08');
 INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (31, 10, 'qwen2.5-coder', 'Qwen 2.5 Coder (Local)', 1, 1, 128000, NULL, NULL, 0, 1, '2026-01-11 15:21:08');
+-- AWS Bedrock Models
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (32, 11, 'bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0', 'Claude 3.5 Sonnet v2 (Bedrock)', 1, 1, 200000, 3.0, 15.0, 0, 1, '2026-01-22 00:00:00');
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (33, 11, 'bedrock/anthropic.claude-3-5-haiku-20241022-v1:0', 'Claude 3.5 Haiku (Bedrock)', 1, 1, 200000, 0.8, 4.0, 0, 1, '2026-01-22 00:00:00');
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (34, 11, 'bedrock/anthropic.claude-3-opus-20240229-v1:0', 'Claude 3 Opus (Bedrock)', 1, 1, 200000, 15.0, 75.0, 0, 1, '2026-01-22 00:00:00');
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (35, 11, 'bedrock/amazon.titan-text-premier-v1:0', 'Amazon Titan Premier', 1, 0, 32000, 0.5, 1.5, 0, 1, '2026-01-22 00:00:00');
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (36, 11, 'bedrock/meta.llama3-1-70b-instruct-v1:0', 'Llama 3.1 70B (Bedrock)', 1, 0, 128000, 0.99, 0.99, 0, 1, '2026-01-22 00:00:00');
+INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, supports_json_mode, supports_structured_output, context_window, cost_per_1m_input, cost_per_1m_output, is_default, is_enabled, created_at) VALUES (37, 11, 'bedrock/meta.llama3-1-8b-instruct-v1:0', 'Llama 3.1 8B (Bedrock)', 1, 0, 128000, 0.22, 0.22, 0, 1, '2026-01-22 00:00:00');
 
 -- LLM Prompts
 INSERT OR IGNORE INTO llm_prompts (id, key, name, category, content, version, is_active, tokens_estimate, description, created_at, updated_at) VALUES (9, 'analytics_system', 'Analytics System', 'analytics', 'Assistant analytique SQL. Réponds en français.

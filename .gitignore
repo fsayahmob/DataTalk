@@ -53,3 +53,9 @@ npm-debug.log*
 
 # Cache
 .cache/
+
+# PyAirbyte cache (Docker-in-Docker)
+data/airbyte/
+DeepWiki-Open
+*.sqlite-shm
+*.sqlite-wal

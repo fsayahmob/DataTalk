@@ -260,7 +260,7 @@ def _run_airbyte_sync(
     progress_callback: ProgressCallback | None,
 ) -> tuple[int, list[str]]:
     """Exécute la sync PyAirbyte (appelé depuis _execute_airbyte_sync)."""
-    import airbyte as ab  # noqa: PLC0415
+    import sys  # noqa: PLC0415
 
     def update_progress(step: str, progress: int, message: str = "") -> None:
         """Met à jour le progress via job et callback Celery."""
@@ -280,32 +280,78 @@ def _run_airbyte_sync(
     # 1. Créer la source (step: init - matches frontend)
     update_progress("init", 10, f"Connecting to {ctx.source_type}")
 
+    # Import PyAirbyte avec logging immédiat des erreurs
+    # PyAirbyte peut crasher le subprocess, on log AVANT que ça arrive
+    logger.info("[PyAirbyte] Importing airbyte module...")
+    try:
+        import airbyte as ab  # noqa: PLC0415
+    except Exception as e:
+        logger.error("[PyAirbyte] FATAL: Failed to import airbyte: %s", e)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(f"Failed to import airbyte: {e}") from None
+
     # Transformer la config pour le format PyAirbyte
     airbyte_config = _transform_config_for_airbyte(ctx.source_type, ctx.sync_config)
+    logger.info("[PyAirbyte] Config transformed for %s", ctx.source_type)
 
-    source = ab.get_source(
-        get_airbyte_source_name(ctx.source_type),
-        config=airbyte_config,
-        install_if_missing=True,
-    )
+    # Créer la source avec error handling explicite
+    logger.info("[PyAirbyte] Creating source %s...", get_airbyte_source_name(ctx.source_type))
+    try:
+        source = ab.get_source(
+            get_airbyte_source_name(ctx.source_type),
+            config=airbyte_config,
+            install_if_missing=True,
+        )
+    except Exception as e:
+        error_msg = f"Failed to create source: {type(e).__name__}: {e}"
+        logger.error("[PyAirbyte] FATAL: %s", error_msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(error_msg) from None
 
-    # 2. Vérifier la connexion
-    source.check()
+    # 2. Vérifier la connexion avec logging explicite
+    logger.info("[PyAirbyte] Running connection check...")
+    try:
+        source.check()
+    except Exception as e:
+        error_msg = f"Connection check failed: {type(e).__name__}: {e}"
+        logger.error("[PyAirbyte] FATAL: %s", error_msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(error_msg) from None
+
     logger.info("Connection check passed for datasource %d", ctx.datasource_id)
 
     # 3. Sélectionner les streams (step: save_catalog - matches frontend)
     update_progress("save_catalog", 20, f"Selecting {len(ctx.selected_streams)} streams")
-    source.select_streams(ctx.selected_streams)
+    logger.info("[PyAirbyte] Selecting streams: %s", ctx.selected_streams)
+    try:
+        source.select_streams(ctx.selected_streams)
+    except Exception as e:
+        error_msg = f"Failed to select streams: {type(e).__name__}: {e}"
+        logger.error("[PyAirbyte] FATAL: %s", error_msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(error_msg) from None
 
     # 4. Configurer le cache DuckDB et lancer la sync
-    cache = ab.DuckDBCache(db_path=ctx.duckdb_path)
+    logger.info("[PyAirbyte] Creating DuckDB cache at %s", ctx.duckdb_path)
+    try:
+        cache = ab.DuckDBCache(db_path=ctx.duckdb_path)
+    except Exception as e:
+        error_msg = f"Failed to create DuckDB cache: {type(e).__name__}: {e}"
+        logger.error("[PyAirbyte] FATAL: %s", error_msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(error_msg) from None
 
     # Déterminer si on force full_refresh
     # full_refresh = True désactive le mode incrémental qui nécessite des curseurs
     force_full_refresh = ctx.sync_mode == "full_refresh"
 
     logger.info(
-        "Starting PyAirbyte read for datasource %d to %s (mode=%s, force_full_refresh=%s)",
+        "[PyAirbyte] Starting read for datasource %d to %s (mode=%s, force_full_refresh=%s)",
         ctx.datasource_id,
         ctx.duckdb_path,
         ctx.sync_mode,
@@ -315,7 +361,14 @@ def _run_airbyte_sync(
     # Note: PyAirbyte ne permet pas de tracker par table individuellement
     # On envoie un step générique "syncing" pendant la sync
     update_progress("syncing", 40, "Syncing tables to DuckDB")
-    result = source.read(cache=cache, force_full_refresh=force_full_refresh)
+    try:
+        result = source.read(cache=cache, force_full_refresh=force_full_refresh)
+    except Exception as e:
+        error_msg = f"Sync read failed: {type(e).__name__}: {e}"
+        logger.error("[PyAirbyte] FATAL: %s", error_msg)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SyncError(error_msg) from None
 
     # 5. Récupérer les résultats (step: update_stats - matches frontend)
     update_progress("update_stats", 90, "Updating dataset stats")
@@ -403,11 +456,16 @@ def sync_datasource_with_airbyte(
 
         # 6. Mettre à jour les stats du dataset depuis les résultats de sync
         # Utilise les infos d'Airbyte au lieu de lire DuckDB (qui peut être verrouillé)
-        update_dataset_stats_from_sync(
-            ctx.dataset_id,
-            tables_synced=len(synced_streams),
-            rows_synced=records_synced,
-        )
+        try:
+            update_dataset_stats_from_sync(
+                ctx.dataset_id,
+                tables_synced=len(synced_streams),
+                rows_synced=records_synced,
+            )
+        except Exception as stats_err:
+            # Ne pas faire échouer la sync si les stats ne peuvent pas être mises à jour
+            # Le sync PyAirbyte a réussi, les données sont dans DuckDB
+            logger.warning("Failed to update dataset stats: %s", stats_err)
 
         # 7. Finaliser
         update_sync_status(datasource_id, "success")
@@ -429,9 +487,22 @@ def sync_datasource_with_airbyte(
         error_msg = str(e)
         logger.exception("Sync failed for datasource %d", datasource_id)
 
-        update_sync_status(datasource_id, "error", error_msg)
-        update_job_status(job_id, status="failed", current_step="error")
-        update_job_result(job_id, {"records_synced": 0, "streams": [], "errors": [error_msg], "status": "error"})
+        # Chaque update est indépendant - on continue même si l'un échoue
+        # Évite le "database is locked" en cascade
+        try:
+            update_sync_status(datasource_id, "error", error_msg)
+        except Exception as status_err:
+            logger.warning("Failed to update sync status: %s", status_err)
+
+        try:
+            update_job_status(job_id, status="failed", current_step="error")
+        except Exception as job_err:
+            logger.warning("Failed to update job status: %s", job_err)
+
+        try:
+            update_job_result(job_id, {"records_synced": 0, "streams": [], "errors": [error_msg], "status": "error"})
+        except Exception as result_err:
+            logger.warning("Failed to update job result: %s", result_err)
 
         raise SyncError(error_msg) from e
 

@@ -496,8 +496,8 @@ def check_large_files(project_path: Path, report: AuditReport) -> AuditResult:
             except Exception:
                 pass
 
-    # Frontend TypeScript
-    frontend_path = project_path / "frontend"
+    # Frontend TypeScript (Angular)
+    frontend_path = project_path / "frontend-angular"
     if frontend_path.exists():
         for ts_file in frontend_path.rglob("*.ts"):
             if any(part in ts_file.parts for part in skip_dirs):
@@ -569,8 +569,8 @@ def check_redundant_dependencies(project_path: Path, report: AuditReport) -> Aud
                 if pkg:
                     all_deps.add(pkg)
 
-    # JavaScript package.json
-    pkg_file = project_path / "frontend" / "package.json"
+    # JavaScript package.json (Angular)
+    pkg_file = project_path / "frontend-angular" / "package.json"
     if pkg_file.exists():
         try:
             pkg_data = json.loads(pkg_file.read_text())
@@ -712,7 +712,7 @@ def run_audit(
     report = AuditReport()
 
     backend_path = project_path / "backend"
-    frontend_path = project_path / "frontend"
+    frontend_path = project_path / "frontend-angular"
 
     # Backend checks
     if not frontend_only:

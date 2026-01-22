@@ -1,103 +1,56 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { toast } from "sonner";
+import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ModelsTab, ApiKeysTab, UsageTab, DatabaseTab, PromptsTab, AppearanceTab } from "@/components/settings";
 import * as api from "@/lib/api";
-import type { LLMProvider, LLMModel, LLMCosts, LLMStatus } from "@/lib/api";
+import type { LLMCosts } from "@/lib/api";
+import { useLLMStore } from "@/stores/useLLMStore";
 
 export default function SettingsPage() {
-  // State
-  const [providers, setProviders] = useState<LLMProvider[]>([]);
-  const [allModels, setAllModels] = useState<LLMModel[]>([]);
+  // LLM store - single source of truth
+  const status = useLLMStore((state) => state.status);
+  const providers = useLLMStore((state) => state.providers);
+  const models = useLLMStore((state) => state.models);
+  const defaultModel = useLLMStore((state) => state.defaultModel);
+  const loadAll = useLLMStore((state) => state.loadAll);
+  const saveApiKey = useLLMStore((state) => state.saveApiKey);
+  const deleteApiKey = useLLMStore((state) => state.deleteApiKey);
+  const saveBaseUrl = useLLMStore((state) => state.saveBaseUrl);
+  const setDefaultModelAction = useLLMStore((state) => state.setDefaultModel);
+
+  // Local UI state only
   const [selectedProvider, setSelectedProvider] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [defaultModel, setDefaultModel] = useState<LLMModel | null>(null);
-  const [llmStatus, setLlmStatus] = useState<LLMStatus | null>(null);
   const [costs, setCosts] = useState<LLMCosts | null>(null);
   const [costsPeriod, setCostsPeriod] = useState<number>(30);
 
-  // Load data
+  // Load all LLM data on mount
   useEffect(() => {
-    void (async () => {
-      const [providersData, defaultModelData, statusData, modelsData] = await Promise.all([
-        api.fetchLLMProviders(),
-        api.fetchDefaultModel(),
-        api.fetchLLMStatus(),
-        api.fetchLLMModels(),
-      ]);
-      setProviders(providersData);
-      setDefaultModel(defaultModelData);
-      setLlmStatus(statusData);
-      setAllModels(modelsData);
-    })();
-  }, []);
+    void loadAll();
+  }, [loadAll]);
 
+  // Load costs separately (not in store as it's page-specific)
   useEffect(() => {
     void api.fetchLLMCosts(costsPeriod).then(setCosts);
   }, [costsPeriod]);
 
-  // Refresh providers and status
-  const refreshProviders = useCallback(async () => {
-    const [newProviders, newStatus] = await Promise.all([
-      api.fetchLLMProviders(),
-      api.fetchLLMStatus(),
-    ]);
-    setProviders(newProviders);
-    setLlmStatus(newStatus);
-  }, []);
+  // Handlers - delegate to store
+  const handleSaveApiKey = async (providerName: string, apiKey: string) => {
+    await saveApiKey(providerName, apiKey);
+  };
 
-  // Handlers
-  const handleSaveApiKey = useCallback(
-    async (providerName: string, apiKey: string) => {
-      const success = await api.saveApiKey(providerName, apiKey);
-      if (success) {
-        toast.success(`API key saved for ${providerName}`);
-        await refreshProviders();
-      } else {
-        toast.error("Failed to save API key");
-      }
-    },
-    [refreshProviders]
-  );
+  const handleDeleteApiKey = async (providerName: string) => {
+    await deleteApiKey(providerName);
+  };
 
-  const handleDeleteApiKey = useCallback(
-    async (providerName: string) => {
-      const success = await api.saveApiKey(providerName, "");
-      if (success) {
-        toast.success(`API key deleted for ${providerName}`);
-        await refreshProviders();
-      }
-    },
-    [refreshProviders]
-  );
+  const handleSaveBaseUrl = async (providerName: string, baseUrl: string) => {
+    await saveBaseUrl(providerName, baseUrl);
+  };
 
-  const handleSaveBaseUrl = useCallback(
-    async (providerName: string, baseUrl: string) => {
-      const success = await api.saveProviderConfig(providerName, baseUrl || null);
-      if (success) {
-        toast.success(`Base URL saved for ${providerName}`);
-        await refreshProviders();
-      } else {
-        toast.error("Failed to save base URL");
-      }
-    },
-    [refreshProviders]
-  );
-
-  const handleSetDefaultModel = useCallback(async (modelId: string) => {
-    const success = await api.setDefaultModel(modelId);
-    if (success) {
-      toast.success("Default model updated");
-      const [newDefault, newStatus] = await Promise.all([
-        api.fetchDefaultModel(),
-        api.fetchLLMStatus(),
-      ]);
-      setDefaultModel(newDefault);
-      setLlmStatus(newStatus);
-    }
-  }, []);
+  const handleSetDefaultModel = async (modelId: string) => {
+    await setDefaultModelAction(modelId);
+  };
 
   return (
     <div className="flex-1 overflow-auto bg-background">
@@ -108,8 +61,8 @@ export default function SettingsPage() {
             <h1 className="text-lg font-semibold text-foreground">Settings</h1>
             <p className="text-xs text-muted-foreground">
               LLM:{" "}
-              {llmStatus?.status === "ok" ? (
-                <span className="text-status-success">{llmStatus.model}</span>
+              {status?.status === "ok" ? (
+                <span className="text-status-success">{status.model}</span>
               ) : (
                 <span className="text-status-error">Not configured</span>
               )}
@@ -142,7 +95,7 @@ export default function SettingsPage() {
           <TabsContent value="models" className="mt-0">
             <ModelsTab
               providers={providers}
-              allModels={allModels}
+              allModels={models}
               defaultModel={defaultModel}
               selectedProvider={selectedProvider}
               searchQuery={searchQuery}

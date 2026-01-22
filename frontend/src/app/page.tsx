@@ -5,9 +5,11 @@ import { toast } from "sonner";
 import { ChatZone } from "@/components/ChatZone";
 import { VisualizationZone } from "@/components/VisualizationZone";
 import { AnalyticsZone } from "@/components/AnalyticsZone";
+import { SyncWarningBanner } from "@/components/SyncWarningBanner";
 import * as api from "@/lib/api";
 import { useLayout } from "@/hooks/useLayout";
 import { useConversation } from "@/hooks/useConversation";
+import { useDatasetStore } from "@/stores";
 import {
   Message,
   PredefinedQuestion,
@@ -53,6 +55,9 @@ export default function Home() {
     handleReplayMessage,
   } = useConversation();
 
+  // Zustand store for dataset (loaded by StoreProvider)
+  const { activeDataset } = useDatasetStore();
+
   // Données globales
   const [predefinedQuestions, setPredefinedQuestions] = useState<PredefinedQuestion[]>([]);
   const [savedReports, setSavedReports] = useState<SavedReport[]>([]);
@@ -86,6 +91,7 @@ export default function Home() {
     void loadReports();
     void loadConversations();
     void restoreSession();
+    // Note: loadDatasets() is called once by StoreProvider
   }, [loadQuestions, loadReports, loadConversations, restoreSession]);
 
   // Recharger les questions quand la fenêtre reprend le focus
@@ -202,6 +208,9 @@ export default function Home() {
 
   return (
     <div ref={containerRef} className="flex-1 flex flex-col overflow-hidden relative">
+      {/* Avertissement sync en cours */}
+      <SyncWarningBanner datasetId={activeDataset?.id ?? null} />
+
       <div className="flex-1 flex overflow-hidden">
         {/* Zone 1: Chat */}
         <ChatZone

@@ -29,13 +29,21 @@ function DatasetNodeComponent({ data, selected }: NodeProps) {
     error: "bg-status-error",
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isActive) {
+      onActivate(dataset.id);
+    }
+  };
+
   return (
     <div
-      onClick={() => !isActive && onActivate(dataset.id)}
+      onClick={handleClick}
+      style={{ pointerEvents: "all" }}
       className={`
-        px-3 py-1.5 rounded-lg border text-xs font-medium
+        w-[130px] h-[32px] rounded-md border text-xs font-medium
         transition-all duration-150 cursor-pointer select-none
-        flex items-center gap-2 min-w-[100px]
+        flex items-center justify-center gap-2 px-2
         ${isActive
           ? "bg-primary/20 border-primary text-primary shadow-sm"
           : "bg-card border-border text-foreground hover:border-primary/50 hover:bg-card/80"
@@ -50,13 +58,11 @@ function DatasetNodeComponent({ data, selected }: NodeProps) {
       />
 
       {/* Dataset name */}
-      <span className="truncate max-w-[120px]">{dataset.name}</span>
+      <span className="truncate max-w-[80px]">{dataset.name}</span>
 
-      {/* Active badge */}
+      {/* Active indicator */}
       {isActive && (
-        <span className="text-[10px] px-1.5 py-0.5 bg-primary text-primary-foreground rounded-full">
-          active
-        </span>
+        <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
       )}
 
       {/* Hidden handles for potential future connections */}

@@ -255,3 +255,54 @@ def get_latest_run_id() -> str | None:
         return row["run_id"] if row else None
     finally:
         conn.close()
+
+
+def reset_job_for_retry(job_id: int) -> dict[str, Any] | None:
+    """
+    Réinitialise un job pour permettre un retry.
+
+    Accepte tous les statuts sauf 'running' (pour éviter les conflits).
+
+    Args:
+        job_id: ID du job à retry
+
+    Returns:
+        Le job réinitialisé ou None si non trouvé ou en cours d'exécution
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.cursor()
+
+        # Vérifier que le job existe et n'est pas en cours
+        cursor.execute(
+            "SELECT * FROM catalog_jobs WHERE id = ? AND status != 'running'",
+            (job_id,),
+        )
+        row = cursor.fetchone()
+
+        if not row:
+            return None
+
+        # Reset le job pour retry
+        cursor.execute(
+            """
+            UPDATE catalog_jobs
+            SET status = 'pending',
+                progress = 0,
+                current_step = NULL,
+                step_index = NULL,
+                error_message = NULL,
+                result = NULL,
+                started_at = CURRENT_TIMESTAMP,
+                completed_at = NULL
+            WHERE id = ?
+        """,
+            (job_id,),
+        )
+
+        conn.commit()
+
+        # Retourner le job mis à jour
+        return get_catalog_job(job_id)
+    finally:
+        conn.close()

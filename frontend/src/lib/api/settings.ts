@@ -1,12 +1,12 @@
 // API functions for application settings
 
-import { API_BASE, CatalogContextMode, DatabaseStatus } from "./types";
+import { API_BASE, apiFetch, CatalogContextMode, DatabaseStatus } from "./types";
 
 // ============ Catalog Context Mode ============
 
 export async function fetchCatalogContextMode(): Promise<CatalogContextMode> {
   try {
-    const res = await fetch(`${API_BASE}/settings/catalog_context_mode`);
+    const res = await apiFetch(`${API_BASE}/settings/catalog_context_mode`);
     if (!res.ok) return "full"; // défaut
     const data = await res.json();
     return data.value as CatalogContextMode;
@@ -19,7 +19,7 @@ export async function setCatalogContextMode(
   mode: CatalogContextMode
 ): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/settings/catalog_context_mode`, {
+    const res = await apiFetch(`${API_BASE}/settings/catalog_context_mode`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: mode }),
@@ -34,7 +34,7 @@ export async function setCatalogContextMode(
 
 export async function fetchDatabaseStatus(): Promise<DatabaseStatus | null> {
   try {
-    const res = await fetch(`${API_BASE}/database/status`);
+    const res = await apiFetch(`${API_BASE}/database/status`);
     if (!res.ok) return null;
     return await res.json();
   } catch (e) {
@@ -45,7 +45,7 @@ export async function fetchDatabaseStatus(): Promise<DatabaseStatus | null> {
 
 export async function setDuckdbPath(path: string): Promise<{ success: boolean; error?: string; resolved_path?: string }> {
   try {
-    const res = await fetch(`${API_BASE}/settings/duckdb_path`, {
+    const res = await apiFetch(`${API_BASE}/settings/duckdb_path`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: path }),
@@ -66,7 +66,7 @@ export async function setDuckdbPath(path: string): Promise<{ success: boolean; e
 
 export async function fetchMaxTablesPerBatch(): Promise<number> {
   try {
-    const res = await fetch(`${API_BASE}/settings/max_tables_per_batch`);
+    const res = await apiFetch(`${API_BASE}/settings/max_tables_per_batch`);
     if (!res.ok) return 15;
     const data = await res.json();
     return parseInt(data.value, 10) || 15;
@@ -77,7 +77,7 @@ export async function fetchMaxTablesPerBatch(): Promise<number> {
 
 export async function setMaxTablesPerBatch(value: number): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/settings/max_tables_per_batch`, {
+    const res = await apiFetch(`${API_BASE}/settings/max_tables_per_batch`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: String(value) }),
@@ -90,7 +90,7 @@ export async function setMaxTablesPerBatch(value: number): Promise<boolean> {
 
 export async function fetchMaxChartRows(): Promise<number> {
   try {
-    const res = await fetch(`${API_BASE}/settings/max_chart_rows`);
+    const res = await apiFetch(`${API_BASE}/settings/max_chart_rows`);
     if (!res.ok) return 5000; // Default value
     const data = await res.json();
     return parseInt(data.value, 10) || 5000;
@@ -101,7 +101,7 @@ export async function fetchMaxChartRows(): Promise<number> {
 
 export async function setMaxChartRows(value: number): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/settings/max_chart_rows`, {
+    const res = await apiFetch(`${API_BASE}/settings/max_chart_rows`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ value: String(value) }),

@@ -3,7 +3,7 @@
 import { useTheme } from "next-themes";
 import { useSyncExternalStore } from "react";
 import { ThemeStyleSelector } from "@/components/ThemeStyleSelector";
-import { useThemeStyle } from "@/components/ThemeProvider";
+import { useThemeStore } from "@/stores";
 import {
   Select,
   SelectContent,
@@ -20,7 +20,7 @@ const getServerSnapshot = () => false;
 
 export function AppearanceTab() {
   const { theme, setTheme } = useTheme();
-  const { style } = useThemeStyle();
+  const style = useThemeStore((state) => state.style);
   const mounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
 
   if (!mounted) {

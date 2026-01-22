@@ -8,6 +8,7 @@ import {
   deleteAllConversations,
   analyzeInConversation,
 } from '@/lib/api/conversations';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -40,7 +41,7 @@ describe('Conversations API', () => {
 
       const result = await fetchConversations();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/conversations');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations');
       expect(result).toEqual(mockConversations);
     });
 
@@ -71,7 +72,7 @@ describe('Conversations API', () => {
 
       const result = await createConversation();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/conversations', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations', {
         method: 'POST',
       });
       expect(result).toBe(42);
@@ -99,7 +100,7 @@ describe('Conversations API', () => {
 
       const result = await fetchConversationMessages(5);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/conversations/5/messages');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations/5/messages');
       expect(result).toEqual(mockMessages);
     });
 
@@ -130,7 +131,7 @@ describe('Conversations API', () => {
 
       const result = await deleteAllConversations();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/conversations', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations', {
         method: 'DELETE',
       });
       expect(result).toBe(10);
@@ -172,14 +173,11 @@ describe('Conversations API', () => {
 
       const result = await analyzeInConversation(1, 'What is the average?');
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/conversations/1/analyze',
-        expect.objectContaining({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ question: 'What is the average?', filters: undefined, use_context: false }),
-        })
-      );
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations/1/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: 'What is the average?', filters: undefined, use_context: false }),
+      });
       expect(result).toEqual(mockResponse);
     });
 
@@ -193,12 +191,9 @@ describe('Conversations API', () => {
 
       await analyzeInConversation(1, 'Question', filters);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/conversations/1/analyze',
-        expect.objectContaining({
-          body: JSON.stringify({ question: 'Question', filters, use_context: false }),
-        })
-      );
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations/1/analyze', {
+        body: JSON.stringify({ question: 'Question', filters, use_context: false }),
+      });
     });
 
     it('should pass useContext flag', async () => {
@@ -209,12 +204,9 @@ describe('Conversations API', () => {
 
       await analyzeInConversation(1, 'Question', undefined, true);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/conversations/1/analyze',
-        expect.objectContaining({
-          body: JSON.stringify({ question: 'Question', filters: undefined, use_context: true }),
-        })
-      );
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations/1/analyze', {
+        body: JSON.stringify({ question: 'Question', filters: undefined, use_context: true }),
+      });
     });
 
     it('should pass abort signal', async () => {
@@ -227,12 +219,12 @@ describe('Conversations API', () => {
 
       await analyzeInConversation(1, 'Question', undefined, false, controller.signal);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8000/conversations/1/analyze',
-        expect.objectContaining({
-          signal: controller.signal,
-        })
-      );
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/conversations/1/analyze', {
+        method: 'POST',
+      });
+      // Also verify signal was passed
+      const callOptions = mockFetch.mock.calls[0][1];
+      expect(callOptions.signal).toBe(controller.signal);
     });
 
     it('should throw error when response is not ok', async () => {

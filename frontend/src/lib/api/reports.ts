@@ -1,11 +1,11 @@
 // API functions for saved reports
 
 import { SavedReport } from "@/types";
-import { API_BASE, ExecuteReportResponse, SharedReportResponse } from "./types";
+import { API_BASE, apiFetch, ExecuteReportResponse, SharedReportResponse } from "./types";
 
 export async function fetchSavedReports(): Promise<SavedReport[]> {
   try {
-    const res = await fetch(`${API_BASE}/reports`);
+    const res = await apiFetch(`${API_BASE}/reports`);
     const data = await res.json();
     return data.reports || [];
   } catch (e) {
@@ -22,7 +22,7 @@ export async function saveReport(
   message_id: number
 ): Promise<boolean> {
   try {
-    await fetch(`${API_BASE}/reports`, {
+    await apiFetch(`${API_BASE}/reports`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, question, sql_query, chart_config, message_id }),
@@ -36,7 +36,7 @@ export async function saveReport(
 
 export async function deleteReport(id: number): Promise<boolean> {
   try {
-    await fetch(`${API_BASE}/reports/${id}`, { method: "DELETE" });
+    await apiFetch(`${API_BASE}/reports/${id}`, { method: "DELETE" });
     return true;
   } catch (e) {
     console.error("Erreur suppression:", e);
@@ -47,7 +47,7 @@ export async function deleteReport(id: number): Promise<boolean> {
 export async function executeReport(
   reportId: number
 ): Promise<ExecuteReportResponse> {
-  const res = await fetch(`${API_BASE}/reports/${reportId}/execute`, {
+  const res = await apiFetch(`${API_BASE}/reports/${reportId}/execute`, {
     method: "POST",
   });
 
@@ -63,7 +63,7 @@ export async function executeReport(
 export async function fetchSharedReport(
   shareToken: string
 ): Promise<SharedReportResponse> {
-  const res = await fetch(`${API_BASE}/reports/shared/${shareToken}`);
+  const res = await apiFetch(`${API_BASE}/reports/shared/${shareToken}`);
   const data = await res.json();
 
   if (!res.ok) {

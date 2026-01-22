@@ -1,257 +1,72 @@
-# Projet G7 - Analyse Sémantique des Commentaires Clients
+# DataTalk - Plateforme SaaS d'Analytics Conversationnel
 
-## Contexte
-- **Client**: Taxis G7
-- **Fichier**: Liste_evaluations_2024_05_filtre.xlsx
-- **Volume**: 64 383 évaluations dont 7 255 avec commentaires (mai 2024)
-- **Objectif**: Segmenter les commentaires par catégorie de service et analyser le sentiment
+> **Opportunité Marché** : Le marché Text-to-SQL est estimé à $2-5B d'ici 2027. Avec ~100 concurrents sérieux, si on capture 0.1% = $2-5M ARR potentiel.
 
-## Stack Technique Choisie
+## Vision Produit
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ARCHITECTURE                                                   │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐  │
-│  │  Excel   │───▶│  Gemini  │───▶│  DuckDB  │───▶│ Wren AI  │  │
-│  │  brut    │    │  Flash   │    │  (OLAP)  │    │  (Chat)  │  │
-│  └──────────┘    └──────────┘    └──────────┘    └──────────┘  │
-│                                                                 │
-│  Enrichissement     Classification    Stockage     Interface    │
-│  données            + Sentiment       données      conversationnelle │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+**DataTalk** est une plateforme SaaS de Business Intelligence conversationnelle qui permet aux entreprises d'interroger leurs données en langage naturel.
 
-### Composants
+**Concurrent direct** : [Omni.co](https://omni.co), Metabase, Looker
 
-| Composant | Technologie | Rôle |
-|-----------|-------------|------|
-| **LLM Classification** | Gemini 2.0 Flash | Classifier commentaires + sentiment (~0.20€) |
-| **LLM Local (optionnel)** | Ollama + Mistral | Pour Wren AI (gratuit, privé) |
-| **Base de données** | DuckDB | Stockage données enrichies (optimisé analytique) |
-| **Vector Store** | Qdrant (via Wren AI) | Embeddings pour RAG |
-| **Interface** | Wren AI | Chat conversationnel + graphiques Plotly |
-| **Déploiement** | Docker | Wren AI stack |
+**Proposition de valeur** :
+- Chat conversationnel pour interroger ses données (pas de SQL requis)
+- Catalogue sémantique auto-généré par LLM
+- Visualisations automatiques (graphiques, tableaux)
+- Multi-tenant isolé (une instance par client)
 
 ---
 
-## Pipeline du Projet
+## Architecture Multi-Tenant
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  PHASE 1: PRÉPARATION DES DONNÉES                               │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1.1 Nettoyage du fichier Excel                                 │
-│      → Remplacer |EµR| par €                                    │
-│      → Supprimer caractères spéciaux                            │
-│      → Filtrer commentaires vides/trop courts (<5 mots)         │
-│                                                                 │
-│  1.2 Extraction des commentaires exploitables                   │
-│      → 7 255 commentaires non vides                             │
-│      → Conserver les métadonnées (note, typ_client, etc.)       │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  PHASE 2: DÉCOUVERTE DE LA TAXONOMIE (dynamique)                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  2.1 Échantillonnage stratifié                                  │
-│      → ~500 commentaires (mix notes 1-5)                        │
-│      → Représentatif des segments clients                       │
-│                                                                 │
-│  2.2 Topic modeling / Analyse LLM                               │
-│      → Identifier les thèmes qui émergent naturellement         │
-│      → Option A: BERTopic (local, gratuit)                      │
-│      → Option B: Gemini (rapide, ~0.02€)                        │
-│                                                                 │
-│  2.3 Consolidation de la taxonomie                              │
-│      → Regrouper les thèmes similaires                          │
-│      → Valider avec le client G7                                │
-│      → Finaliser les catégories (8-12 max)                      │
-│                                                                 │
-│  Catégories potentielles identifiées:                           │
-│      • PRIX_FACTURATION (écarts compteur, forfaits)             │
-│      • CHAUFFEUR_COMPORTEMENT (politesse, attitude)             │
-│      • CHAUFFEUR_CONDUITE (sécurité, vitesse)                   │
-│      • VEHICULE_PROPRETE (odeur, saleté)                        │
-│      • VEHICULE_CONFORT (clim, espace)                          │
-│      • PONCTUALITE (attente, retard)                            │
-│      • TRAJET_ITINERAIRE (GPS, détours)                         │
-│      • APPLICATION (bugs, paiement, réservation)                │
-│      • SERVICE_CLIENT (réclamation, contact)                    │
-│      • ACCESSIBILITE (PMR, bagages, langue)                     │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  PHASE 3: CLASSIFICATION & SENTIMENT (Gemini 2.0 Flash)         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  3.1 Construire le prompt de classification                     │
-│      → Taxonomie validée en phase 2                             │
-│      → Multi-label (1 commentaire = N catégories)               │
-│      → Sentiment par catégorie [-1 à +1]                        │
-│                                                                 │
-│  3.2 Traitement par batch                                       │
-│      → 20 commentaires par requête                              │
-│      → ~363 requêtes API                                        │
-│      → Coût estimé: ~0.20€ avec Gemini 2.0 Flash                │
-│                                                                 │
-│  3.3 Parsing & validation des résultats                         │
-│      → Vérifier format JSON retourné                            │
-│      → Gérer les erreurs / retry                                │
-│                                                                 │
-├───────────────────────────────��─────────────────────────────────┤
-│  PHASE 4: ENRICHISSEMENT & STOCKAGE                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  4.1 Ajouter colonnes au fichier original                       │
-│      → categories (liste)                                       │
-│      → sentiment_global                                         │
-│      → sentiment_par_categorie (JSON)                           │
-│      → verbatim_cle (extrait pertinent)                         │
-│                                                                 │
-│  4.2 Export Excel enrichi                                       │
-│      → Liste_evaluations_2024_05_ANALYSE.xlsx                   │
-│                                                                 │
-│  4.3 Chargement dans DuckDB                                     │
-│      → Base analytique optimisée pour agrégations               │
-│      → Fichier unique: g7_analytics.duckdb                      │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  PHASE 5: INTERFACE WREN AI (Chat + Graphiques)                 │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  5.1 Installation Wren AI                                       │
-│      → Docker Compose (Wren UI + Wren Engine + Qdrant)          │
-│      → Configuration LLM (Ollama local ou API cloud)            │
-│                                                                 │
-│  5.2 Configuration du modèle sémantique (MDL)                   │
-│      → Définir les tables et relations                          │
-│      → Mapper les termes métier G7                              │
-│      → Configurer les métriques calculées                       │
-│                                                                 │
-│  5.3 Interface conversationnelle                                │
-│      → Chat en langage naturel                                  │
-│      → Génération SQL automatique                               │
-│      → Graphiques Plotly interactifs                            │
-│      → Export des résultats                                     │
-│                                                                 │
-│  Exemples de questions possibles:                               │
-│      💬 "Quel chauffeur a le plus de commentaires négatifs ?"   │
-│      💬 "Quels segments clients se plaignent du prix ?"         │
-│      💬 "Évolution du sentiment par mois"                       │
-│      💬 "Top 10 verbatims négatifs sur le véhicule"             │
-│      💬 "Heatmap catégorie vs type de service"                  │
-│                                                                 │
-├─────────────────────────────────────────────────────────────────┤
-│  PHASE 6: LIVRABLES                                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  6.1 Fichier Excel enrichi                                      │
-│      → Données brutes + colonnes analyse                        │
-│                                                                 │
-│  6.2 Dashboard Wren AI                                          │
-│      → Interface conversationnelle déployée                     │
-│      → Accès via URL (local ou cloud)                           │
-│                                                                 │
-│  6.3 Rapport d'analyse (optionnel)                              │
-│      → Synthèse des insights                                    │
-│      → Top irritants par segment                                │
-│      → Recommandations actionnables                             │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Structure des Données
-
-### Fichier source
-| Colonne | Type | Description |
-|---------|------|-------------|
-| cod_taxi | float | ID du chauffeur |
-| dat_course | datetime | Date de la course |
-| note_eval | float | Note globale (1-5) |
-| note_commande | float | Note réservation |
-| note_vehicule | float | Note véhicule |
-| note_chauffeur | float | Note chauffeur |
-| commentaire | string | Texte libre client |
-| typ_client | string | Type client (36 valeurs) |
-| lib_categorie | string | Catégorie client (8 valeurs) |
-| typ_chauffeur | string | Type service (3 valeurs) |
-
-### Colonnes ajoutées après enrichissement
-| Colonne | Type | Description |
-|---------|------|-------------|
-| categories | list | Catégories détectées |
-| sentiment_global | float | Score sentiment [-1, +1] |
-| sentiment_par_categorie | JSON | Sentiment par catégorie |
-| verbatim_cle | string | Extrait pertinent |
-
----
-
-## Commandes utiles
-
-### Installation Wren AI
-```bash
-# Cloner et lancer Wren AI
-git clone https://github.com/Canner/WrenAI.git
-cd WrenAI
-docker-compose up -d
-
-# Accès interface: http://localhost:3000
-```
-
-### Installation Ollama (LLM local)
-```bash
-# macOS
-brew install ollama
-ollama pull mistral
-
-# Vérifier
-ollama run mistral "Test"
-```
-
-### Lancer l'enrichissement
-```bash
-python scripts/enrich_comments.py
-```
-
----
-
-## Coûts estimés
-
-| Composant | Coût |
-|-----------|------|
-| Gemini 2.0 Flash (classification) | ~0.20€ |
-| Wren AI | Gratuit (open source) |
-| Ollama | Gratuit (local) |
-| **Total** | **~0.20€** |
-
----
-
-## Ressources
-
-- [Wren AI Documentation](https://docs.getwren.ai/)
-- [Wren AI GitHub](https://github.com/Canner/WrenAI)
-- [Wren AI Demo](https://demo.getwren.ai/)
-- [Gemini API](https://ai.google.dev/)
-- [Ollama](https://ollama.ai/)
-
----
-
-## BACKLOG - Interface G7 Analytics (Custom)
-
-### Architecture Actuelle
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  STACK CUSTOM (plus simple que Wren AI)                                     │
+│  ARCHITECTURE MULTI-TENANT ISOLÉE                                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  WRAPPER (Gestion des Tenants)                                      │   │
+│  │  - Provisioning nouveaux clients                                    │   │
+│  │  - Billing / Subscription                                           │   │
+│  │  - Routing vers les instances                                       │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                              │                                              │
+│          ┌──────────────────┼──────────────────┐                           │
+│          ▼                  ▼                  ▼                            │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐                    │
+│  │  TENANT A    │   │  TENANT B    │   │  TENANT C    │                    │
+│  │  (Client 1)  │   │  (Client 2)  │   │  (Client 3)  │                    │
+│  │              │   │              │   │              │                    │
+│  │  ┌────────┐  │   │  ┌────────┐  │   │  ┌────────┐  │                    │
+│  │  │  Core  │  │   │  │  Core  │  │   │  │  Core  │  │                    │
+│  │  │DataTalk│  │   │  │DataTalk│  │   │  │DataTalk│  │                    │
+│  │  └────────┘  │   │  └────────┘  │   │  └────────┘  │                    │
+│  │              │   │              │   │              │                    │
+│  │  DuckDB      │   │  DuckDB      │   │  DuckDB      │                    │
+│  │  SQLite      │   │  SQLite      │   │  SQLite      │                    │
+│  └──────────────┘   └──────────────┘   └──────────────┘                    │
+│                                                                             │
+│  Avantages:                                                                 │
+│  - Isolation totale des données clients                                     │
+│  - Pas de risque de fuite entre tenants                                     │
+│  - Scale horizontal simple (1 instance = 1 client)                          │
+│  - Customisation possible par client                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Stack Technique (Core)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  CORE DATATALK (déployé par tenant)                                         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
-│  │  Next.js    │───▶│  FastAPI    │───▶│  Gemini     │───▶│  DuckDB     │  │
-│  │  + Shadcn   │    │  Backend    │    │  2.0 Flash  │    │  (OLAP)     │  │
+│  │  Next.js 15 │───▶│  FastAPI    │───▶│  LLM        │───▶│  DuckDB     │  │
+│  │  + Tailwind │    │  Python     │    │  (Gemini/   │    │  (OLAP)     │  │
+│  │  + Zustand  │    │             │    │   OpenAI)   │    │             │  │
 │  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘  │
 │        │                  │                                                 │
 │        │                  ▼                                                 │
@@ -263,251 +78,179 @@ python scripts/enrich_comments.py
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Schéma SQLite (catalog.sqlite)
+### Composants
+
+| Composant | Technologie | Rôle |
+|-----------|-------------|------|
+| **Frontend** | Next.js 15 + Tailwind + Zustand | Interface utilisateur moderne |
+| **Backend** | FastAPI (Python) | API REST + WebSocket |
+| **LLM** | Gemini 2.0 Flash / OpenAI | Text-to-SQL + Enrichissement catalogue |
+| **Base analytique** | DuckDB | Stockage données client (OLAP optimisé) |
+| **Catalogue** | SQLite | Métadonnées, conversations, settings |
+| **Déploiement** | Docker Compose | Container isolé par tenant |
+
+---
+
+## Fonctionnalités Clés
+
+### 1. Chat Conversationnel
+- Questions en langage naturel → SQL généré automatiquement
+- Historique des conversations
+- Suggestions de questions contextuelles
+
+### 2. Catalogue Sémantique
+- Extraction automatique des métadonnées (tables, colonnes)
+- Enrichissement LLM (descriptions, synonymes, KPIs)
+- Relations entre tables détectées
+
+### 3. Visualisations
+- Graphiques automatiques (bar, line, pie, scatter)
+- Tableaux de données paginés
+- Export des résultats
+
+### 4. Multi-Dataset
+- Support de plusieurs sources de données
+- Switch entre datasets
+- Isolation des données par dataset
+
+### 5. Internationalisation
+- Interface FR/EN
+- Architecture frontend-agnostic (Zustand store)
+- Traductions via JSON locales
+
+### 6. Theming
+- 6 thèmes de couleurs (Default, Ocean, Forest, Sunset, Purple, Monochrome)
+- Mode clair/sombre
+- Persistance des préférences
+
+---
+
+## Structure du Projet
+
+```
+datalakeG7/
+├── frontend/                 # Next.js 15 App
+│   ├── src/
+│   │   ├── app/             # Pages (App Router)
+│   │   ├── components/      # Composants React
+│   │   ├── hooks/           # Custom hooks
+│   │   ├── stores/          # Zustand stores
+│   │   ├── lib/             # API client, utils
+│   │   └── locales/         # Traductions i18n
+│   └── public/
+│
+├── backend/                  # FastAPI Python
+│   ├── main.py              # Entry point
+│   ├── routes/              # Endpoints API
+│   ├── services/            # Business logic
+│   ├── locales/             # Traductions backend
+│   └── catalog.sqlite       # Base catalogue
+│
+├── docker-compose.yml        # Orchestration
+└── .claude/                  # Configuration Claude Code
+```
+
+---
+
+## Commandes de Développement
+
+```bash
+# Lancer en développement
+docker compose up --build
+
+# Frontend seul
+cd frontend && npm run dev
+
+# Backend seul
+cd backend && uvicorn main:app --reload
+
+# TypeScript check
+cd frontend && npm run typecheck
+
+# Lint
+cd frontend && npm run lint
+cd backend && ruff check .
+```
+
+---
+
+## Schéma Base de Données (SQLite Catalogue)
+
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  CATALOGUE SÉMANTIQUE                                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  datasources ──1:N──▶ tables ──1:N──▶ columns ──1:N──▶ synonyms            │
-│                                              │                              │
-│                                              └──────▶ relationships         │
+│  datasets ──1:N──▶ tables ──1:N──▶ columns ──1:N──▶ synonyms               │
+│                                           │                                 │
+│                                           └──────▶ relationships            │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  INTERFACE UTILISATEUR                                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  conversations ──1:N──▶ messages                                            │
-│       │                    │                                                │
 │       │                    ├── role (user/assistant)                        │
 │       │                    ├── content                                      │
 │       │                    ├── sql_query                                    │
 │       │                    ├── chart_config (JSON)                          │
-│       │                    ├── model_name                                   │
-│       │                    ├── tokens_input                                 │
-│       │                    ├── tokens_output                                │
 │       │                    └── response_time_ms                             │
 │       │                                                                     │
 │       └──────────────────▶ saved_reports (favoris)                          │
-│                                 ├── title                                   │
-│                                 ├── question                                │
-│                                 ├── sql_query                               │
-│                                 ├── is_pinned                               │
-│                                 └── deletable: OUI                          │
 │                                                                             │
-│  predefined_questions ──────▶ Questions cliquables                          │
-│       ├── question                                                          │
-│       ├── category (Satisfaction, Performance, Tendances, Exploration)      │
-│       ├── icon                                                              │
-│       └── display_order                                                     │
+│  predefined_questions ──▶ Questions suggérées par catégorie                 │
 │                                                                             │
-│  settings ──────────────────▶ Configuration                                 │
-│       ├── gemini_api_key                                                    │
-│       ├── model_name                                                        │
-│       └── other preferences                                                 │
+│  settings ──────────────▶ Configuration (LLM, theme, langue)                │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### User Stories - Sprint Interface
+---
 
-#### US-01: Layout 3 Panneaux
-- [ ] Zone 1 (30%): Chat conversation avec historique
-- [ ] Zone 2 (50%): Visualisation (graphique + tableau)
-- [ ] Zone 3 (20%): Menu rapports sauvegardés
+## Conventions de Code
 
-#### US-02: Conversation Chat
-- [ ] Afficher questions user + réponses assistant empilées
-- [ ] Animation 3 points pendant le chargement
-- [ ] Bouton "Relancer" sur chaque message
-- [ ] Métadonnées par réponse:
-  - [ ] Modèle utilisé (ex: gemini-2.0-flash)
-  - [ ] Tokens input/output
-  - [ ] Temps de réponse (ms)
+### Frontend (TypeScript/React)
+- **State global** : Zustand stores (pas de Context sauf pour providers)
+- **i18n** : `t("key")` via `useTranslation` hook
+- **Styling** : Tailwind CSS + variables CSS pour theming
+- **Composants** : Functional components, pas de class components
 
-#### US-03: Questions Prédéfinies
-- [ ] Afficher dans la conversation comme suggestions cliquables
-- [ ] Catégorisées (Satisfaction, Performance, Tendances, Exploration)
-- [ ] Stockées dans SQLite (table: predefined_questions)
-- [ ] Seeder avec ~12 questions de départ
-
-#### US-04: Rapports Sauvegardés
-- [ ] Bouton "Sauvegarder" sur chaque visualisation
-- [ ] Liste dans Zone 3 avec titre cliquable
-- [ ] Épingler/désépingler un rapport
-- [ ] Supprimer un rapport (confirmation)
-- [ ] Clic = relance la requête
-
-#### US-05: Menu Configuration (Rétractable)
-- [ ] Icône engrenage dans le header
-- [ ] Panel rétractable (slide from right)
-- [ ] Configurer clé API Gemini
-- [ ] Sélectionner le modèle (gemini-2.0-flash, gemini-1.5-pro, etc.)
-- [ ] Afficher statut connexion
-
-#### US-06: Endpoints FastAPI
-- [ ] POST /conversations - Créer conversation
-- [ ] GET /conversations - Lister conversations
-- [ ] DELETE /conversations/{id} - Supprimer conversation
-- [ ] GET /conversations/{id}/messages - Messages d'une conversation
-- [ ] POST /reports - Sauvegarder rapport
-- [ ] GET /reports - Lister rapports
-- [ ] DELETE /reports/{id} - Supprimer rapport
-- [ ] PATCH /reports/{id}/pin - Toggle épinglé
-- [ ] GET /questions/predefined - Questions prédéfinies
-- [ ] GET /settings - Récupérer config
-- [ ] PUT /settings - Modifier config
-
-#### US-07: Indicateurs de Performance
-- [ ] Afficher modèle dans le header
-- [ ] Badge tokens sur chaque réponse
-- [ ] Temps de réponse formaté (ex: "1.2s")
-- [ ] Statut API Gemini (vert/rouge)
-
-### Questions Prédéfinies (à seeder)
-
-| Catégorie | Question | Icône |
-|-----------|----------|-------|
-| Satisfaction | Quelle est la note moyenne globale ? | ⭐ |
-| Satisfaction | Répartition des notes de 1 à 5 | ⭐ |
-| Satisfaction | Quels types de clients sont les plus satisfaits ? | ⭐ |
-| Performance | Top 10 chauffeurs les mieux notés | 🏆 |
-| Performance | Chauffeurs avec plus de 50 évaluations | 🏆 |
-| Performance | Note moyenne par type de chauffeur (VIP, Standard, Green) | 🏆 |
-| Tendances | Évolution des notes par jour | 📈 |
-| Tendances | Heures de la journée avec les meilleures notes | 📈 |
-| Tendances | Comparaison notes semaine vs weekend | 📈 |
-| Exploration | Combien de clients ont laissé un commentaire ? | 🔍 |
-| Exploration | Répartition par catégorie client | 🔍 |
-| Exploration | Note véhicule vs note chauffeur (corrélation) | 🔍 |
+### Backend (Python)
+- **Framework** : FastAPI avec async/await
+- **Formatage** : Ruff
+- **i18n** : `t("key")` via module `i18n.py`
+- **Base** : SQLite pour catalogue, DuckDB pour données analytiques
 
 ---
 
-### Priorités Sprint 1
+## Roadmap
 
-1. **Backend FastAPI** - Endpoints conversations + rapports + settings
-2. **Seed questions** - Peupler predefined_questions
-3. **Layout 3 panneaux** - Structure CSS/Tailwind
-4. **Chat conversation** - Historique + animation loading
-5. **Menu config** - Panel rétractable Gemini API key
+### Phase 1 - MVP (Actuel)
+- [x] Chat conversationnel
+- [x] Catalogue sémantique
+- [x] Visualisations automatiques
+- [x] Multi-dataset
+- [x] i18n FR/EN
+- [x] Theming
+
+### Phase 2 - Enterprise
+- [ ] Wrapper multi-tenant
+- [ ] Authentication (OAuth/SAML)
+- [ ] Audit logs
+- [ ] API publique
+- [ ] Webhooks
+
+### Phase 3 - Scale
+- [ ] Kubernetes deployment
+- [ ] Caching layer (Redis)
+- [ ] Real-time collaboration
+- [ ] SDK client
 
 ---
 
-## BACKLOG - Internationalisation (i18n)
+## Ressources
 
-### Architecture Actuelle
-
-L'application supporte actuellement **Français (fr)** et **Anglais (en)** avec une implémentation parallèle frontend/backend.
-
-#### Frontend (`frontend/src/hooks/useTranslation.ts`)
-```typescript
-// Fichiers de traduction
-frontend/src/locales/fr.json  // 247 lignes, 14 catégories
-frontend/src/locales/en.json  // 247 lignes, 14 catégories
-
-// Usage
-import { t } from "@/hooks/useTranslation";
-t("common.save")  // "Sauvegarder"
-t("validation.range_error", { min: 1, max: 50 })  // "Valeur entre 1 et 50"
-```
-
-#### Backend (`backend/i18n.py`)
-```python
-# Fichiers de traduction
-backend/locales/fr.json  # 100 lignes, 9 catégories
-backend/locales/en.json  # 89 lignes, 9 catégories
-
-# Usage
-from i18n import t, set_locale
-t("llm.not_configured")  # "Aucun modèle LLM configuré..."
-```
-
-### Points Hardcodés à Corriger
-
-**IMPORTANT**: Les endroits suivants utilisent `fr-FR` en dur pour le formatage des dates/nombres:
-
-| Fichier | Ligne | Code Problématique |
-|---------|-------|-------------------|
-| `app/runs/page.tsx` | - | `toLocaleString('fr-FR', {...})` |
-| `components/settings/PromptsTab.tsx` | - | `toLocaleDateString("fr-FR")` |
-| `components/KpiCardCompact.tsx` | - | `value.toLocaleString("fr-FR")` |
-| `components/KpiCard.tsx` | - | `value.toLocaleString("fr-FR")` |
-| `components/chat/ChatHistory.tsx` | - | `toLocaleDateString("fr-FR", {...})` |
-| `components/Chart.tsx` | - | `value.toLocaleString('fr-FR')` |
-| `components/ChartCard.tsx` | - | `value.toLocaleString("fr-FR")` |
-| `components/DataTable.tsx` | - | `value.toLocaleString("fr-FR")` |
-| `app/layout.tsx` | - | `<html lang="fr">` |
-
-### US-08: Changement de Langue Utilisateur
-
-#### Objectif
-Permettre à l'utilisateur de changer la langue de l'interface. Le paramètre doit être utilisé **par le frontend ET le backend** pour que tous les messages soient cohérents.
-
-#### Backend
-- [ ] Ajouter setting `language` dans la table `settings` (valeur: "fr" | "en")
-- [ ] Créer endpoint `GET /settings/language`
-- [ ] Créer endpoint `PUT /settings/language`
-- [ ] Ajouter middleware pour lire le header `Accept-Language` OU le setting stocké
-- [ ] Appeler `set_locale()` avant de traiter chaque requête
-- [ ] Les réponses API utilisent automatiquement la bonne langue via `t()`
-
-#### Frontend
-- [ ] Créer `LanguageContext` pour stocker la langue globalement
-- [ ] Créer `LanguageProvider` (similaire à ThemeProvider)
-- [ ] Modifier `useTranslation` pour utiliser le contexte
-- [ ] Ajouter sélecteur de langue dans les Settings (onglet dédié ou dans ModelsTab)
-- [ ] Persister la langue dans localStorage + API
-- [ ] Modifier tous les `toLocaleString("fr-FR")` pour utiliser la locale du contexte
-- [ ] Modifier `<html lang="fr">` pour être dynamique
-- [ ] Envoyer header `Accept-Language` dans les requêtes API
-
-#### Flux de Données
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  CHANGEMENT DE LANGUE                                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  1. User clique "English" dans Settings                                     │
-│       │                                                                     │
-│       ▼                                                                     │
-│  2. Frontend: PUT /settings/language {value: "en"}                          │
-│       │                                                                     │
-│       ▼                                                                     │
-│  3. Backend: set_setting("language", "en") + set_locale("en")               │
-│       │                                                                     │
-│       ▼                                                                     │
-│  4. Frontend: LanguageContext.setLanguage("en")                             │
-│       │                                                                     │
-│       ├──▶ localStorage.setItem("language", "en")                           │
-│       │                                                                     │
-│       └──▶ Re-render avec nouvelles traductions                             │
-│                                                                             │
-│  5. Requêtes suivantes: header Accept-Language: en                          │
-│       │                                                                     │
-│       ▼                                                                     │
-│  6. Backend: middleware lit header → set_locale("en")                       │
-│       │                                                                     │
-│       ▼                                                                     │
-│  7. Réponses API en anglais via t("key")                                    │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-#### Fichiers à Modifier
-
-**Frontend:**
-- `src/hooks/useTranslation.ts` - Ajouter support contexte
-- `src/components/ThemeProvider.tsx` - Renommer ou créer LanguageProvider
-- `src/app/layout.tsx` - lang dynamique + LanguageProvider
-- `src/lib/api/settings.ts` - Endpoints language
-- `src/components/settings/*` - Ajouter sélecteur langue
-- Tous les fichiers avec `toLocaleString("fr-FR")` (voir tableau ci-dessus)
-
-**Backend:**
-- `backend/main.py` - Middleware Accept-Language
-- `backend/routes/settings.py` - Endpoint language
-- `backend/i18n.py` - Déjà prêt (set_locale existe)
-
-#### Valeur par Défaut
-- Backend: `fr` (défaut actuel)
-- Frontend: Lire localStorage OU `navigator.language` OU `fr`
+- **Concurrent** : [Omni.co](https://omni.co)
+- **Inspiration** : Metabase, Looker, Mode Analytics
+- **LLM** : [Gemini API](https://ai.google.dev/), [OpenAI](https://platform.openai.com/)
+- **DuckDB** : [Documentation](https://duckdb.org/docs/)

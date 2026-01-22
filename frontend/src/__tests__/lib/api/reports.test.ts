@@ -8,6 +8,7 @@ import {
   executeReport,
   fetchSharedReport,
 } from '@/lib/api/reports';
+import { expectFetchCalledWith } from './helpers';
 
 // Mock fetch globally
 const mockFetch = jest.fn();
@@ -40,7 +41,7 @@ describe('Reports API', () => {
 
       const result = await fetchSavedReports();
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/reports');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/reports');
       expect(result).toEqual(mockReports);
     });
 
@@ -77,7 +78,7 @@ describe('Reports API', () => {
         42
       );
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/reports', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,7 +109,7 @@ describe('Reports API', () => {
 
       const result = await deleteReport(5);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/reports/5', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/reports/5', {
         method: 'DELETE',
       });
       expect(result).toBe(true);
@@ -140,7 +141,7 @@ describe('Reports API', () => {
 
       const result = await executeReport(1);
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/reports/1/execute', {
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/reports/1/execute', {
         method: 'POST',
       });
       expect(result).toEqual(mockResponse);
@@ -182,7 +183,7 @@ describe('Reports API', () => {
 
       const result = await fetchSharedReport('abc123');
 
-      expect(mockFetch).toHaveBeenCalledWith('http://localhost:8000/reports/shared/abc123');
+      expectFetchCalledWith(mockFetch, 'http://localhost:8000/reports/shared/abc123');
       expect(result).toEqual(mockResponse);
     });
 

@@ -1,16 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { ReactFlow, ReactFlowProvider, BackgroundVariant, Background } from "@xyflow/react";
 import type { Node, NodeTypes } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import Link from "next/link";
 import { DatasetNode } from "@/components/DatasetNode";
-import * as api from "@/lib/api";
 import type { Dataset } from "@/lib/api";
-import { toast } from "sonner";
-import { t } from "@/hooks/useTranslation";
+import { useTranslation } from "@/hooks/useTranslation";
 import { PlusIcon } from "@/components/icons";
+import { useDatasetStore } from "@/stores/useDatasetStore";
 
 // Hydration-safe mounting detection
 const emptySubscribe = () => () => {};
@@ -46,46 +46,27 @@ function datasetsToNodes(
  *
  * Displays dataset nodes that can be clicked to switch between datasets.
  * The active dataset is highlighted with primary color.
+ *
+ * Uses useDatasetStore (Zustand) for centralized state management.
  */
 function DatasetHeaderInner() {
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Use Zustand store instead of local state
+  const datasets = useDatasetStore((state) => state.datasets);
+  const loading = useDatasetStore((state) => state.loading);
+  const loadDatasets = useDatasetStore((state) => state.loadDatasets);
+  const activateDataset = useDatasetStore((state) => state.activateDataset);
+
+  // i18n - use hook instead of direct import
+  const { t } = useTranslation();
+
   const mounted = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
 
-  // Load datasets
-  const loadDatasets = useCallback(async () => {
-    try {
-      const response = await api.fetchDatasets(false); // No stats needed for header
-      setDatasets(response.datasets);
-    } catch (err) {
-      console.error("Failed to load datasets for header:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Load datasets on mount (always load to ensure fresh data)
   useEffect(() => {
     if (mounted) {
-      void loadDatasets();
+      void loadDatasets(false); // No stats needed for header
     }
   }, [mounted, loadDatasets]);
-
-  // Handle dataset activation (async logic)
-  const activateDataset = useCallback(async (datasetId: string) => {
-    try {
-      await api.activateDataset(datasetId);
-      toast.success(t("datasets.activated"));
-      // Update local state
-      setDatasets((prev) =>
-        prev.map((d) => ({
-          ...d,
-          is_active: d.id === datasetId,
-        }))
-      );
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("common.error"));
-    }
-  }, []);
 
   // Sync wrapper for ReactFlow callback
   const handleActivate = useCallback(
@@ -117,13 +98,13 @@ function DatasetHeaderInner() {
   if (datasets.length === 0) {
     return (
       <div className="h-12 border-b border-border/30 bg-sidebar/50 flex-shrink-0 flex items-center px-4">
-        <a
+        <Link
           href="/datasets"
           className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           <PlusIcon size={14} />
           <span>{t("datasets.create_first")}</span>
-        </a>
+        </Link>
       </div>
     );
   }
