@@ -50,7 +50,7 @@ def add_widget(
             priority,
         ),
     )
-    row_id = cursor.fetchone()[0]
+    row_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return row_id

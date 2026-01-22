@@ -60,7 +60,7 @@ def add_datasource(
             ingestion_catalog_json,
         ),
     )
-    datasource_id = cursor.fetchone()[0]
+    datasource_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return datasource_id
@@ -262,7 +262,7 @@ def is_sync_running(dataset_id: str) -> bool:
            WHERE dataset_id = %s AND sync_status = 'running'""",
         (dataset_id,),
     )
-    count = cursor.fetchone()[0]
+    count = cursor.fetchone()["count"]
     conn.close()
     return count > 0
 

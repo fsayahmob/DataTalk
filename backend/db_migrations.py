@@ -58,7 +58,7 @@ def _migration_001_share_token(cursor: Any) -> None:
     for row in cursor.fetchall():
         cursor.execute(
             "UPDATE saved_reports SET share_token = %s WHERE id = %s",
-            (str(uuid.uuid4()), row[0]),
+            (str(uuid.uuid4()), row["id"]),
         )
 
 
@@ -115,7 +115,7 @@ def _migration_006_prompt_v3(cursor: Any) -> None:
         "SELECT version FROM llm_prompts WHERE key = 'analytics_system' AND is_active = TRUE"
     )
     row = cursor.fetchone()
-    if not row or row[0] == "v3":
+    if not row or row["version"] == "v3":
         return
 
     new_prompt = """Assistant analytique SQL. Réponds en français.
@@ -239,7 +239,7 @@ def _migration_009_bedrock_provider(cursor: Any) -> None:
     row = cursor.fetchone()
     if not row:
         return
-    provider_id = row[0]
+    provider_id = row["id"]
 
     # Ajouter les modèles Bedrock
     models = [
@@ -305,7 +305,7 @@ def run_migrations(conn: Any) -> int:
 
     # Récupérer les migrations déjà appliquées
     cursor.execute("SELECT version FROM _migrations")
-    applied = {row[0] for row in cursor.fetchall()}
+    applied = {row["version"] for row in cursor.fetchall()}
 
     applied_count = 0
 

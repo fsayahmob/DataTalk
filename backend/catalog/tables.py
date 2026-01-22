@@ -25,7 +25,7 @@ def add_table(
     """,
         (datasource_id, name, description, row_count),
     )
-    table_id = cursor.fetchone()[0]
+    table_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return table_id
@@ -70,7 +70,7 @@ def add_column(
             full_context,
         ),
     )
-    column_id = cursor.fetchone()[0]
+    column_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return column_id

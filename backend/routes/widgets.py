@@ -107,8 +107,10 @@ async def list_suggested_questions() -> dict[str, list[dict[str, Any]]]:
     """
     try:
         conn = get_connection()
+        cursor = conn.cursor()
         # Vérifier si le catalogue existe (au moins une table)
-        table_count = conn.execute("SELECT COUNT(*) FROM tables").fetchone()[0]
+        cursor.execute("SELECT COUNT(*) as count FROM tables")
+        table_count = cursor.fetchone()["count"]
         conn.close()
 
         if table_count == 0:

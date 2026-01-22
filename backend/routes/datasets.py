@@ -15,6 +15,7 @@ Endpoints:
 """
 
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -72,8 +73,8 @@ class DatasetResponse(BaseModel):
     row_count: int
     table_count: int
     size_bytes: int
-    created_at: str | None
-    updated_at: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
 
 
 # =============================================================================

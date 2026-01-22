@@ -54,7 +54,11 @@ def get_api_key(provider_id: int) -> str | None:
     conn.close()
 
     if row and row["encrypted_api_key"]:
-        return decrypt(row["encrypted_api_key"])
+        # PostgreSQL BYTEA retourne un memoryview, convertir en bytes
+        encrypted = row["encrypted_api_key"]
+        if isinstance(encrypted, memoryview):
+            encrypted = bytes(encrypted)
+        return decrypt(encrypted)
 
     return None
 

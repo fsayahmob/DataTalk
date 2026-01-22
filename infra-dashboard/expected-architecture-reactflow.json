@@ -1,12 +1,13 @@
 {
   "$schema": "./expected-architecture-reactflow.schema.json",
   "_comment": "GCP-style flat topology - auto-layout with dagre",
-  "_version": "3.0.0",
+  "_version": "4.0.0",
 
   "metadata": {
     "title": "DataTalk Infrastructure",
-    "lastUpdated": "2026-01-18",
-    "author": "Claude"
+    "lastUpdated": "2026-01-22",
+    "author": "Claude",
+    "changelog": "Migration SQLite → PostgreSQL pour haute concurrence"
   },
 
   "config": {
@@ -72,6 +73,20 @@
       }
     },
     {
+      "id": "postgres",
+      "type": "service",
+      "data": {
+        "label": "PostgreSQL",
+        "service": "datatalk-postgres",
+        "image": "postgres:16-alpine",
+        "ports": [],
+        "status": "expected",
+        "group": "datatalk",
+        "icon": "database",
+        "description": "Catalogue métadonnées - remplace SQLite"
+      }
+    },
+    {
       "id": "redis",
       "type": "service",
       "data": {
@@ -81,7 +96,18 @@
         "ports": [],
         "status": "expected",
         "group": "datatalk",
-        "icon": "database"
+        "icon": "cached"
+      }
+    },
+    {
+      "id": "postgres-volume",
+      "type": "datastore",
+      "data": {
+        "label": "PostgreSQL Data",
+        "volume": "datatalk-postgres",
+        "mountPath": "/var/lib/postgresql/data",
+        "group": "datatalk",
+        "icon": "storage"
       }
     },
     {
@@ -89,19 +115,8 @@
       "type": "datastore",
       "data": {
         "label": "Redis Data",
-        "volume": "redis-data",
+        "volume": "datatalk-redis",
         "mountPath": "/data",
-        "group": "datatalk",
-        "icon": "storage"
-      }
-    },
-    {
-      "id": "sqlite",
-      "type": "datastore",
-      "data": {
-        "label": "SQLite",
-        "volume": "datatalk-sqlite",
-        "mountPath": "/data/sqlite",
         "group": "datatalk",
         "icon": "storage"
       }
@@ -114,7 +129,8 @@
         "volume": "datatalk-duckdb",
         "mountPath": "/data/duckdb",
         "group": "datatalk",
-        "icon": "analytics"
+        "icon": "analytics",
+        "description": "Données analytiques OLAP"
       }
     },
     {
@@ -151,6 +167,18 @@
       "data": { "protocol": "HTTP", "port": 8000 }
     },
     {
+      "id": "e-api-postgres",
+      "source": "api",
+      "target": "postgres",
+      "data": { "protocol": "PostgreSQL", "port": 5432 }
+    },
+    {
+      "id": "e-worker-postgres",
+      "source": "worker",
+      "target": "postgres",
+      "data": { "protocol": "PostgreSQL", "port": 5432 }
+    },
+    {
       "id": "e-api-redis",
       "source": "api",
       "target": "redis",
@@ -163,21 +191,15 @@
       "data": { "protocol": "Redis", "port": 6379 }
     },
     {
+      "id": "e-postgres-volume",
+      "source": "postgres",
+      "target": "postgres-volume",
+      "data": { "type": "volume", "mode": "rw" }
+    },
+    {
       "id": "e-redis-volume",
       "source": "redis",
       "target": "redis-volume",
-      "data": { "type": "volume", "mode": "rw" }
-    },
-    {
-      "id": "e-api-sqlite",
-      "source": "api",
-      "target": "sqlite",
-      "data": { "type": "volume", "mode": "rw" }
-    },
-    {
-      "id": "e-worker-sqlite",
-      "source": "worker",
-      "target": "sqlite",
       "data": { "type": "volume", "mode": "rw" }
     },
     {
@@ -190,7 +212,7 @@
       "id": "e-worker-duckdb",
       "source": "worker",
       "target": "duckdb",
-      "data": { "type": "volume", "mode": "ro" }
+      "data": { "type": "volume", "mode": "rw" }
     },
     {
       "id": "e-api-cache",

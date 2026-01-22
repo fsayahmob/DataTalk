@@ -117,6 +117,7 @@ def get_system_instruction() -> str:
     if not prompt_data or not prompt_data.get("content"):
         raise PromptNotConfiguredError("analytics_system")
 
-    # Injecter le schéma dans le template
+    # Injecter le schéma dans le template (replace au lieu de format pour éviter
+    # les conflits avec les accolades JSON dans le schéma)
     content: str = prompt_data["content"]
-    return content.format(schema=app_state.db_schema_cache)
+    return content.replace("{schema}", app_state.db_schema_cache)

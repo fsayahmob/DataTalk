@@ -141,9 +141,12 @@ def generate_kpis(
     # Générer la description des champs KPI depuis le modèle Pydantic
     kpi_fields = KpiDefinition.get_fields_description()
 
-    prompt = prompt_data["content"].format(
-        schema="\n".join(schema_lines), data_period=data_period, kpi_fields=kpi_fields
-    )
+    # Utiliser replace() au lieu de format() pour éviter les conflits
+    # avec les accolades JSON dans le contenu dynamique
+    prompt = prompt_data["content"]
+    prompt = prompt.replace("{schema}", "\n".join(schema_lines))
+    prompt = prompt.replace("{data_period}", data_period)
+    prompt = prompt.replace("{kpi_fields}", kpi_fields)
 
     # Vérifier la taille du prompt avant l'appel
     is_ok, token_count, token_msg = check_token_limit(prompt)

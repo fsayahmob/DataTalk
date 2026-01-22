@@ -39,7 +39,7 @@ def create_catalog_job(
         """,
             (job_type, run_id, total_steps, details_json),
         )
-        job_id = cursor.fetchone()[0]
+        job_id = cursor.fetchone()["id"]
         conn.commit()
         return job_id
     finally:

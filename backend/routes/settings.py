@@ -65,10 +65,10 @@ async def health_check() -> dict[str, Any]:
     try:
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM tables")
-        table_count = cursor.fetchone()[0]
-        cursor.execute("SELECT COUNT(*) FROM columns")
-        column_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) as count FROM tables")
+        table_count = cursor.fetchone()["count"]
+        cursor.execute("SELECT COUNT(*) as count FROM columns")
+        column_count = cursor.fetchone()["count"]
         conn.close()
         catalog_status = {
             "status": "ok",

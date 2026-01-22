@@ -24,7 +24,7 @@ def add_suggested_question(
     """,
         (question, category, icon, display_order),
     )
-    question_id = cursor.fetchone()[0]
+    question_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return question_id

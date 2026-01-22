@@ -14,6 +14,7 @@ Endpoints:
 """
 
 import logging
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -81,11 +82,11 @@ class DatasourceResponse(BaseModel):
     description: str | None
     sync_config: dict[str, Any] | None
     sync_status: str | None
-    last_sync_at: str | None
+    last_sync_at: datetime | None
     last_sync_error: str | None
     is_active: bool
-    created_at: str | None
-    updated_at: str | None
+    created_at: datetime | None
+    updated_at: datetime | None
     sync_mode: str | None
     ingestion_catalog: dict[str, Any] | None
 

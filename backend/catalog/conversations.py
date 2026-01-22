@@ -12,7 +12,7 @@ def create_conversation(title: str | None = None) -> int:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("INSERT INTO conversations (title) VALUES (%s) RETURNING id", (title,))
-    conversation_id = cursor.fetchone()[0]
+    conversation_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return conversation_id

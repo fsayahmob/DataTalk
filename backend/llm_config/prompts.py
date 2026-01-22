@@ -80,7 +80,7 @@ def add_prompt(
         """,
             (key, name, category, content, version, is_active, tokens_estimate, description),
         )
-        prompt_id = cursor.fetchone()[0]
+        prompt_id = cursor.fetchone()["id"]
         conn.commit()
         conn.close()
         return prompt_id

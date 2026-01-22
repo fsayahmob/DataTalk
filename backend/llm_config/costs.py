@@ -60,7 +60,7 @@ def log_cost(
         ),
     )
 
-    cost_id = cursor.fetchone()[0]
+    cost_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return cost_id

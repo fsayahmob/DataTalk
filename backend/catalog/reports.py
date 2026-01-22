@@ -29,7 +29,7 @@ def save_report(
     """,
         (title, question, sql_query, chart_config, message_id, is_pinned, share_token),
     )
-    report_id = cursor.fetchone()[0]
+    report_id = cursor.fetchone()["id"]
     conn.commit()
     conn.close()
     return {"id": report_id, "share_token": share_token}

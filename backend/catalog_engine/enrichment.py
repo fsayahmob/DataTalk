@@ -256,7 +256,8 @@ def enrich_with_llm(
     if not prompt_data or not prompt_data.get("content"):
         raise PromptNotConfiguredError("catalog_enrichment")
 
-    prompt = prompt_data["content"].format(tables_context=tables_context)
+    # Replace au lieu de format pour éviter les conflits avec les accolades JSON
+    prompt = prompt_data["content"].replace("{tables_context}", tables_context)
 
     # Vérifier la taille du prompt avant l'appel
     is_ok, token_count, token_msg = check_token_limit(prompt)

@@ -51,8 +51,9 @@ def generate_suggested_questions(
     if not prompt_data or not prompt_data.get("content"):
         raise QuestionGenerationError("Prompt 'catalog_questions' non trouvé")
 
-    # Injecter le schéma dans le prompt
-    prompt = prompt_data["content"].format(schema=schema)
+    # Injecter le schéma dans le prompt (replace au lieu de format pour éviter
+    # les conflits avec les accolades JSON dans le schéma)
+    prompt = prompt_data["content"].replace("{schema}", schema)
 
     def _call_questions_llm() -> list[dict[str, Any]]:
         # Appeler le LLM

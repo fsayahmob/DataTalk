@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from typing import Any
 
 import psycopg2
+import psycopg2.extras
 
 from config import DATABASE_URL, SCHEMA_PATH
 from db_migrations import MigrationError, run_migrations
@@ -98,8 +99,14 @@ def get_connection() -> psycopg2.extensions.connection:
 
     PostgreSQL gère nativement la concurrence via MVCC.
     Pas besoin de WAL ou busy_timeout comme avec SQLite.
+
+    Utilise RealDictCursor par défaut pour que cursor.fetchone()
+    retourne des dictionnaires au lieu de tuples.
     """
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(
+        DATABASE_URL,
+        cursor_factory=psycopg2.extras.RealDictCursor
+    )
     return conn
 
 

@@ -3,8 +3,15 @@
 -- =============================================
 -- Migration depuis SQLite pour résoudre les problèmes de concurrence.
 -- PostgreSQL gère nativement les écritures concurrentes via MVCC.
+--
+-- IMPORTANT: L'ordre des CREATE TABLE respecte les dépendances FK
+-- (tables parentes avant tables enfants)
+-- =============================================
 
--- TABLES
+-- =============================================
+-- TABLES SANS DÉPENDANCES (niveau 0)
+-- =============================================
+
 CREATE TABLE IF NOT EXISTS _migrations (
     version TEXT PRIMARY KEY,
     applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -24,23 +31,6 @@ CREATE TABLE IF NOT EXISTS catalog_jobs (
     error_message TEXT,
     started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS columns (
-    id SERIAL PRIMARY KEY,
-    table_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    data_type TEXT NOT NULL,
-    description TEXT,
-    is_nullable BOOLEAN DEFAULT TRUE,
-    is_primary_key BOOLEAN DEFAULT FALSE,
-    sample_values TEXT,  -- JSON array des valeurs d'exemple
-    value_range TEXT,    -- Ex: "1-5" pour les notes
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    full_context TEXT,
-    FOREIGN KEY (table_id) REFERENCES tables(id),
-    UNIQUE(table_id, name)
 );
 
 CREATE TABLE IF NOT EXISTS conversations (
@@ -71,6 +61,20 @@ CREATE TABLE IF NOT EXISTS datasources (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS datasets (
+    id TEXT PRIMARY KEY,  -- UUID string, not SERIAL
+    name TEXT NOT NULL,
+    description TEXT,
+    duckdb_path TEXT,
+    status TEXT DEFAULT 'empty',  -- empty, loading, ready, error
+    is_active BOOLEAN DEFAULT FALSE,
+    row_count INTEGER DEFAULT 0,
+    table_count INTEGER DEFAULT 0,
+    size_bytes BIGINT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS kpis (
     id SERIAL PRIMARY KEY,
     kpi_id TEXT UNIQUE NOT NULL,     -- Slug unique (ex: "total-evaluations")
@@ -88,38 +92,15 @@ CREATE TABLE IF NOT EXISTS kpis (
     invert_trend BOOLEAN DEFAULT FALSE
 );
 
-CREATE TABLE IF NOT EXISTS llm_costs (
+CREATE TABLE IF NOT EXISTS llm_providers (
     id SERIAL PRIMARY KEY,
-    model_id INTEGER NOT NULL,
-    source TEXT NOT NULL,
-    conversation_id INTEGER,
-    tokens_input INTEGER NOT NULL,
-    tokens_output INTEGER NOT NULL,
-    cost_input REAL,
-    cost_output REAL,
-    cost_total REAL,
-    response_time_ms INTEGER,
-    success BOOLEAN DEFAULT TRUE,
-    error_message TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (model_id) REFERENCES llm_models(id),
-    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
-);
-
-CREATE TABLE IF NOT EXISTS llm_models (
-    id SERIAL PRIMARY KEY,
-    provider_id INTEGER NOT NULL,
-    model_id TEXT NOT NULL,
+    name TEXT UNIQUE NOT NULL,
     display_name TEXT NOT NULL,
-    supports_json_mode BOOLEAN DEFAULT TRUE,
-    supports_structured_output BOOLEAN DEFAULT TRUE,
-    context_window INTEGER,
-    cost_per_1m_input REAL,
-    cost_per_1m_output REAL,
-    is_default BOOLEAN DEFAULT FALSE,
+    type TEXT NOT NULL,
+    base_url TEXT,
+    requires_api_key BOOLEAN DEFAULT TRUE,
     is_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (provider_id) REFERENCES llm_providers(id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS llm_prompts (
@@ -137,15 +118,69 @@ CREATE TABLE IF NOT EXISTS llm_prompts (
     UNIQUE(key, version)
 );
 
-CREATE TABLE IF NOT EXISTS llm_providers (
+CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS suggested_questions (
     id SERIAL PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    display_name TEXT NOT NULL,
-    type TEXT NOT NULL,
-    base_url TEXT,
-    requires_api_key BOOLEAN DEFAULT TRUE,
+    question TEXT NOT NULL,
+    category TEXT,
+    icon TEXT,
+    display_order INTEGER DEFAULT 0,
     is_enabled BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS widgets (
+    id SERIAL PRIMARY KEY,
+    widget_id TEXT UNIQUE NOT NULL,  -- UUID ou slug unique
+    title TEXT NOT NULL,
+    description TEXT,
+    icon TEXT,                       -- Emoji optionnel
+    sql_query TEXT NOT NULL,         -- Requête SQL à exécuter sur DuckDB
+    chart_type TEXT NOT NULL,        -- "bar", "line", "pie", "area", "scatter", "none"
+    chart_config TEXT,               -- JSON: {"x": "col", "y": "col", "title": "..."}
+    display_order INTEGER DEFAULT 0,
+    priority TEXT DEFAULT 'normal',  -- "high" = KPI en haut, "normal" = widget standard
+    is_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================
+-- TABLES NIVEAU 1 (dépendent des tables niveau 0)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS tables (
+    id SERIAL PRIMARY KEY,
+    datasource_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    row_count INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_enabled BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (datasource_id) REFERENCES datasources(id),
+    UNIQUE(datasource_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS llm_models (
+    id SERIAL PRIMARY KEY,
+    provider_id INTEGER NOT NULL,
+    model_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    supports_json_mode BOOLEAN DEFAULT TRUE,
+    supports_structured_output BOOLEAN DEFAULT TRUE,
+    context_window INTEGER,
+    cost_per_1m_input REAL,
+    cost_per_1m_output REAL,
+    is_default BOOLEAN DEFAULT FALSE,
+    is_enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (provider_id) REFERENCES llm_providers(id)
 );
 
 CREATE TABLE IF NOT EXISTS llm_secrets (
@@ -173,6 +208,53 @@ CREATE TABLE IF NOT EXISTS messages (
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS widget_cache (
+    widget_id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,              -- JSON: résultat de la requête SQL
+    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,            -- NULL = pas d'expiration
+    FOREIGN KEY (widget_id) REFERENCES widgets(widget_id) ON DELETE CASCADE
+);
+
+-- =============================================
+-- TABLES NIVEAU 2 (dépendent des tables niveau 1)
+-- =============================================
+
+CREATE TABLE IF NOT EXISTS columns (
+    id SERIAL PRIMARY KEY,
+    table_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    data_type TEXT NOT NULL,
+    description TEXT,
+    is_nullable BOOLEAN DEFAULT TRUE,
+    is_primary_key BOOLEAN DEFAULT FALSE,
+    sample_values TEXT,  -- JSON array des valeurs d'exemple
+    value_range TEXT,    -- Ex: "1-5" pour les notes
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    full_context TEXT,
+    FOREIGN KEY (table_id) REFERENCES tables(id),
+    UNIQUE(table_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS llm_costs (
+    id SERIAL PRIMARY KEY,
+    model_id INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    conversation_id INTEGER,
+    tokens_input INTEGER NOT NULL,
+    tokens_output INTEGER NOT NULL,
+    cost_input REAL,
+    cost_output REAL,
+    cost_total REAL,
+    response_time_ms INTEGER,
+    success BOOLEAN DEFAULT TRUE,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (model_id) REFERENCES llm_models(id),
+    FOREIGN KEY (conversation_id) REFERENCES conversations(id)
+);
+
 CREATE TABLE IF NOT EXISTS saved_reports (
     id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
@@ -186,21 +268,9 @@ CREATE TABLE IF NOT EXISTS saved_reports (
     FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
 );
 
-CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS suggested_questions (
-    id SERIAL PRIMARY KEY,
-    question TEXT NOT NULL,
-    category TEXT,
-    icon TEXT,
-    display_order INTEGER DEFAULT 0,
-    is_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+-- =============================================
+-- TABLES NIVEAU 3 (dépendent des tables niveau 2)
+-- =============================================
 
 CREATE TABLE IF NOT EXISTS synonyms (
     id SERIAL PRIMARY KEY,
@@ -209,57 +279,10 @@ CREATE TABLE IF NOT EXISTS synonyms (
     FOREIGN KEY (column_id) REFERENCES columns(id)
 );
 
-CREATE TABLE IF NOT EXISTS tables (
-    id SERIAL PRIMARY KEY,
-    datasource_id INTEGER NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    row_count INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_enabled BOOLEAN DEFAULT TRUE,
-    FOREIGN KEY (datasource_id) REFERENCES datasources(id),
-    UNIQUE(datasource_id, name)
-);
-
-CREATE TABLE IF NOT EXISTS widget_cache (
-    widget_id TEXT PRIMARY KEY,
-    data TEXT NOT NULL,              -- JSON: résultat de la requête SQL
-    computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP,            -- NULL = pas d'expiration
-    FOREIGN KEY (widget_id) REFERENCES widgets(widget_id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS widgets (
-    id SERIAL PRIMARY KEY,
-    widget_id TEXT UNIQUE NOT NULL,  -- UUID ou slug unique
-    title TEXT NOT NULL,
-    description TEXT,
-    icon TEXT,                       -- Emoji optionnel
-    sql_query TEXT NOT NULL,         -- Requête SQL à exécuter sur DuckDB
-    chart_type TEXT NOT NULL,        -- "bar", "line", "pie", "area", "scatter", "none"
-    chart_config TEXT,               -- JSON: {"x": "col", "y": "col", "title": "..."}
-    display_order INTEGER DEFAULT 0,
-    priority TEXT DEFAULT 'normal',  -- "high" = KPI en haut, "normal" = widget standard
-    is_enabled BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS datasets (
-    id SERIAL PRIMARY KEY,
-    dataset_id TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    description TEXT,
-    duckdb_path TEXT,
-    is_active BOOLEAN DEFAULT FALSE,
-    table_count INTEGER DEFAULT 0,
-    total_rows INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+-- =============================================
 -- INDEXES
+-- =============================================
+
 CREATE INDEX IF NOT EXISTS idx_costs_date ON llm_costs(created_at);
 CREATE INDEX IF NOT EXISTS idx_costs_model ON llm_costs(model_id);
 CREATE INDEX IF NOT EXISTS idx_costs_source ON llm_costs(source);

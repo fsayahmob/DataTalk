@@ -45,7 +45,7 @@ def add_message(
         ),
     )
 
-    message_id = cursor.fetchone()[0]
+    message_id = cursor.fetchone()["id"]
 
     # Mettre à jour le timestamp de la conversation
     cursor.execute(

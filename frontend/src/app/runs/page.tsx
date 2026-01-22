@@ -65,7 +65,10 @@ function RunsPageContent() {
     },
   });
 
-  // Note: loadRuns() is called once by StoreProvider
+  // Recharger les runs à chaque visite de la page
+  useEffect(() => {
+    void loadRuns();
+  }, [loadRuns]);
 
   // Fonction pour construire le flow depuis un job
   const buildFlowFromJob = useCallback(

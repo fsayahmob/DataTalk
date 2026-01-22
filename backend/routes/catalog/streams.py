@@ -10,6 +10,7 @@ import asyncio
 import json
 import logging
 from collections.abc import AsyncGenerator
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter
@@ -18,6 +19,13 @@ from fastapi.responses import StreamingResponse
 from catalog import get_catalog_jobs, get_latest_run_id, get_run_jobs
 
 logger = logging.getLogger(__name__)
+
+
+def _json_serializer(obj: Any) -> str:
+    """JSON serializer for datetime objects from PostgreSQL."""
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 router = APIRouter()
 
@@ -37,11 +45,11 @@ async def stream_run_jobs(run_id: str) -> StreamingResponse:
                 jobs_data = [dict(job) for job in jobs]
 
                 # Envoyer les données
-                yield f"data: {json.dumps(jobs_data)}\n\n"
+                yield f"data: {json.dumps(jobs_data, default=_json_serializer)}\n\n"
 
                 # Arrêter si tous jobs sont terminés
                 if jobs_data and all(j["status"] in ["completed", "failed"] for j in jobs_data):
-                    yield f"data: {json.dumps({'done': True})}\n\n"
+                    yield f"data: {json.dumps({'done': True}, default=_json_serializer)}\n\n"
                     break
 
                 # Update toutes les 500ms
@@ -49,7 +57,7 @@ async def stream_run_jobs(run_id: str) -> StreamingResponse:
 
         except Exception as e:
             logger.error("Erreur SSE job-stream: %s", e)
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': str(e)}, default=_json_serializer)}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -87,7 +95,7 @@ async def stream_catalog_status() -> StreamingResponse:
 
                 # Toujours envoyer le premier message + envoyer si changement
                 if first_message or status != previous_status:
-                    yield f"data: {json.dumps(status)}\n\n"
+                    yield f"data: {json.dumps(status, default=_json_serializer)}\n\n"
                     previous_status = status
                     first_message = False
 
@@ -95,7 +103,7 @@ async def stream_catalog_status() -> StreamingResponse:
 
         except Exception as e:
             logger.error("Erreur SSE status-stream: %s", e)
-            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+            yield f"data: {json.dumps({'error': str(e)}, default=_json_serializer)}\n\n"
 
     return StreamingResponse(
         event_generator(),
