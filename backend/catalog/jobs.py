@@ -34,14 +34,13 @@ def create_catalog_job(
         cursor.execute(
             """
             INSERT INTO catalog_jobs (job_type, run_id, status, total_steps, details)
-            VALUES (?, ?, 'pending', ?, ?)
+            VALUES (%s, %s, 'pending', %s, %s)
+            RETURNING id
         """,
             (job_type, run_id, total_steps, details_json),
         )
-
+        job_id = cursor.fetchone()[0]
         conn.commit()
-        job_id = cursor.lastrowid
-        assert job_id is not None
         return job_id
     finally:
         conn.close()
@@ -70,7 +69,7 @@ def update_job_status(
 
         # Calculer le progress si step_index fourni
         if step_index is not None:
-            cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = ?", (job_id,))
+            cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = %s", (job_id,))
             row = cursor.fetchone()
             if row and row["total_steps"]:
                 progress = int((step_index + 1) / row["total_steps"] * 100)
@@ -80,9 +79,9 @@ def update_job_status(
             cursor.execute(
                 """
                 UPDATE catalog_jobs
-                SET status = ?, current_step = ?, step_index = ?, progress = ?,
-                    error_message = ?, completed_at = CASE WHEN ? IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
-                WHERE id = ?
+                SET status = %s, current_step = %s, step_index = %s, progress = %s,
+                    error_message = %s, completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
+                WHERE id = %s
             """,
                 (status, current_step, step_index, progress, error_message, status, job_id),
             )
@@ -90,9 +89,9 @@ def update_job_status(
             cursor.execute(
                 """
                 UPDATE catalog_jobs
-                SET status = ?, current_step = ?, error_message = ?,
-                    completed_at = CASE WHEN ? IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
-                WHERE id = ?
+                SET status = %s, current_step = %s, error_message = %s,
+                    completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
+                WHERE id = %s
             """,
                 (status, current_step, error_message, status, job_id),
             )
@@ -116,7 +115,7 @@ def update_job_result(job_id: int, result: dict[str, Any]) -> None:
         cursor = conn.cursor()
 
         result_json = json.dumps(result)
-        cursor.execute("UPDATE catalog_jobs SET result = ? WHERE id = ?", (result_json, job_id))
+        cursor.execute("UPDATE catalog_jobs SET result = %s WHERE id = %s", (result_json, job_id))
 
         conn.commit()
     finally:
@@ -129,7 +128,7 @@ def get_catalog_job(job_id: int) -> dict[str, Any] | None:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM catalog_jobs WHERE id = ?", (job_id,))
+        cursor.execute("SELECT * FROM catalog_jobs WHERE id = %s", (job_id,))
         result = cursor.fetchone()
 
         if not result:
@@ -169,7 +168,7 @@ def get_catalog_jobs(limit: int = 50) -> list[dict[str, Any]]:
             """
             SELECT * FROM catalog_jobs
             ORDER BY started_at DESC
-            LIMIT ?
+            LIMIT %s
         """,
             (limit,),
         )
@@ -210,7 +209,7 @@ def get_run_jobs(run_id: str) -> list[dict[str, Any]]:
         cursor.execute(
             """
             SELECT * FROM catalog_jobs
-            WHERE run_id = ?
+            WHERE run_id = %s
             ORDER BY started_at ASC
         """,
             (run_id,),
@@ -275,7 +274,7 @@ def reset_job_for_retry(job_id: int) -> dict[str, Any] | None:
 
         # Vérifier que le job existe et n'est pas en cours
         cursor.execute(
-            "SELECT * FROM catalog_jobs WHERE id = ? AND status != 'running'",
+            "SELECT * FROM catalog_jobs WHERE id = %s AND status != 'running'",
             (job_id,),
         )
         row = cursor.fetchone()
@@ -295,7 +294,7 @@ def reset_job_for_retry(job_id: int) -> dict[str, Any] | None:
                 result = NULL,
                 started_at = CURRENT_TIMESTAMP,
                 completed_at = NULL
-            WHERE id = ?
+            WHERE id = %s
         """,
             (job_id,),
         )

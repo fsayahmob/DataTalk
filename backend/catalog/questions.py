@@ -11,7 +11,6 @@ def add_suggested_question(
     question: str,
     category: str | None = None,
     icon: str | None = None,
-    business_value: str | None = None,
     display_order: int = 0,
 ) -> int:
     """Ajoute une question suggérée."""
@@ -19,14 +18,14 @@ def add_suggested_question(
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT INTO suggested_questions (question, category, icon, business_value, display_order)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO suggested_questions (question, category, icon, display_order)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
     """,
-        (question, category, icon, business_value, display_order),
+        (question, category, icon, display_order),
     )
+    question_id = cursor.fetchone()[0]
     conn.commit()
-    question_id = cursor.lastrowid
-    assert question_id is not None
     conn.close()
     return question_id
 

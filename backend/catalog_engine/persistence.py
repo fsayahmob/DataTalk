@@ -37,7 +37,7 @@ def save_to_catalog(
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id FROM datasources WHERE name = ?",
+            "SELECT id FROM datasources WHERE name = %s",
             (catalog.datasource.replace(".duckdb", ""),),
         )
         row = cursor.fetchone()
@@ -67,7 +67,7 @@ def save_to_catalog(
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id FROM tables WHERE datasource_id = ? AND name = ?",
+                "SELECT id FROM tables WHERE datasource_id = %s AND name = %s",
                 (datasource_id, table.name),
             )
             row = cursor.fetchone()
@@ -98,7 +98,7 @@ def save_to_catalog(
                     conn = get_connection()
                     cursor = conn.cursor()
                     cursor.execute(
-                        "SELECT id FROM columns WHERE table_id = ? AND name = ?",
+                        "SELECT id FROM columns WHERE table_id = %s AND name = %s",
                         (table_id, col.name),
                     )
                     row = cursor.fetchone()
@@ -136,8 +136,8 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
         if table_description:
             cursor.execute(
                 """
-                UPDATE tables SET description = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE name = ?
+                UPDATE tables SET description = %s, updated_at = CURRENT_TIMESTAMP
+                WHERE name = %s
             """,
                 (table_description, table.name),
             )
@@ -145,7 +145,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                 stats["tables"] += 1
 
         # Récupérer l'ID de la table
-        cursor.execute("SELECT id FROM tables WHERE name = ?", (table.name,))
+        cursor.execute("SELECT id FROM tables WHERE name = %s", (table.name,))
         table_row = cursor.fetchone()
         if not table_row:
             continue
@@ -160,8 +160,8 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
             if col_description:
                 cursor.execute(
                     """
-                    UPDATE columns SET description = ?
-                    WHERE table_id = ? AND name = ?
+                    UPDATE columns SET description = %s
+                    WHERE table_id = %s AND name = %s
                 """,
                     (col_description, table_id, col.name),
                 )
@@ -172,7 +172,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
             if synonyms:
                 cursor.execute(
                     """
-                    SELECT id FROM columns WHERE table_id = ? AND name = ?
+                    SELECT id FROM columns WHERE table_id = %s AND name = %s
                 """,
                     (table_id, col.name),
                 )
@@ -182,7 +182,7 @@ def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -
                     for synonym in synonyms:
                         with suppress(Exception):
                             cursor.execute(
-                                "INSERT INTO synonyms (column_id, term) VALUES (?, ?)",
+                                "INSERT INTO synonyms (column_id, term) VALUES (%s, %s)",
                                 (column_id, synonym),
                             )
                             stats["synonyms"] += 1
@@ -220,7 +220,7 @@ def load_tables_context(
         cursor.execute(
             """
             SELECT name, data_type, full_context, sample_values, value_range
-            FROM columns WHERE table_id = ? ORDER BY id
+            FROM columns WHERE table_id = %s ORDER BY id
             """,
             (table_id,),
         )

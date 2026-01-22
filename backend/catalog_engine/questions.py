@@ -109,7 +109,7 @@ def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
             cursor.execute(
                 """
                 INSERT INTO suggested_questions (question, category, icon, display_order, is_enabled)
-                VALUES (?, ?, ?, ?, 1)
+                VALUES (%s, %s, %s, %s, TRUE)
             """,
                 (q.get("question"), q.get("category"), q.get("icon"), i),
             )

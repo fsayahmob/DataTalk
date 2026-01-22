@@ -42,7 +42,8 @@ def log_cost(
         INSERT INTO llm_costs
         (model_id, source, conversation_id, tokens_input, tokens_output,
          cost_input, cost_output, cost_total, response_time_ms, success, error_message)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
     """,
         (
             model_id,
@@ -59,9 +60,8 @@ def log_cost(
         ),
     )
 
+    cost_id = cursor.fetchone()[0]
     conn.commit()
-    cost_id = cursor.lastrowid
-    assert cost_id is not None
     conn.close()
     return cost_id
 
@@ -80,15 +80,15 @@ def get_total_costs(
             SUM(tokens_output) as total_tokens_output,
             SUM(cost_total) as total_cost
         FROM llm_costs
-        WHERE success = 1 AND created_at >= datetime('now', ?)
+        WHERE success = TRUE AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
     """
-    params: list[int | str] = [f"-{days} days"]
+    params: list[int | str] = [days]
 
     if model_id:
-        query += " AND model_id = ?"
+        query += " AND model_id = %s"
         params.append(model_id)
     if source:
-        query += " AND source = ?"
+        query += " AND source = %s"
         params.append(source)
 
     cursor.execute(query, params)
@@ -116,11 +116,11 @@ def get_costs_by_period(days: int = 30) -> list[dict[str, Any]]:
             SUM(tokens_output) as tokens_output,
             SUM(cost_total) as cost
         FROM llm_costs
-        WHERE success = 1 AND created_at >= DATE('now', ?)
+        WHERE success = TRUE AND created_at >= CURRENT_DATE - INTERVAL '%s days'
         GROUP BY DATE(created_at)
         ORDER BY date DESC
     """,
-        (f"-{days} days",),
+        (days,),
     )
 
     results = [dict(row) for row in cursor.fetchall()]
@@ -135,17 +135,17 @@ def get_costs_by_hour(days: int = 7) -> list[dict[str, Any]]:
     cursor.execute(
         """
         SELECT
-            strftime('%Y-%m-%d %H:00', created_at) as hour,
+            TO_CHAR(created_at, 'YYYY-MM-DD HH24:00') as hour,
             COUNT(*) as calls,
             SUM(tokens_input) as tokens_input,
             SUM(tokens_output) as tokens_output,
             SUM(cost_total) as cost
         FROM llm_costs
-        WHERE success = 1 AND created_at >= datetime('now', ?)
-        GROUP BY strftime('%Y-%m-%d %H:00', created_at)
+        WHERE success = TRUE AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+        GROUP BY TO_CHAR(created_at, 'YYYY-MM-DD HH24:00')
         ORDER BY hour DESC
     """,
-        (f"-{days} days",),
+        (days,),
     )
 
     results = [dict(row) for row in cursor.fetchall()]
@@ -169,12 +169,12 @@ def get_costs_by_model(days: int = 30) -> list[dict[str, Any]]:
         FROM llm_costs c
         JOIN llm_models m ON c.model_id = m.id
         JOIN llm_providers p ON m.provider_id = p.id
-        WHERE c.success = 1
-          AND c.created_at >= datetime('now', ?)
-        GROUP BY c.model_id
+        WHERE c.success = TRUE
+          AND c.created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+        GROUP BY c.model_id, m.display_name, p.display_name
         ORDER BY cost DESC
     """,
-        (f"-{days} days",),
+        (days,),
     )
 
     results = [dict(row) for row in cursor.fetchall()]
@@ -195,12 +195,12 @@ def get_costs_by_source(days: int = 30) -> list[dict[str, Any]]:
             SUM(tokens_output) as tokens_output,
             SUM(cost_total) as cost
         FROM llm_costs
-        WHERE success = 1
-          AND created_at >= datetime('now', ?)
+        WHERE success = TRUE
+          AND created_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
         GROUP BY source
         ORDER BY cost DESC
     """,
-        (f"-{days} days",),
+        (days,),
     )
 
     results = [dict(row) for row in cursor.fetchall()]

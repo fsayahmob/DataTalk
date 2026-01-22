@@ -119,7 +119,7 @@ def create_dataset(name: str, description: str | None = None) -> dict[str, Any]:
         cursor.execute(
             """
             INSERT INTO datasets (id, name, description, duckdb_path)
-            VALUES (?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s)
             """,
             (dataset_id, name, description, duckdb_path),
         )
@@ -128,7 +128,7 @@ def create_dataset(name: str, description: str | None = None) -> dict[str, Any]:
         # Cleanup: supprimer le fichier DuckDB créé
         Path(duckdb_path).unlink(missing_ok=True)
         db_conn.close()
-        if "UNIQUE constraint failed" in str(e):
+        if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
             raise ValueError(f"Dataset '{name}' already exists") from e
         raise
     finally:
@@ -204,7 +204,7 @@ def get_dataset(dataset_id: str) -> dict[str, Any] | None:
         """
         SELECT id, name, description, duckdb_path, status, is_active,
                row_count, table_count, size_bytes, created_at, updated_at
-        FROM datasets WHERE id = ?
+        FROM datasets WHERE id = %s
         """,
         (dataset_id,),
     )
@@ -247,13 +247,13 @@ def update_dataset(
     params = []
 
     if name is not None:
-        updates.append("name = ?")
+        updates.append("name = %s")
         params.append(name)
     if description is not None:
-        updates.append("description = ?")
+        updates.append("description = %s")
         params.append(description)
     if status is not None:
-        updates.append("status = ?")
+        updates.append("status = %s")
         params.append(status)
 
     if not updates:
@@ -265,7 +265,7 @@ def update_dataset(
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE datasets SET {', '.join(updates)} WHERE id = ?",
+        f"UPDATE datasets SET {', '.join(updates)} WHERE id = %s",  # noqa: S608
         params,
     )
     conn.commit()
@@ -298,7 +298,7 @@ def delete_dataset(dataset_id: str) -> bool:
     # Supprimer de SQLite
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM datasets WHERE id = ?", (dataset_id,))
+    cursor.execute("DELETE FROM datasets WHERE id = %s", (dataset_id,))
     conn.commit()
     deleted = cursor.rowcount > 0
     conn.close()
@@ -328,17 +328,17 @@ def set_active_dataset(dataset_id: str) -> bool:
     cursor = conn.cursor()
 
     # Vérifier que le dataset existe
-    cursor.execute("SELECT id FROM datasets WHERE id = ?", (dataset_id,))
+    cursor.execute("SELECT id FROM datasets WHERE id = %s", (dataset_id,))
     if not cursor.fetchone():
         conn.close()
         return False
 
     # Désactiver tous les datasets
-    cursor.execute("UPDATE datasets SET is_active = 0")
+    cursor.execute("UPDATE datasets SET is_active = FALSE")
 
     # Activer le dataset sélectionné
     cursor.execute(
-        "UPDATE datasets SET is_active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE datasets SET is_active = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
         (dataset_id,),
     )
     conn.commit()
@@ -360,7 +360,7 @@ def get_active_dataset() -> dict[str, Any] | None:
         """
         SELECT id, name, description, duckdb_path, status, is_active,
                row_count, table_count, size_bytes, created_at, updated_at
-        FROM datasets WHERE is_active = 1
+        FROM datasets WHERE is_active = TRUE
         """
     )
     row = cursor.fetchone()
@@ -395,8 +395,8 @@ def update_dataset_stats(dataset_id: str) -> dict[str, Any] | None:
     cursor.execute(
         """
         UPDATE datasets
-        SET row_count = ?, table_count = ?, size_bytes = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET row_count = %s, table_count = %s, size_bytes = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
         """,
         (stats["row_count"], stats["table_count"], stats["size_bytes"], dataset_id),
     )
@@ -438,9 +438,9 @@ def update_dataset_stats_from_sync(
     cursor.execute(
         """
         UPDATE datasets
-        SET row_count = ?, table_count = ?, size_bytes = ?, status = 'ready',
+        SET row_count = %s, table_count = %s, size_bytes = %s, status = 'ready',
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = %s
         """,
         (rows_synced, tables_synced, size_bytes, dataset_id),
     )

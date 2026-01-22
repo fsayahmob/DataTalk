@@ -167,7 +167,7 @@ def save_kpis(kpis: list[dict[str, Any]]) -> int:
             INSERT INTO kpis (
                 kpi_id, title, sql_value, sql_trend, sql_sparkline,
                 sparkline_type, footer, trend_label, display_order, is_enabled
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, TRUE)
         """,
             (
                 kpi.get("id"),

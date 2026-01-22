@@ -24,13 +24,13 @@ def save_report(
         """
         INSERT INTO saved_reports
         (title, question, sql_query, chart_config, message_id, is_pinned, share_token)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
     """,
         (title, question, sql_query, chart_config, message_id, is_pinned, share_token),
     )
+    report_id = cursor.fetchone()[0]
     conn.commit()
-    report_id = cursor.lastrowid
-    assert report_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return {"id": report_id, "share_token": share_token}
 
@@ -52,7 +52,7 @@ def delete_report(report_id: int) -> bool:
     """Supprime un rapport sauvegardé."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM saved_reports WHERE id = ?", (report_id,))
+    cursor.execute("DELETE FROM saved_reports WHERE id = %s", (report_id,))
     conn.commit()
     deleted = cursor.rowcount > 0
     conn.close()
@@ -67,7 +67,7 @@ def toggle_pin_report(report_id: int) -> bool:
         """
         UPDATE saved_reports
         SET is_pinned = NOT is_pinned
-        WHERE id = ?
+        WHERE id = %s
     """,
         (report_id,),
     )
@@ -82,7 +82,7 @@ def get_report_by_token(share_token: str) -> dict[str, Any] | None:
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT * FROM saved_reports WHERE share_token = ?",
+        "SELECT * FROM saved_reports WHERE share_token = %s",
         (share_token,),
     )
     row = cursor.fetchone()

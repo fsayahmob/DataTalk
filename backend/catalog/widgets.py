@@ -23,9 +23,20 @@ def add_widget(
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT OR REPLACE INTO widgets
+        INSERT INTO widgets
         (widget_id, title, description, icon, sql_query, chart_type, chart_config, display_order, priority, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (widget_id) DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            icon = EXCLUDED.icon,
+            sql_query = EXCLUDED.sql_query,
+            chart_type = EXCLUDED.chart_type,
+            chart_config = EXCLUDED.chart_config,
+            display_order = EXCLUDED.display_order,
+            priority = EXCLUDED.priority,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id
     """,
         (
             widget_id,
@@ -39,9 +50,8 @@ def add_widget(
             priority,
         ),
     )
+    row_id = cursor.fetchone()[0]
     conn.commit()
-    row_id = cursor.lastrowid
-    assert row_id is not None
     conn.close()
     return row_id
 
@@ -85,7 +95,7 @@ def get_widget_cache(widget_id: str) -> dict[str, Any] | None:
     cursor.execute(
         """
         SELECT * FROM widget_cache
-        WHERE widget_id = ?
+        WHERE widget_id = %s
           AND (expires_at IS NULL OR expires_at > CURRENT_TIMESTAMP)
     """,
         (widget_id,),
@@ -102,16 +112,24 @@ def set_widget_cache(widget_id: str, data: str, ttl_minutes: int | None = None) 
     if ttl_minutes:
         cursor.execute(
             """
-            INSERT OR REPLACE INTO widget_cache (widget_id, data, computed_at, expires_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP, datetime(CURRENT_TIMESTAMP, '+' || ? || ' minutes'))
+            INSERT INTO widget_cache (widget_id, data, computed_at, expires_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + make_interval(mins => %s))
+            ON CONFLICT (widget_id) DO UPDATE SET
+                data = EXCLUDED.data,
+                computed_at = CURRENT_TIMESTAMP,
+                expires_at = CURRENT_TIMESTAMP + make_interval(mins => %s)
         """,
-            (widget_id, data, ttl_minutes),
+            (widget_id, data, ttl_minutes, ttl_minutes),
         )
     else:
         cursor.execute(
             """
-            INSERT OR REPLACE INTO widget_cache (widget_id, data, computed_at, expires_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP, NULL)
+            INSERT INTO widget_cache (widget_id, data, computed_at, expires_at)
+            VALUES (%s, %s, CURRENT_TIMESTAMP, NULL)
+            ON CONFLICT (widget_id) DO UPDATE SET
+                data = EXCLUDED.data,
+                computed_at = CURRENT_TIMESTAMP,
+                expires_at = NULL
         """,
             (widget_id, data),
         )

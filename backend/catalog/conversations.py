@@ -11,10 +11,9 @@ def create_conversation(title: str | None = None) -> int:
     """Crée une nouvelle conversation."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO conversations (title) VALUES (?)", (title,))
+    cursor.execute("INSERT INTO conversations (title) VALUES (%s) RETURNING id", (title,))
+    conversation_id = cursor.fetchone()[0]
     conn.commit()
-    conversation_id = cursor.lastrowid
-    assert conversation_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return conversation_id
 
@@ -29,7 +28,7 @@ def get_conversations(limit: int = 20) -> list[dict[str, Any]]:
                (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id) as message_count
         FROM conversations c
         ORDER BY c.updated_at DESC
-        LIMIT ?
+        LIMIT %s
     """,
         (limit,),
     )
@@ -42,7 +41,7 @@ def delete_conversation(conversation_id: int) -> bool:
     """Supprime une conversation et ses messages."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+    cursor.execute("DELETE FROM conversations WHERE id = %s", (conversation_id,))
     conn.commit()
     deleted = cursor.rowcount > 0
     conn.close()

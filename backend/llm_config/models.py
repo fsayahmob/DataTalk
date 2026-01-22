@@ -23,9 +23,9 @@ def get_models(provider_id: int | None = None, enabled_only: bool = True) -> lis
     params = []
 
     if enabled_only:
-        query += " AND m.is_enabled = 1 AND p.is_enabled = 1"
+        query += " AND m.is_enabled = TRUE AND p.is_enabled = TRUE"
     if provider_id:
-        query += " AND m.provider_id = ?"
+        query += " AND m.provider_id = %s"
         params.append(provider_id)
 
     query += " ORDER BY p.display_name, m.display_name"
@@ -46,7 +46,7 @@ def get_model(model_id: int) -> dict[str, Any] | None:
                p.base_url, p.requires_api_key
         FROM llm_models m
         JOIN llm_providers p ON m.provider_id = p.id
-        WHERE m.id = ?
+        WHERE m.id = %s
     """,
         (model_id,),
     )
@@ -64,7 +64,7 @@ def get_default_model() -> dict[str, Any] | None:
                p.base_url, p.requires_api_key
         FROM llm_models m
         JOIN llm_providers p ON m.provider_id = p.id
-        WHERE m.is_default = 1 AND m.is_enabled = 1 AND p.is_enabled = 1
+        WHERE m.is_default = TRUE AND m.is_enabled = TRUE AND p.is_enabled = TRUE
     """)
     row = cursor.fetchone()
     conn.close()
@@ -81,7 +81,7 @@ def get_model_by_model_id(model_id: str) -> dict[str, Any] | None:
                p.base_url, p.requires_api_key
         FROM llm_models m
         JOIN llm_providers p ON m.provider_id = p.id
-        WHERE m.model_id = ?
+        WHERE m.model_id = %s
     """,
         (model_id,),
     )
@@ -96,7 +96,7 @@ def set_default_model(model_id: str) -> bool:
     cursor = conn.cursor()
 
     # Récupérer l'id interne du modèle
-    cursor.execute("SELECT id FROM llm_models WHERE model_id = ?", (model_id,))
+    cursor.execute("SELECT id FROM llm_models WHERE model_id = %s", (model_id,))
     row = cursor.fetchone()
     if not row:
         conn.close()
@@ -105,9 +105,9 @@ def set_default_model(model_id: str) -> bool:
     internal_id = row["id"]
 
     # Enlever le défaut actuel
-    cursor.execute("UPDATE llm_models SET is_default = 0")
+    cursor.execute("UPDATE llm_models SET is_default = FALSE")
     # Mettre le nouveau défaut
-    cursor.execute("UPDATE llm_models SET is_default = 1 WHERE id = ?", (internal_id,))
+    cursor.execute("UPDATE llm_models SET is_default = TRUE WHERE id = %s", (internal_id,))
     conn.commit()
     updated = cursor.rowcount > 0
     conn.close()

@@ -56,9 +56,9 @@ def cleanup_old_jobs_task(
             """
             DELETE FROM catalog_jobs
             WHERE status IN ('completed', 'failed')
-            AND started_at < datetime('now', ? || ' days')
+            AND started_at < CURRENT_TIMESTAMP - INTERVAL '%s days'
             """,
-            (f"-{retention_days}",),
+            (retention_days,),
         )
 
         deleted_count = cursor.rowcount
@@ -123,12 +123,12 @@ def cleanup_orphan_conversations_task(
         cursor.execute(
             """
             DELETE FROM conversations
-            WHERE updated_at < datetime('now', ? || ' days')
+            WHERE updated_at < CURRENT_TIMESTAMP - INTERVAL '%s days'
             AND id NOT IN (
                 SELECT conversation_id FROM saved_reports WHERE conversation_id IS NOT NULL
             )
             """,
-            (f"-{days_without_messages}",),
+            (days_without_messages,),
         )
         deleted_old = cursor.rowcount
 

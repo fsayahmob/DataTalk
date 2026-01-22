@@ -15,13 +15,18 @@ def add_table(
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT OR REPLACE INTO tables (datasource_id, name, description, row_count, updated_at)
-        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO tables (datasource_id, name, description, row_count, updated_at)
+        VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (datasource_id, name) DO UPDATE SET
+            description = EXCLUDED.description,
+            row_count = EXCLUDED.row_count,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id
     """,
         (datasource_id, name, description, row_count),
     )
+    table_id = cursor.fetchone()[0]
     conn.commit()
-    table_id = cursor.lastrowid
     conn.close()
     return table_id
 
@@ -41,9 +46,18 @@ def add_column(
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT OR REPLACE INTO columns
+        INSERT INTO columns
         (table_id, name, data_type, description, sample_values, value_range, is_primary_key, full_context, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (table_id, name) DO UPDATE SET
+            data_type = EXCLUDED.data_type,
+            description = EXCLUDED.description,
+            sample_values = EXCLUDED.sample_values,
+            value_range = EXCLUDED.value_range,
+            is_primary_key = EXCLUDED.is_primary_key,
+            full_context = EXCLUDED.full_context,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING id
     """,
         (
             table_id,
@@ -56,8 +70,8 @@ def add_column(
             full_context,
         ),
     )
+    column_id = cursor.fetchone()[0]
     conn.commit()
-    column_id = cursor.lastrowid
     conn.close()
     return column_id
 
@@ -66,7 +80,7 @@ def add_synonym(column_id: int, term: str) -> None:
     """Ajoute un synonyme pour une colonne."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO synonyms (column_id, term) VALUES (?, ?)", (column_id, term))
+    cursor.execute("INSERT INTO synonyms (column_id, term) VALUES (%s, %s)", (column_id, term))
     conn.commit()
     conn.close()
 
@@ -89,7 +103,7 @@ def get_schema_for_llm(datasource_name: str | None = None) -> str:
 
     # Récupérer les datasources
     if datasource_name:
-        cursor.execute("SELECT * FROM datasources WHERE name = ?", (datasource_name,))
+        cursor.execute("SELECT * FROM datasources WHERE name = %s", (datasource_name,))
     else:
         cursor.execute("SELECT * FROM datasources")
 
@@ -101,7 +115,7 @@ def get_schema_for_llm(datasource_name: str | None = None) -> str:
         # Récupérer les tables activées uniquement
         cursor.execute(
             """
-            SELECT * FROM tables WHERE datasource_id = ? AND is_enabled = 1
+            SELECT * FROM tables WHERE datasource_id = %s AND is_enabled = TRUE
         """,
             (ds["id"],),
         )
@@ -117,7 +131,7 @@ def get_schema_for_llm(datasource_name: str | None = None) -> str:
             # Récupérer les colonnes
             cursor.execute(
                 """
-                SELECT * FROM columns WHERE table_id = ?
+                SELECT * FROM columns WHERE table_id = %s
             """,
                 (table["id"],),
             )
@@ -159,7 +173,7 @@ def get_table_info(table_name: str) -> dict[str, Any] | None:
         SELECT t.*, d.name as datasource_name
         FROM tables t
         JOIN datasources d ON t.datasource_id = d.id
-        WHERE t.name = ?
+        WHERE t.name = %s
     """,
         (table_name,),
     )
@@ -176,7 +190,7 @@ def toggle_table_enabled(table_id: int) -> bool:
         """
         UPDATE tables
         SET is_enabled = NOT is_enabled, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = %s
     """,
         (table_id,),
     )
@@ -193,8 +207,8 @@ def set_table_enabled(table_id: int, enabled: bool) -> bool:
     cursor.execute(
         """
         UPDATE tables
-        SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET is_enabled = %s, updated_at = CURRENT_TIMESTAMP
+        WHERE id = %s
     """,
         (enabled, table_id),
     )
@@ -208,7 +222,7 @@ def get_table_by_id(table_id: int) -> dict[str, Any] | None:
     """Récupère une table par son ID."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM tables WHERE id = ?", (table_id,))
+    cursor.execute("SELECT * FROM tables WHERE id = %s", (table_id,))
     result = cursor.fetchone()
     conn.close()
     return dict(result) if result else None

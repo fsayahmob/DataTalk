@@ -12,7 +12,7 @@ def get_setting(key: str, default: str | None = None) -> str | None:
     conn = get_connection()
     try:
         cursor = conn.cursor()
-        cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        cursor.execute("SELECT value FROM settings WHERE key = %s", (key,))
         result = cursor.fetchone()
         return result["value"] if result else default
     finally:
@@ -25,8 +25,9 @@ def set_setting(key: str, value: str) -> None:
     cursor = conn.cursor()
     cursor.execute(
         """
-        INSERT OR REPLACE INTO settings (key, value, updated_at)
-        VALUES (?, ?, CURRENT_TIMESTAMP)
+        INSERT INTO settings (key, value, updated_at)
+        VALUES (%s, %s, CURRENT_TIMESTAMP)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
     """,
         (key, value),
     )

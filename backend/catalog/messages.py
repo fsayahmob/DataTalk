@@ -28,7 +28,8 @@ def add_message(
         INSERT INTO messages
         (conversation_id, role, content, sql_query, chart_config, data_json,
          model_name, tokens_input, tokens_output, response_time_ms)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
     """,
         (
             conversation_id,
@@ -44,21 +45,21 @@ def add_message(
         ),
     )
 
+    message_id = cursor.fetchone()[0]
+
     # Mettre à jour le timestamp de la conversation
     cursor.execute(
-        "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (conversation_id,)
+        "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = %s", (conversation_id,)
     )
 
     # Mettre à jour le titre si c'est le premier message user
     if role == "user":
         cursor.execute(
-            "UPDATE conversations SET title = ? WHERE id = ? AND title IS NULL",
+            "UPDATE conversations SET title = %s WHERE id = %s AND title IS NULL",
             (content[:50] + "..." if len(content) > 50 else content, conversation_id),
         )
 
     conn.commit()
-    message_id = cursor.lastrowid
-    assert message_id is not None, "INSERT should always return a lastrowid"
     conn.close()
     return message_id
 
@@ -77,7 +78,7 @@ def get_messages(conversation_id: int) -> list[dict[str, Any]]:
     cursor.execute(
         """
         SELECT * FROM messages
-        WHERE conversation_id = ?
+        WHERE conversation_id = %s
         ORDER BY created_at ASC
     """,
         (conversation_id,),

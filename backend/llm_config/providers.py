@@ -47,7 +47,7 @@ def get_providers(enabled_only: bool = True) -> list[dict[str, Any]]:
     conn = get_connection()
     cursor = conn.cursor()
     if enabled_only:
-        cursor.execute("SELECT * FROM llm_providers WHERE is_enabled = 1 ORDER BY display_name")
+        cursor.execute("SELECT * FROM llm_providers WHERE is_enabled = TRUE ORDER BY display_name")
     else:
         cursor.execute("SELECT * FROM llm_providers ORDER BY display_name")
     results = [dict(row) for row in cursor.fetchall()]
@@ -59,7 +59,7 @@ def get_provider(provider_id: int) -> dict[str, Any] | None:
     """Récupère un provider par ID."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM llm_providers WHERE id = ?", (provider_id,))
+    cursor.execute("SELECT * FROM llm_providers WHERE id = %s", (provider_id,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -69,7 +69,7 @@ def get_provider_by_name(name: str) -> dict[str, Any] | None:
     """Récupère un provider par nom."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM llm_providers WHERE name = ?", (name,))
+    cursor.execute("SELECT * FROM llm_providers WHERE name = %s", (name,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -81,7 +81,7 @@ def update_provider_base_url(provider_id: int, base_url: str | None) -> bool:
     cursor = conn.cursor()
     cursor.execute(
         """
-        UPDATE llm_providers SET base_url = ? WHERE id = ?
+        UPDATE llm_providers SET base_url = %s WHERE id = %s
     """,
         (base_url.rstrip("/") if base_url else None, provider_id),
     )

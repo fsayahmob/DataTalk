@@ -45,7 +45,8 @@ def add_datasource(
             name, type, dataset_id, source_type, path, description,
             sync_config, sync_status, sync_mode, ingestion_catalog, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, 'pending', %s, %s, CURRENT_TIMESTAMP)
+        RETURNING id
     """,
         (
             name,
@@ -59,8 +60,8 @@ def add_datasource(
             ingestion_catalog_json,
         ),
     )
+    datasource_id = cursor.fetchone()[0]
     conn.commit()
-    datasource_id = cursor.lastrowid
     conn.close()
     return datasource_id
 
@@ -69,7 +70,7 @@ def get_datasource(datasource_id: int) -> dict[str, Any] | None:
     """Récupère une datasource par son ID."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM datasources WHERE id = ?", (datasource_id,))
+    cursor.execute("SELECT * FROM datasources WHERE id = %s", (datasource_id,))
     row = cursor.fetchone()
     conn.close()
 
@@ -89,7 +90,7 @@ def get_datasource_by_name(name: str) -> dict[str, Any] | None:
     """Récupère une datasource par son nom."""
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM datasources WHERE name = ?", (name,))
+    cursor.execute("SELECT * FROM datasources WHERE name = %s", (name,))
     row = cursor.fetchone()
     conn.close()
 
@@ -114,7 +115,7 @@ def list_datasources(dataset_id: str | None = None) -> list[dict[str, Any]]:
 
     if dataset_id:
         cursor.execute(
-            "SELECT * FROM datasources WHERE dataset_id = ? ORDER BY name",
+            "SELECT * FROM datasources WHERE dataset_id = %s ORDER BY name",
             (dataset_id,),
         )
     else:
@@ -161,25 +162,25 @@ def update_datasource(
     params = []
 
     if name is not None:
-        updates.append("name = ?")
+        updates.append("name = %s")
         params.append(name)
     if description is not None:
-        updates.append("description = ?")
+        updates.append("description = %s")
         params.append(description)
     if source_type is not None:
-        updates.append("source_type = ?")
+        updates.append("source_type = %s")
         params.append(source_type)
     if sync_config is not None:
-        updates.append("sync_config = ?")
+        updates.append("sync_config = %s")
         params.append(json.dumps(sync_config))
     if is_active is not None:
-        updates.append("is_active = ?")
-        params.append(1 if is_active else 0)
+        updates.append("is_active = %s")
+        params.append(is_active)
     if sync_mode is not None:
-        updates.append("sync_mode = ?")
+        updates.append("sync_mode = %s")
         params.append(sync_mode)
     if ingestion_catalog is not None:
-        updates.append("ingestion_catalog = ?")
+        updates.append("ingestion_catalog = %s")
         params.append(json.dumps(ingestion_catalog))
 
     if not updates:
@@ -191,7 +192,7 @@ def update_datasource(
     conn = get_connection()
     cursor = conn.cursor()
     # Les noms de colonnes sont hardcodés, pas d'injection possible
-    query = f"UPDATE datasources SET {', '.join(updates)} WHERE id = ?"  # noqa: S608
+    query = f"UPDATE datasources SET {', '.join(updates)} WHERE id = %s"  # noqa: S608
     cursor.execute(query, params)
     conn.commit()
     affected = cursor.rowcount
@@ -218,23 +219,23 @@ def update_sync_status(
     if status == "success":
         cursor.execute(
             """UPDATE datasources
-               SET sync_status = ?, last_sync_at = CURRENT_TIMESTAMP,
+               SET sync_status = %s, last_sync_at = CURRENT_TIMESTAMP,
                    last_sync_error = NULL, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
+               WHERE id = %s""",
             (status, datasource_id),
         )
     elif status == "error":
         cursor.execute(
             """UPDATE datasources
-               SET sync_status = ?, last_sync_error = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
+               SET sync_status = %s, last_sync_error = %s, updated_at = CURRENT_TIMESTAMP
+               WHERE id = %s""",
             (status, error, datasource_id),
         )
     else:
         cursor.execute(
             """UPDATE datasources
-               SET sync_status = ?, updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
+               SET sync_status = %s, updated_at = CURRENT_TIMESTAMP
+               WHERE id = %s""",
             (status, datasource_id),
         )
 
@@ -258,7 +259,7 @@ def is_sync_running(dataset_id: str) -> bool:
     cursor = conn.cursor()
     cursor.execute(
         """SELECT COUNT(*) FROM datasources
-           WHERE dataset_id = ? AND sync_status = 'running'""",
+           WHERE dataset_id = %s AND sync_status = 'running'""",
         (dataset_id,),
     )
     count = cursor.fetchone()[0]
@@ -308,7 +309,7 @@ def delete_datasource(datasource_id: int) -> bool:
     # 2. Supprimer l'entrée dans SQLite (immédiat, pas de blocage)
     conn = get_connection()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM datasources WHERE id = ?", (datasource_id,))
+    cursor.execute("DELETE FROM datasources WHERE id = %s", (datasource_id,))
     conn.commit()
     affected = cursor.rowcount
     conn.close()
