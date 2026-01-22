@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Les tables préfixées par `_airbyte_`, `_dlt_` (dlt = data load tool, autre outil ETL) et `__` seront maintenant exclues de l'extraction du catalogue.\n\nPour que ça prenne effet, tu dois:\n1. Reconstruire le worker: `docker compose up --build worker`\n2. Supprimer le catalogue existant et refaire l'extraction\n",
+  "lastMessage": "Maintenant au prochain rebuild Docker, les anciens datasources avec `source_type = NULL` seront automatiquement corrigés avec `source_type = type` (qui contient \"duckdb\", \"postgres\", etc.).\n\n**Résumé des fixes :**\n1. **Frontend** : `getConnectorName()` gère maintenant les valeurs null/vides\n2. **Backend** : Migration auto qui fixe `source_type` NULL → copie depuis `type`\n3. **Donnée Docker** : Déjà corrigée manuellement avec le UPDATE précédent\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-22T08:24:23Z"
+  "timestamp": "2026-01-22T09:39:52Z"
 }

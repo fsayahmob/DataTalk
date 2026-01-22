@@ -116,6 +116,7 @@
     "updated": "Datasource mise à jour.",
     "create_failed": "Échec de la création de la datasource.",
     "created_not_found": "Datasource créée mais introuvable.",
+    "name_exists": "Une datasource avec ce nom existe déjà.",
     "no_sync_config": "La datasource n'a pas de configuration de synchronisation.",
     "sync_triggered": "Synchronisation démarrée.",
     "sync_already_running": "Une synchronisation est déjà en cours pour cette datasource."

@@ -33,36 +33,44 @@ def add_datasource(
         sync_mode: Mode de sync (full_refresh, incremental)
         ingestion_catalog: Catalogue des tables sélectionnées (JSON)
     """
+    import sqlite3 as sqlite3_module
+
     conn = get_connection()
     cursor = conn.cursor()
 
     sync_config_json = json.dumps(sync_config) if sync_config else None
     ingestion_catalog_json = json.dumps(ingestion_catalog) if ingestion_catalog else None
 
-    cursor.execute(
-        """
-        INSERT INTO datasources (
-            name, type, dataset_id, source_type, path, description,
-            sync_config, sync_status, sync_mode, ingestion_catalog, updated_at
+    try:
+        cursor.execute(
+            """
+            INSERT INTO datasources (
+                name, type, dataset_id, source_type, path, description,
+                sync_config, sync_status, sync_mode, ingestion_catalog, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP)
+        """,
+            (
+                name,
+                ds_type,
+                dataset_id,
+                source_type,
+                path,
+                description,
+                sync_config_json,
+                sync_mode,
+                ingestion_catalog_json,
+            ),
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, CURRENT_TIMESTAMP)
-    """,
-        (
-            name,
-            ds_type,
-            dataset_id,
-            source_type,
-            path,
-            description,
-            sync_config_json,
-            sync_mode,
-            ingestion_catalog_json,
-        ),
-    )
-    conn.commit()
-    datasource_id = cursor.lastrowid
-    conn.close()
-    return datasource_id
+        conn.commit()
+        datasource_id = cursor.lastrowid
+        return datasource_id
+    except sqlite3_module.IntegrityError as e:
+        if "UNIQUE constraint failed: datasources.name" in str(e):
+            raise ValueError(f"A datasource named '{name}' already exists") from e
+        raise
+    finally:
+        conn.close()
 
 
 def get_datasource(datasource_id: int) -> dict[str, Any] | None:
