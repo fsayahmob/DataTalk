@@ -7,29 +7,14 @@ Chargement du contexte des tables pour enrichissement.
 
 import logging
 from contextlib import suppress
-from pathlib import Path
 from typing import Any
 
-from catalog import add_column, add_datasource, add_synonym, add_table, get_setting
+from catalog import add_column, add_datasource, add_synonym, add_table
 from db import get_connection
 
 from .models import ColumnMetadata, ExtractedCatalog, TableMetadata
 
 logger = logging.getLogger(__name__)
-
-# Configuration par défaut (fallback si settings non initialisé)
-DEFAULT_DB_PATH = str(Path(__file__).parent.parent / ".." / "data" / "g7_analytics.duckdb")
-
-
-def get_duckdb_path() -> str:
-    """Récupère le chemin DuckDB depuis les settings ou utilise le défaut."""
-    path = get_setting("duckdb_path")
-    if path:
-        # Si chemin relatif, le résoudre par rapport au dossier backend
-        if not Path(path).is_absolute():
-            path = str(Path(__file__).parent.parent / ".." / path)
-        return str(Path(path).resolve())
-    return DEFAULT_DB_PATH
 
 
 def save_to_catalog(

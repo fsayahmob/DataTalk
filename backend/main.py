@@ -21,14 +21,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
-from catalog import get_schema_for_llm
+from catalog import get_active_dataset, get_schema_for_llm
 from core.rate_limit import limiter
-from core.state import app_state, get_duckdb_path
+from core.state import app_state
+from i18n import set_locale
 from llm_service import check_llm_status
 from routes import (
     analytics_router,
     catalog_router,
     conversations_router,
+    datasets_router,
     llm_router,
     reports_router,
     settings_router,
@@ -62,9 +64,14 @@ def _check_volume_writable(path: str) -> bool:
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Gestion du cycle de vie de l'application"""
-    # Vérifier que les volumes sont montés et accessibles en écriture
-    app_state.current_db_path = get_duckdb_path()
-    logger.info("Chemin DuckDB configuré: %s", app_state.current_db_path)
+    # Récupérer le dataset actif et son chemin DuckDB
+    active_dataset = get_active_dataset()
+    if active_dataset:
+        app_state.current_db_path = active_dataset.get("duckdb_path")
+        logger.info("Dataset actif: %s (%s)", active_dataset.get("name"), app_state.current_db_path)
+    else:
+        app_state.current_db_path = None
+        logger.info("Aucun dataset actif - en attente de sélection")
 
     if app_state.current_db_path:
         if _check_volume_writable(app_state.current_db_path):
@@ -76,12 +83,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if app_state.current_db_path and Path(app_state.current_db_path).exists():
         try:
             app_state.db_connection = duckdb.connect(app_state.current_db_path, read_only=True)
-            logger.info("DuckDB connecté")
+            logger.info("DuckDB connecté: %s", app_state.current_db_path)
         except Exception as e:
             logger.warning("Impossible de se connecter à DuckDB: %s", e)
             app_state.db_connection = None
     else:
-        logger.info("Fichier DuckDB non trouvé - sera créé lors du premier upload")
+        logger.info("Fichier DuckDB non trouvé - sera créé lors de la sync")
         app_state.db_connection = None
 
     # Vérifier le statut LLM
@@ -142,6 +149,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# Middleware i18n - définit la locale pour chaque requête via Accept-Language header
+@app.middleware("http")
+async def language_middleware(request: Request, call_next):
+    """
+    Middleware pour l'internationalisation.
+    Lit le header Accept-Language et configure la locale pour la requête.
+    """
+    accept_lang = request.headers.get("Accept-Language", "fr")
+    # Extraire le code langue (ex: "fr-FR" -> "fr", "en-US" -> "en")
+    lang = accept_lang[:2].lower() if accept_lang else "fr"
+    # Valider la langue (supporter uniquement fr et en)
+    set_locale(lang if lang in ("fr", "en") else "fr")
+    return await call_next(request)
+
+
 # Inclure le router versionné /api/v1/*
 app.include_router(v1_router)
 
@@ -152,6 +175,7 @@ app.include_router(analytics_router)
 app.include_router(conversations_router)
 app.include_router(reports_router)
 app.include_router(catalog_router)
+app.include_router(datasets_router)
 app.include_router(llm_router)
 app.include_router(widgets_router)
 

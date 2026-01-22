@@ -25,7 +25,7 @@ from .models import (
     ExtractedCatalog,
     TableMetadata,
 )
-from .persistence import get_duckdb_path, load_tables_context, update_descriptions
+from .persistence import load_tables_context, update_descriptions
 from .questions import generate_suggested_questions, save_suggested_questions
 
 if TYPE_CHECKING:
@@ -40,7 +40,11 @@ def _dummy_context() -> Generator[None, None, None]:
     yield
 
 
-def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> dict[str, Any]:
+def extract_only(
+    db_connection: DuckDBConnection,
+    job_id: int | None = None,
+    duckdb_path: str | None = None,
+) -> dict[str, Any]:
     """
     Extrait le schéma depuis DuckDB et sauvegarde dans SQLite SANS enrichissement LLM.
 
@@ -50,6 +54,7 @@ def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> 
     Args:
         db_connection: Connexion DuckDB native
         job_id: ID du job pour le tracking (optionnel)
+        duckdb_path: Chemin du fichier DuckDB (pour la datasource)
 
     Returns:
         Stats d'extraction (tables, colonnes)
@@ -77,7 +82,7 @@ def extract_only(db_connection: DuckDBConnection, job_id: int | None = None) -> 
         datasource_id = add_datasource(
             name=catalog.datasource.replace(".duckdb", ""),
             ds_type="duckdb",
-            path=get_duckdb_path(),
+            path=duckdb_path,
             description="Base analytique - En attente d'enrichissement",
         )
 

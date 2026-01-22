@@ -48,8 +48,6 @@ from .models import (
     ValueFrequency,
 )
 from .persistence import (
-    DEFAULT_DB_PATH,
-    get_duckdb_path,
     save_to_catalog,
     update_descriptions,
 )
@@ -72,8 +70,6 @@ from .orchestration import enrich_selected_tables, extract_only
 __all__ = [
     # Extraction
     "COMMON_PATTERNS",
-    # Persistence
-    "DEFAULT_DB_PATH",
     "CatalogValidationResult",
     "ColumnMetadata",
     "ExtractedCatalog",
@@ -101,7 +97,6 @@ __all__ = [
     # Questions
     "generate_suggested_questions",
     "get_data_period",
-    "get_duckdb_path",
     "save_kpis",
     "save_suggested_questions",
     "save_to_catalog",

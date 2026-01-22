@@ -24,8 +24,19 @@ def _generate_duckdb_path(dataset_id: str) -> str:
     return str(DUCKDB_DIR / f"{dataset_id}.duckdb")
 
 
-def _get_duckdb_stats(duckdb_path: str) -> dict[str, int]:
-    """Récupère les stats d'un fichier DuckDB (tables, rows, size)."""
+def _get_duckdb_stats(duckdb_path: str, max_retries: int = 3) -> dict[str, int]:
+    """
+    Récupère les stats d'un fichier DuckDB (tables, rows, size).
+
+    Args:
+        duckdb_path: Chemin vers le fichier DuckDB
+        max_retries: Nombre de tentatives en cas de conflit de connexion
+
+    Returns:
+        Dict avec table_count, row_count, size_bytes
+    """
+    import time
+
     stats = {"table_count": 0, "row_count": 0, "size_bytes": 0}
 
     path = Path(duckdb_path)
@@ -34,27 +45,47 @@ def _get_duckdb_stats(duckdb_path: str) -> dict[str, int]:
 
     stats["size_bytes"] = path.stat().st_size
 
-    try:
-        conn = duckdb.connect(duckdb_path, read_only=True)
-        # Compter les tables (exclure les tables système)
-        tables = conn.execute(
-            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
-        ).fetchall()
-        stats["table_count"] = len(tables)
-
-        # Compter les lignes totales
-        total_rows = 0
-        for (table_name,) in tables:
+    # Retry avec délai exponentiel en cas de conflit de connexion
+    for attempt in range(max_retries):
+        try:
+            # Essayer d'abord en read_only, sinon en mode normal
             try:
-                result = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()
-                if result:
-                    total_rows += result[0]
-            except Exception:
-                pass  # Table inaccessible, on skip
-        stats["row_count"] = total_rows
-        conn.close()
-    except Exception as e:
-        logger.warning("Cannot read DuckDB stats for %s: %s", duckdb_path, e)
+                conn = duckdb.connect(duckdb_path, read_only=True)
+            except duckdb.IOException:
+                # Si read_only échoue (fichier verrouillé), essayer sans
+                conn = duckdb.connect(duckdb_path)
+
+            # Compter les tables (exclure les tables système)
+            tables = conn.execute(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+            ).fetchall()
+            stats["table_count"] = len(tables)
+
+            # Compter les lignes totales
+            total_rows = 0
+            for (table_name,) in tables:
+                try:
+                    result = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()
+                    if result:
+                        total_rows += result[0]
+                except Exception:
+                    pass  # Table inaccessible, on skip
+            stats["row_count"] = total_rows
+            conn.close()
+            return stats
+
+        except Exception as e:
+            if attempt < max_retries - 1:
+                # Attendre avant de réessayer (0.5s, 1s, 2s)
+                wait_time = 0.5 * (2 ** attempt)
+                logger.info(
+                    "DuckDB connection conflict for %s, retry %d/%d in %.1fs",
+                    duckdb_path, attempt + 1, max_retries, wait_time
+                )
+                time.sleep(wait_time)
+            else:
+                logger.warning("Cannot read DuckDB stats for %s after %d attempts: %s",
+                             duckdb_path, max_retries, e)
 
     return stats
 
@@ -374,5 +405,54 @@ def update_dataset_stats(dataset_id: str) -> dict[str, Any] | None:
     )
     conn.commit()
     conn.close()
+
+    return get_dataset(dataset_id)
+
+
+def update_dataset_stats_from_sync(
+    dataset_id: str,
+    tables_synced: int,
+    rows_synced: int,
+) -> dict[str, Any] | None:
+    """
+    Met à jour les stats d'un dataset depuis les résultats de synchronisation.
+
+    Utilisée après une sync PyAirbyte pour éviter de lire DuckDB
+    (qui pourrait être encore verrouillé).
+
+    Args:
+        dataset_id: UUID du dataset
+        tables_synced: Nombre de tables synchronisées
+        rows_synced: Nombre de lignes synchronisées
+
+    Returns:
+        Dataset avec stats mises à jour ou None si non trouvé
+    """
+    dataset = get_dataset(dataset_id)
+    if not dataset:
+        return None
+
+    # Calculer la taille du fichier DuckDB (lecture seule du filesystem)
+    duckdb_path = Path(dataset["duckdb_path"])
+    size_bytes = duckdb_path.stat().st_size if duckdb_path.exists() else 0
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        UPDATE datasets
+        SET row_count = ?, table_count = ?, size_bytes = ?, status = 'active',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """,
+        (rows_synced, tables_synced, size_bytes, dataset_id),
+    )
+    conn.commit()
+    conn.close()
+
+    logger.info(
+        "Updated dataset %s stats from sync: %d tables, %d rows, %d bytes",
+        dataset_id, tables_synced, rows_synced, size_bytes,
+    )
 
     return get_dataset(dataset_id)

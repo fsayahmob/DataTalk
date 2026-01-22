@@ -19,8 +19,11 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+import duckdb
+
 from catalog import (
     create_catalog_job,
+    get_active_dataset,
     get_schema_for_llm,
     get_setting,
     update_job_result,
@@ -73,8 +76,14 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
     - Avec Celery: retourne immédiatement, extraction en background
     - Sans Celery: bloque jusqu'à la fin de l'extraction
     """
-    if not app_state.db_connection:
-        raise HTTPException(status_code=500, detail=t("db.not_connected"))
+    # Récupérer le dataset actif et son chemin DuckDB
+    active_dataset = get_active_dataset()
+    if not active_dataset:
+        raise HTTPException(status_code=400, detail=t("dataset.no_active_dataset"))
+
+    duckdb_path = active_dataset.get("duckdb_path")
+    if not duckdb_path:
+        raise HTTPException(status_code=500, detail=t("dataset.no_duckdb_path"))
 
     # 0. Créer un nouveau run_id et un job d'extraction
     run_id = str(uuid.uuid4())
@@ -115,10 +124,14 @@ async def extract_catalog_endpoint() -> dict[str, Any]:
         }
 
     # Mode sync: exécuter dans un thread (fallback dev)
-    db_conn = get_db_connection()
+    # Créer une connexion directe au DuckDB du dataset actif
+    db_conn = duckdb.connect(duckdb_path, read_only=True)
 
     def run_extraction() -> dict[str, Any]:
-        return extract_only(db_connection=db_conn, job_id=job_id)
+        try:
+            return extract_only(db_connection=db_conn, job_id=job_id, duckdb_path=duckdb_path)
+        finally:
+            db_conn.close()
 
     try:
         loop = asyncio.get_event_loop()

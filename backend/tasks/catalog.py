@@ -12,24 +12,39 @@ from typing import Any
 
 import duckdb
 
+from catalog.datasets import get_active_dataset
 from catalog.jobs import update_job_status
 from catalog_engine.orchestration import enrich_selected_tables, extract_only
 from celery_app import celery_app
-from config import DUCKDB_PATH
 
 logger = logging.getLogger(__name__)
 
 
-def get_duckdb_connection() -> duckdb.DuckDBPyConnection:
+def get_duckdb_connection() -> tuple[duckdb.DuckDBPyConnection, str]:
     """
-    Crée une connexion DuckDB dédiée au worker.
+    Crée une connexion DuckDB dédiée au worker pour le dataset actif.
 
     ⚠️ IMPORTANT:
     - Le worker Celery est un processus SÉPARÉ de l'API
     - Il DOIT créer sa PROPRE connexion, pas réutiliser APP_STATE
     - read_only=True car le worker ne modifie pas les données DuckDB
+
+    Returns:
+        Tuple (connexion DuckDB, chemin du fichier)
+
+    Raises:
+        RuntimeError: Si aucun dataset actif ou chemin DuckDB invalide
     """
-    return duckdb.connect(str(DUCKDB_PATH), read_only=True)
+    active_dataset = get_active_dataset()
+    if not active_dataset:
+        raise RuntimeError("No active dataset configured")
+
+    duckdb_path = active_dataset.get("duckdb_path")
+    if not duckdb_path:
+        raise RuntimeError(f"Dataset {active_dataset['id']} has no duckdb_path")
+
+    logger.info("Connecting to active dataset DuckDB: %s", duckdb_path)
+    return duckdb.connect(str(duckdb_path), read_only=True), duckdb_path
 
 
 @celery_app.task(bind=True, max_retries=1, soft_time_limit=300)  # type: ignore[misc]
@@ -51,10 +66,10 @@ def extract_catalog_task(self: Any, run_id: str, job_id: int) -> dict[str, str |
         logger.info("[Celery] Starting extract job %s", job_id)
 
         # Connexion DuckDB dédiée au worker
-        db_conn = get_duckdb_connection()
+        db_conn, duckdb_path = get_duckdb_connection()
 
         # Exécuter l'extraction (fonction existante)
-        result = extract_only(db_connection=db_conn, job_id=job_id)
+        result = extract_only(db_connection=db_conn, job_id=job_id, duckdb_path=duckdb_path)
 
         logger.info("[Celery] Extract job %s completed", job_id)
         return {"status": "success", "result": result}
@@ -89,8 +104,8 @@ def enrich_catalog_task(
     try:
         logger.info("[Celery] Starting enrich job %s for %d tables", job_id, len(table_ids))
 
-        # Connexion DuckDB dédiée au worker
-        db_conn = get_duckdb_connection()
+        # Connexion DuckDB dédiée au worker (on ignore le path pour l'enrichissement)
+        db_conn, _ = get_duckdb_connection()
 
         result = enrich_selected_tables(db_connection=db_conn, job_id=job_id, table_ids=table_ids)
 

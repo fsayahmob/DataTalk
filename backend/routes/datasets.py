@@ -15,8 +15,10 @@ Endpoints:
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 
+import duckdb
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -26,10 +28,13 @@ from catalog import (
     get_active_dataset,
     get_dataset,
     get_datasets,
+    get_schema_for_llm,
     set_active_dataset,
     update_dataset,
     update_dataset_stats,
 )
+from catalog.datasources import is_sync_running
+from core.state import app_state
 
 logger = logging.getLogger(__name__)
 
@@ -160,12 +165,35 @@ async def activate_dataset(dataset_id: str) -> dict[str, Any]:
     Active un dataset (un seul peut être actif à la fois).
 
     Le dataset actif est utilisé par défaut pour les requêtes Text-to-SQL.
+    Reconnecte automatiquement l'app_state au DuckDB du nouveau dataset.
     """
     success = set_active_dataset(dataset_id)
     if not success:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
     dataset = get_dataset(dataset_id)
+    duckdb_path = dataset.get("duckdb_path") if dataset else None
+
+    # Reconnecter app_state au nouveau DuckDB
+    if duckdb_path and Path(duckdb_path).exists():
+        try:
+            # Fermer l'ancienne connexion (géré par le setter)
+            app_state.db_connection = duckdb.connect(duckdb_path, read_only=True)
+            app_state.current_db_path = duckdb_path
+            # Rafraîchir le cache du schéma pour le LLM
+            app_state.db_schema_cache = get_schema_for_llm()
+            logger.info("Reconnected to DuckDB: %s", duckdb_path)
+        except Exception as e:
+            logger.warning("Failed to connect to DuckDB %s: %s", duckdb_path, e)
+            app_state.db_connection = None
+            app_state.db_schema_cache = None
+    else:
+        # Dataset sans fichier DuckDB (pas encore synchronisé)
+        app_state.db_connection = None
+        app_state.current_db_path = duckdb_path
+        app_state.db_schema_cache = None
+        logger.info("Dataset %s has no DuckDB file yet", dataset_id)
+
     logger.info("Activated dataset: %s", dataset_id)
     return {"message": "Dataset activated", "dataset": dataset}
 
@@ -181,3 +209,23 @@ async def refresh_dataset_stats(dataset_id: str) -> dict[str, Any]:
     if not dataset:
         raise HTTPException(status_code=404, detail="Dataset not found")
     return dataset
+
+
+@router.get("/{dataset_id}/sync-status")
+async def get_dataset_sync_status(dataset_id: str) -> dict[str, Any]:
+    """
+    Vérifie si une synchronisation est en cours sur le dataset.
+
+    Retourne:
+        - is_syncing: True si au moins une datasource est en sync
+        - dataset_id: ID du dataset vérifié
+    """
+    dataset = get_dataset(dataset_id)
+    if not dataset:
+        raise HTTPException(status_code=404, detail="Dataset not found")
+
+    syncing = is_sync_running(dataset_id)
+    return {
+        "is_syncing": syncing,
+        "dataset_id": dataset_id,
+    }

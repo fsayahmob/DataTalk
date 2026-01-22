@@ -19,7 +19,6 @@ la compatibilité avec les imports existants:
 # Mais si ce fichier est importé directement, il délègue au package
 from catalog_engine import (
     COMMON_PATTERNS,
-    DEFAULT_DB_PATH,
     CatalogValidationResult,
     ColumnMetadata,
     ExtractedCatalog,
@@ -43,7 +42,6 @@ from catalog_engine import (
     generate_kpis,
     generate_suggested_questions,
     get_data_period,
-    get_duckdb_path,
     save_kpis,
     save_suggested_questions,
     save_to_catalog,

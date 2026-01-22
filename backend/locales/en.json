@@ -91,7 +91,9 @@
     "updated": "Prompt updated."
   },
   "job": {
-    "not_found": "Job not found."
+    "not_found": "Job not found.",
+    "not_retriable": "This job cannot be retried. It must be in 'failed' status.",
+    "retry_ready": "Job reset and ready for retry."
   },
   "run": {
     "not_found": "Run not found."
@@ -115,6 +117,19 @@
     "create_failed": "Failed to create datasource.",
     "created_not_found": "Datasource created but not found.",
     "no_sync_config": "Datasource has no sync configuration.",
-    "sync_triggered": "Sync started."
+    "sync_triggered": "Sync started.",
+    "sync_already_running": "A sync is already running for this datasource."
+  },
+  "task": {
+    "pending": "Task pending",
+    "started": "Task started",
+    "completed": "Task completed",
+    "cancelled": "Task cancelled",
+    "revoked": "Task revoked successfully.",
+    "already_finished": "Task has already finished."
+  },
+  "dataset": {
+    "no_active_dataset": "No active dataset. Select or create a dataset first.",
+    "no_duckdb_path": "Dataset has no DuckDB file configured."
   }
 }

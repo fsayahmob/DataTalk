@@ -91,12 +91,45 @@
     "updated": "Prompt mis à jour."
   },
   "job": {
-    "not_found": "Job non trouvé."
+    "not_found": "Job non trouvé.",
+    "not_retriable": "Ce job ne peut pas être relancé. Il doit être en statut 'failed'.",
+    "retry_ready": "Job réinitialisé et prêt pour le retry."
   },
   "run": {
     "not_found": "Run non trouvée."
   },
   "generic": {
     "error": "Erreur: {error}"
+  },
+  "connector": {
+    "airbyte_unavailable": "PyAirbyte n'est pas installé sur ce serveur.",
+    "airbyte_available": "PyAirbyte est disponible.",
+    "connection_success": "Connexion à {connector_id} réussie.",
+    "connection_error": "Erreur de connexion: {error}",
+    "spec_not_found": "Impossible de récupérer la configuration pour {connector_id}. Vérifiez que PyAirbyte est installé et que le connecteur existe.",
+    "discovery_error": "Erreur lors de la découverte du catalogue: {error}"
+  },
+  "datasource": {
+    "not_found": "Datasource introuvable.",
+    "created": "Datasource créée.",
+    "deleted": "Datasource supprimée.",
+    "updated": "Datasource mise à jour.",
+    "create_failed": "Échec de la création de la datasource.",
+    "created_not_found": "Datasource créée mais introuvable.",
+    "no_sync_config": "La datasource n'a pas de configuration de synchronisation.",
+    "sync_triggered": "Synchronisation démarrée.",
+    "sync_already_running": "Une synchronisation est déjà en cours pour cette datasource."
+  },
+  "task": {
+    "pending": "Tâche en attente",
+    "started": "Tâche démarrée",
+    "completed": "Tâche terminée",
+    "cancelled": "Tâche annulée",
+    "revoked": "Tâche annulée avec succès.",
+    "already_finished": "La tâche est déjà terminée."
+  },
+  "dataset": {
+    "no_active_dataset": "Aucun dataset actif. Sélectionnez ou créez un dataset d'abord.",
+    "no_duckdb_path": "Le dataset n'a pas de fichier DuckDB configuré."
   }
 }
