@@ -55,7 +55,7 @@ def update_job_status(
     progress: int | None = None,
 ) -> None:
     """
-    Met à jour le statut d'un job.
+    Met à jour le statut d'un job dans PostgreSQL et publie sur Redis Pub/Sub.
 
     Args:
         job_id: ID du job
@@ -65,45 +65,58 @@ def update_job_status(
         error_message: Message d'erreur si status='failed'
         progress: Pourcentage de progression (0-100) - priorité sur step_index
     """
+    # Import local pour éviter import circulaire
+    from services.task_events import publish_job_event
+
     conn = get_connection()
     try:
         cursor = conn.cursor()
+
+        # Récupérer les infos du job pour le calcul du progress et la publication Redis
+        cursor.execute(
+            "SELECT run_id, job_type, total_steps FROM catalog_jobs WHERE id = %s",
+            (job_id,),
+        )
+        job_row = cursor.fetchone()
+        if not job_row:
+            return  # Job not found, nothing to update
+
+        run_id = job_row["run_id"]
+        job_type = job_row["job_type"]
+        total_steps = job_row["total_steps"]
 
         # Déterminer le progress final
         final_progress = progress  # Utiliser progress explicite si fourni
 
         # Sinon calculer depuis step_index
-        if final_progress is None and step_index is not None:
-            cursor.execute("SELECT total_steps FROM catalog_jobs WHERE id = %s", (job_id,))
-            row = cursor.fetchone()
-            if row and row["total_steps"]:
-                final_progress = int((step_index + 1) / row["total_steps"] * 100)
-            else:
-                final_progress = 0
+        if final_progress is None and step_index is not None and total_steps:
+            final_progress = int((step_index + 1) / total_steps * 100)
+        elif final_progress is None:
+            final_progress = 0
 
-        # Update avec ou sans progress
-        if final_progress is not None:
-            cursor.execute(
-                """
-                UPDATE catalog_jobs
-                SET status = %s, current_step = %s, step_index = %s, progress = %s,
-                    error_message = %s, completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
-                WHERE id = %s
-            """,
-                (status, current_step, step_index, final_progress, error_message, status, job_id),
-            )
-        else:
-            cursor.execute(
-                """
-                UPDATE catalog_jobs
-                SET status = %s, current_step = %s, error_message = %s,
-                    completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
-                WHERE id = %s
-            """,
-                (status, current_step, error_message, status, job_id),
-            )
-
+        # Update PostgreSQL (persistance)
+        cursor.execute(
+            """
+            UPDATE catalog_jobs
+            SET status = %s, current_step = %s, step_index = %s, progress = %s,
+                error_message = %s, completed_at = CASE WHEN %s IN ('completed', 'failed') THEN CURRENT_TIMESTAMP ELSE completed_at END
+            WHERE id = %s
+        """,
+            (status, current_step, step_index, final_progress, error_message, status, job_id),
+        )
         conn.commit()
+
+        # Publier sur Redis Pub/Sub (temps réel)
+        publish_job_event(
+            run_id=run_id,
+            job_id=job_id,
+            job_type=job_type,
+            status=status,
+            progress=final_progress,
+            current_step=current_step,
+            error_message=error_message,
+        )
+
     finally:
         conn.close()
 
