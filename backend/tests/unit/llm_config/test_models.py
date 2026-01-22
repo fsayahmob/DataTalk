@@ -192,9 +192,9 @@ class TestSetDefaultModel:
 
         set_default_model("gemini-2.0-flash")
 
-        # Vérifier que is_default = 0 est dans les appels
+        # Vérifier que is_default = FALSE est dans les appels
         calls = [str(c) for c in cursor.execute.call_args_list]
-        assert any("is_default = 0" in c for c in calls)
+        assert any("is_default = FALSE" in c for c in calls)
 
     @patch("llm_config.models.get_connection")
     def test_returns_false_if_model_not_found(self, mock_conn: MagicMock) -> None:

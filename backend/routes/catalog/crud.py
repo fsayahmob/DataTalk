@@ -45,7 +45,7 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     cursor = conn.cursor()
 
     # 1. Récupérer les datasources du dataset actif uniquement
-    cursor.execute("SELECT * FROM datasources WHERE dataset_id = ?", (dataset_id,))
+    cursor.execute("SELECT * FROM datasources WHERE dataset_id = %s", (dataset_id,))
     datasources = {row["id"]: dict(row) for row in cursor.fetchall()}
     for ds in datasources.values():
         ds["tables"] = []
@@ -57,8 +57,8 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
 
     # 2. Récupérer les tables des datasources sélectionnées
     ds_ids = list(datasources.keys())
-    placeholders = ",".join("?" * len(ds_ids))
-    cursor.execute(f"SELECT * FROM tables WHERE datasource_id IN ({placeholders}) ORDER BY name", ds_ids)
+    placeholders = ",".join("%s" for _ in ds_ids)
+    cursor.execute(f"SELECT * FROM tables WHERE datasource_id IN ({placeholders}) ORDER BY name", ds_ids)  # noqa: S608
     tables = {row["id"]: dict(row) for row in cursor.fetchall()}
     for table in tables.values():
         table["columns"] = []
@@ -69,8 +69,8 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     # 3. Récupérer les colonnes des tables sélectionnées
     if tables:
         table_ids = list(tables.keys())
-        placeholders = ",".join("?" * len(table_ids))
-        cursor.execute(f"SELECT * FROM columns WHERE table_id IN ({placeholders}) ORDER BY name", table_ids)
+        placeholders = ",".join("%s" for _ in table_ids)
+        cursor.execute(f"SELECT * FROM columns WHERE table_id IN ({placeholders}) ORDER BY name", table_ids)  # noqa: S608
         columns = {row["id"]: dict(row) for row in cursor.fetchall()}
         for col in columns.values():
             col["synonyms"] = []
@@ -81,8 +81,8 @@ async def get_catalog() -> dict[str, list[dict[str, Any]]]:
         # 4. Récupérer les synonymes des colonnes sélectionnées
         if columns:
             col_ids = list(columns.keys())
-            placeholders = ",".join("?" * len(col_ids))
-            cursor.execute(f"SELECT column_id, term FROM synonyms WHERE column_id IN ({placeholders})", col_ids)
+            placeholders = ",".join("%s" for _ in col_ids)
+            cursor.execute(f"SELECT column_id, term FROM synonyms WHERE column_id IN ({placeholders})", col_ids)  # noqa: S608
             for row in cursor.fetchall():
                 col_id = row["column_id"]
                 if col_id in columns:
@@ -110,34 +110,34 @@ async def delete_catalog() -> dict[str, str]:
     cursor = conn.cursor()
 
     # Récupérer les IDs des datasources du dataset actif
-    cursor.execute("SELECT id FROM datasources WHERE dataset_id = ?", (dataset_id,))
+    cursor.execute("SELECT id FROM datasources WHERE dataset_id = %s", (dataset_id,))
     ds_ids = [row["id"] for row in cursor.fetchall()]
 
     if ds_ids:
         # Récupérer les IDs des tables de ces datasources
-        placeholders = ",".join("?" * len(ds_ids))
-        cursor.execute(f"SELECT id FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)
+        placeholders = ",".join("%s" for _ in ds_ids)
+        cursor.execute(f"SELECT id FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)  # noqa: S608
         table_ids = [row["id"] for row in cursor.fetchall()]
 
         if table_ids:
             # Récupérer les IDs des colonnes de ces tables
-            placeholders_t = ",".join("?" * len(table_ids))
-            cursor.execute(f"SELECT id FROM columns WHERE table_id IN ({placeholders_t})", table_ids)
+            placeholders_t = ",".join("%s" for _ in table_ids)
+            cursor.execute(f"SELECT id FROM columns WHERE table_id IN ({placeholders_t})", table_ids)  # noqa: S608
             col_ids = [row["id"] for row in cursor.fetchall()]
 
             # Supprimer les synonymes des colonnes
             if col_ids:
-                placeholders_c = ",".join("?" * len(col_ids))
-                cursor.execute(f"DELETE FROM synonyms WHERE column_id IN ({placeholders_c})", col_ids)
+                placeholders_c = ",".join("%s" for _ in col_ids)
+                cursor.execute(f"DELETE FROM synonyms WHERE column_id IN ({placeholders_c})", col_ids)  # noqa: S608
 
             # Supprimer les colonnes
-            cursor.execute(f"DELETE FROM columns WHERE table_id IN ({placeholders_t})", table_ids)
+            cursor.execute(f"DELETE FROM columns WHERE table_id IN ({placeholders_t})", table_ids)  # noqa: S608
 
         # Supprimer les tables
-        cursor.execute(f"DELETE FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)
+        cursor.execute(f"DELETE FROM tables WHERE datasource_id IN ({placeholders})", ds_ids)  # noqa: S608
 
     # Supprimer les datasources du dataset actif
-    cursor.execute("DELETE FROM datasources WHERE dataset_id = ?", (dataset_id,))
+    cursor.execute("DELETE FROM datasources WHERE dataset_id = %s", (dataset_id,))
 
     # Supprimer les widgets, questions et KPIs générés
     with contextlib.suppress(Exception):
@@ -202,14 +202,14 @@ async def update_column_description(column_id: int, request: dict[str, Any]) -> 
         cursor = conn.cursor()
 
         # Vérifier que la colonne existe
-        cursor.execute("SELECT id, name FROM columns WHERE id = ?", (column_id,))
+        cursor.execute("SELECT id, name FROM columns WHERE id = %s", (column_id,))
         column = cursor.fetchone()
 
         if not column:
             raise HTTPException(status_code=404, detail=t("catalog.column_not_found", id=column_id))
 
         # Mettre à jour la description
-        cursor.execute("UPDATE columns SET description = ? WHERE id = ?", (description, column_id))
+        cursor.execute("UPDATE columns SET description = %s WHERE id = %s", (description, column_id))
         conn.commit()
         conn.close()
 

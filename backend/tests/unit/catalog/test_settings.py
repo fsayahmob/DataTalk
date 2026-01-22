@@ -90,7 +90,7 @@ class TestSetSetting:
 
         mock_cursor.execute.assert_called_once()
         call_args = mock_cursor.execute.call_args
-        assert "INSERT OR REPLACE" in call_args[0][0]
+        assert "ON CONFLICT" in call_args[0][0]
         assert call_args[0][1] == ("test_key", "test_value")
 
     def test_commits_transaction(self) -> None:

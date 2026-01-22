@@ -63,7 +63,7 @@ class TestGetPrompts:
         get_prompts(active_only=True)
 
         call_args = cursor.execute.call_args[0][0]
-        assert "is_active = 1" in call_args
+        assert "is_active = TRUE" in call_args
 
 
 class TestGetPrompt:
@@ -262,9 +262,9 @@ class TestSetActivePrompt:
 
         set_active_prompt("test", "v2")
 
-        # Vérifier que is_active = 0 est dans les appels
+        # Vérifier que is_active = FALSE est dans les appels
         calls = [str(c) for c in cursor.execute.call_args_list]
-        assert any("is_active = 0" in c for c in calls)
+        assert any("is_active = FALSE" in c for c in calls)
 
     @patch("llm_config.prompts.get_connection")
     def test_returns_false_if_prompt_not_found(self, mock_conn: MagicMock) -> None:
@@ -367,7 +367,7 @@ class TestUpdatePromptContent:
         update_prompt_content("test", "New content")
 
         call_args = cursor.execute.call_args[0][0]
-        assert "is_active = 1" in call_args
+        assert "is_active = TRUE" in call_args
 
     @patch("llm_config.prompts.get_connection")
     def test_returns_false_if_no_active(self, mock_conn: MagicMock) -> None:

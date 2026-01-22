@@ -179,7 +179,7 @@ class TestListDatasources:
             list_datasources(dataset_id="dataset-123")
 
         call_sql = mock_cursor.execute.call_args[0][0]
-        assert "dataset_id = ?" in call_sql
+        assert "dataset_id = %s" in call_sql
 
 
 class TestUpdateDatasource:

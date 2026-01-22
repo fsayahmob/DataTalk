@@ -96,9 +96,9 @@ class TestProviders:
 
         get_providers(enabled_only=True)
 
-        # Vérifier que la requête contient WHERE is_enabled = 1
+        # Vérifier que la requête contient WHERE is_enabled = TRUE
         call_args = mock_cursor.execute.call_args[0][0]
-        assert "is_enabled = 1" in call_args
+        assert "is_enabled = TRUE" in call_args
 
     def test_get_provider_by_id_returns_dict_or_none(self, mock_db_connection: Any) -> None:
         """get_provider retourne un dict ou None."""

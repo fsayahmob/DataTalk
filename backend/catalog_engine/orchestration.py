@@ -93,7 +93,7 @@ def extract_only(
             conn = get_connection()
             cursor = conn.cursor()
             cursor.execute(
-                "SELECT id FROM datasources WHERE name = ?",
+                "SELECT id FROM datasources WHERE name = %s",
                 (catalog.datasource.replace(".duckdb", ""),),
             )
             row = cursor.fetchone()
@@ -118,7 +118,7 @@ def extract_only(
                 conn = get_connection()
                 cursor = conn.cursor()
                 cursor.execute(
-                    "SELECT id FROM tables WHERE datasource_id = ? AND name = ?",
+                    "SELECT id FROM tables WHERE datasource_id = %s AND name = %s",
                     (datasource_id, table.name),
                 )
                 row = cursor.fetchone()
@@ -205,12 +205,12 @@ def enrich_selected_tables(
         cursor = conn.cursor()
 
         # Désactiver toutes les tables
-        cursor.execute("UPDATE tables SET is_enabled = 0")
+        cursor.execute("UPDATE tables SET is_enabled = FALSE")
 
         # Activer seulement les tables sélectionnées
-        placeholders = ",".join("?" * len(table_ids))
+        placeholders = ",".join("%s" for _ in table_ids)
         cursor.execute(
-            f"UPDATE tables SET is_enabled = 1 WHERE id IN ({placeholders})",
+            f"UPDATE tables SET is_enabled = TRUE WHERE id IN ({placeholders})",  # noqa: S608
             table_ids,
         )
         conn.commit()

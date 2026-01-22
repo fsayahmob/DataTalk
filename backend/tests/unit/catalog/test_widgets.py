@@ -217,7 +217,7 @@ class TestSetWidgetCache:
             set_widget_cache("w1", '{"value": 200}')
 
         call_sql = mock_cursor.execute.call_args[0][0]
-        assert "INSERT OR REPLACE" in call_sql
+        assert "ON CONFLICT" in call_sql
 
 
 class TestClearWidgetCache:
