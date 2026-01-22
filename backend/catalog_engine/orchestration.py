@@ -80,9 +80,13 @@ def extract_only(
     with workflow.step("save_to_catalog") if workflow else _dummy_context():
         logger.info("2/2 - Sauvegarde dans PostgreSQL (sans descriptions)")
 
+        # Générer un nom unique basé sur le dataset_id (évite les conflits entre datasets)
+        # Format: ds_{8 premiers chars du UUID} - court et unique
+        datasource_name = f"ds_{dataset_id[:8]}" if dataset_id else catalog.datasource.replace(".duckdb", "")
+
         # Créer la datasource (associée au dataset actif)
         datasource_id = add_datasource(
-            name=catalog.datasource.replace(".duckdb", ""),
+            name=datasource_name,
             ds_type="duckdb",
             dataset_id=dataset_id,
             path=duckdb_path,
@@ -90,12 +94,21 @@ def extract_only(
         )
 
         if datasource_id is None:
+            # Fallback: chercher la datasource existante PAR DATASET_ID (pas par nom!)
+            # Ceci évite de récupérer une datasource d'un autre dataset
             conn = get_connection()
             cursor = conn.cursor()
-            cursor.execute(
-                "SELECT id FROM datasources WHERE name = %s",
-                (catalog.datasource.replace(".duckdb", ""),),
-            )
+            if dataset_id:
+                cursor.execute(
+                    "SELECT id FROM datasources WHERE dataset_id = %s",
+                    (dataset_id,),
+                )
+            else:
+                # Legacy: recherche par nom si pas de dataset_id
+                cursor.execute(
+                    "SELECT id FROM datasources WHERE name = %s",
+                    (datasource_name,),
+                )
             row = cursor.fetchone()
             datasource_id = row["id"] if row else None
             conn.close()

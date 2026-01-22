@@ -19,7 +19,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import duckdb
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -35,7 +34,7 @@ from catalog import (
     update_dataset_stats,
 )
 from catalog.datasources import is_sync_running
-from core.state import app_state
+from core.state import app_state, connect_duckdb_nonblocking
 
 logger = logging.getLogger(__name__)
 
@@ -177,17 +176,19 @@ async def activate_dataset(dataset_id: str) -> dict[str, Any]:
 
     # Reconnecter app_state au nouveau DuckDB
     if duckdb_path and Path(duckdb_path).exists():
-        try:
-            # Fermer l'ancienne connexion (géré par le setter)
-            app_state.db_connection = duckdb.connect(duckdb_path, read_only=True)
-            app_state.current_db_path = duckdb_path
+        # Connexion non-bloquante: retourne immédiatement si fichier verrouillé
+        conn = connect_duckdb_nonblocking(duckdb_path, read_only=True)
+        app_state.db_connection = conn
+        app_state.current_db_path = duckdb_path
+
+        if conn:
             # Rafraîchir le cache du schéma pour le LLM
             app_state.db_schema_cache = get_schema_for_llm()
             logger.info("Reconnected to DuckDB: %s", duckdb_path)
-        except Exception as e:
-            logger.warning("Failed to connect to DuckDB %s: %s", duckdb_path, e)
-            app_state.db_connection = None
+        else:
+            # Fichier verrouillé (sync en cours) - connexion sera établie au prochain refresh
             app_state.db_schema_cache = None
+            logger.info("DuckDB locked for %s (sync in progress), connection deferred", dataset_id)
     else:
         # Dataset sans fichier DuckDB (pas encore synchronisé)
         app_state.db_connection = None

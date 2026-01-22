@@ -132,11 +132,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "4.0"
-          memory: 2G
+          cpus: "8.0"
+          memory: 4G
         reservations:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "2.0"
+          memory: 1G
 
   # ---------------------------------------------------------------------------
   # Redis (Celery broker + Pub/Sub for real-time task events)
@@ -144,8 +144,10 @@ services:
   redis:
     container_name: datatalk-redis
     image: redis:7-alpine
+    command: redis-server /usr/local/etc/redis/redis.conf
     volumes:
       - redis-data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -157,11 +159,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 256M
+          cpus: "2.0"
+          memory: 512M
         reservations:
-          cpus: "0.25"
-          memory: 64M
+          cpus: "0.5"
+          memory: 128M
 
   # ---------------------------------------------------------------------------
   # Worker Celery (tasks longues: extraction, enrichissement LLM)
@@ -169,7 +171,7 @@ services:
   worker:
     container_name: datatalk-worker
     build: ./backend
-    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    command: celery -A celery_app worker --loglevel=info --concurrency=6
     environment:
       - DATABASE_URL=postgresql://datatalk:${POSTGRES_PASSWORD:-datatalk_dev}@postgres:5432/datatalk
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
@@ -206,11 +208,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "4.0"
-          memory: 2G
+          cpus: "8.0"
+          memory: 8G
         reservations:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "2.0"
+          memory: 2G
 
   # ---------------------------------------------------------------------------
   # Flower (monitoring Celery) - OPTIONNEL

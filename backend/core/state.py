@@ -19,6 +19,7 @@ Le chemin est stocké dans la table datasets (colonne duckdb_path).
 import contextlib
 import logging
 import threading
+from pathlib import Path
 
 import duckdb
 
@@ -92,6 +93,43 @@ class _AppState:
 
 # Instance singleton
 app_state = _AppState()
+
+
+def connect_duckdb_nonblocking(
+    duckdb_path: str,
+    read_only: bool = True,
+) -> duckdb.DuckDBPyConnection | None:
+    """
+    Connecte à un fichier DuckDB sans blocage.
+
+    Tente UNE SEULE connexion immédiate. Si le fichier est verrouillé
+    (sync PyAirbyte en cours), retourne None sans attendre.
+
+    Cette approche est préférable aux retries car:
+    - Ne bloque pas l'API pendant les syncs (qui peuvent durer des minutes)
+    - L'utilisateur voit immédiatement que le dataset est en sync
+    - La connexion sera établie automatiquement au prochain refresh
+
+    Args:
+        duckdb_path: Chemin vers le fichier DuckDB
+        read_only: Mode lecture seule (défaut: True pour l'API)
+
+    Returns:
+        Connexion DuckDB ou None si fichier verrouillé/inexistant
+    """
+    path = Path(duckdb_path)
+    if not path.exists():
+        logger.debug("DuckDB file does not exist: %s", duckdb_path)
+        return None
+
+    try:
+        conn = duckdb.connect(duckdb_path, read_only=read_only)
+        logger.debug("Connected to DuckDB: %s", duckdb_path)
+        return conn
+    except Exception as e:
+        # Log en debug car c'est un cas normal pendant les syncs
+        logger.debug("DuckDB locked (sync in progress?): %s - %s", duckdb_path, e)
+        return None
 
 
 class PromptNotConfiguredError(Exception):
