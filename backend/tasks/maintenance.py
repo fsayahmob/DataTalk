@@ -2,7 +2,7 @@
 Tâches de maintenance Celery.
 
 Nettoyage périodique des données obsolètes:
-- Jobs anciens dans SQLite (catalog_jobs)
+- Jobs anciens dans PostgreSQL (catalog_jobs)
 - Conversations orphelines
 - Fichiers temporaires
 """

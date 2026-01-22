@@ -43,14 +43,17 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 512M
+          cpus: "2.0"
+          memory: 1G
         reservations:
-          cpus: "0.25"
-          memory: 128M
+          cpus: "0.5"
+          memory: 256M
 
   # ---------------------------------------------------------------------------
   # PostgreSQL (catalogue métadonnées - remplace SQLite)
+  # ---------------------------------------------------------------------------
+  # Configuration optimisée pour haute concurrence et écritures intensives
+  # Voir postgres/postgresql.conf pour les détails
   # ---------------------------------------------------------------------------
   postgres:
     container_name: datatalk-postgres
@@ -59,8 +62,16 @@ services:
       POSTGRES_DB: datatalk
       POSTGRES_USER: datatalk
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-datatalk_dev}
+      # Charger notre config custom
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.utf8"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      # Configuration PostgreSQL optimisée
+      - ./postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      # Script d'initialisation (extensions, etc.)
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    # Utiliser notre config custom
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U datatalk -d datatalk"]
       interval: 10s
@@ -69,14 +80,16 @@ services:
     restart: always
     networks:
       - datatalk-net
+    # Ressources pour Mac puissant (16GB+ RAM)
+    # shared_buffers=512MB nécessite ~2GB de RAM
     deploy:
       resources:
         limits:
-          cpus: "0.5"
-          memory: 256M
+          cpus: "2.0"
+          memory: 2G
         reservations:
-          cpus: "0.1"
-          memory: 64M
+          cpus: "0.5"
+          memory: 512M
 
   # ---------------------------------------------------------------------------
   # API FastAPI
@@ -119,11 +132,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
+          cpus: "4.0"
+          memory: 2G
         reservations:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "1.0"
+          memory: 512M
 
   # ---------------------------------------------------------------------------
   # Redis (Celery broker + Pub/Sub for real-time task events)
@@ -144,11 +157,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: 128M
+          cpus: "1.0"
+          memory: 256M
         reservations:
-          cpus: "0.05"
-          memory: 32M
+          cpus: "0.25"
+          memory: 64M
 
   # ---------------------------------------------------------------------------
   # Worker Celery (tasks longues: extraction, enrichissement LLM)
@@ -156,7 +169,7 @@ services:
   worker:
     container_name: datatalk-worker
     build: ./backend
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
     environment:
       - DATABASE_URL=postgresql://datatalk:${POSTGRES_PASSWORD:-datatalk_dev}@postgres:5432/datatalk
       - DUCKDB_PATH=/data/duckdb/datatalk.duckdb
@@ -193,11 +206,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "1.0"
-          memory: 1G
+          cpus: "4.0"
+          memory: 2G
         reservations:
-          cpus: "0.25"
-          memory: 256M
+          cpus: "1.0"
+          memory: 512M
 
   # ---------------------------------------------------------------------------
   # Flower (monitoring Celery) - OPTIONNEL

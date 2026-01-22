@@ -184,7 +184,7 @@ async def enrich_catalog_endpoint(request: EnrichCatalogRequest) -> dict[str, An
     Reçoit les IDs des tables sélectionnées par l'utilisateur,
     met à jour leur état is_enabled, puis enrichit.
 
-    Le full_context est lu depuis SQLite (calculé à l'extraction).
+    Le full_context est lu depuis PostgreSQL (calculé à l'extraction).
     L'enrichissement utilise toujours le mode "full".
 
     Génère:

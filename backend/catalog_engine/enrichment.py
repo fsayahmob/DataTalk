@@ -228,7 +228,7 @@ def enrich_with_llm(
 
     Args:
         catalog: Catalogue extrait à enrichir (pour construire le modèle de réponse)
-        tables_context: Contexte pré-construit depuis SQLite (full_context).
+        tables_context: Contexte pré-construit depuis PostgreSQL (full_context).
                         Si None, utilise _build_full_context() (fallback).
         max_retries: Nombre de tentatives supplémentaires en cas d'échec
 
@@ -249,7 +249,7 @@ def enrich_with_llm(
         tables_context = _build_full_context(catalog)
         logger.info("  Contexte construit depuis catalogue (fallback)")
     else:
-        logger.info("  Contexte lu depuis SQLite (full_context)")
+        logger.info("  Contexte lu depuis PostgreSQL (full_context)")
 
     # Récupérer le prompt depuis la DB (erreur si non trouvé)
     prompt_data = get_active_prompt("catalog_enrichment")

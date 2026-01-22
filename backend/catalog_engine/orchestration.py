@@ -47,7 +47,7 @@ def extract_only(
     dataset_id: str | None = None,
 ) -> dict[str, Any]:
     """
-    Extrait le schéma depuis DuckDB et sauvegarde dans SQLite SANS enrichissement LLM.
+    Extrait le schéma depuis DuckDB et sauvegarde dans PostgreSQL SANS enrichissement LLM.
 
     Les tables sont créées avec is_enabled=1 par défaut.
     L'utilisateur peut ensuite désactiver les tables non souhaitées.
@@ -76,9 +76,9 @@ def extract_only(
             sum(len(t.columns) for t in catalog.tables),
         )
 
-    # Step 2: Sauvegarde dans SQLite
+    # Step 2: Sauvegarde dans PostgreSQL
     with workflow.step("save_to_catalog") if workflow else _dummy_context():
-        logger.info("2/2 - Sauvegarde dans SQLite (sans descriptions)")
+        logger.info("2/2 - Sauvegarde dans PostgreSQL (sans descriptions)")
 
         # Créer la datasource (associée au dataset actif)
         datasource_id = add_datasource(
@@ -166,8 +166,8 @@ def enrich_selected_tables(
     """
     Enrichit les tables sélectionnées par l'utilisateur.
 
-    1. Met à jour is_enabled dans SQLite (1 pour sélectionnées, 0 pour les autres)
-    2. Lit le full_context depuis SQLite (calculé à l'extraction)
+    1. Met à jour is_enabled dans PostgreSQL (1 pour sélectionnées, 0 pour les autres)
+    2. Lit le full_context depuis PostgreSQL (calculé à l'extraction)
     3. Enrichit les tables sélectionnées avec LLM
     4. Génère les KPIs
 
@@ -198,7 +198,7 @@ def enrich_selected_tables(
     # Initialiser le workflow si job_id fourni
     workflow = WorkflowManager(job_id, total_steps=total_steps) if job_id else None
 
-    # Step 1: Mettre à jour l'état is_enabled dans SQLite
+    # Step 1: Mettre à jour l'état is_enabled dans PostgreSQL
     with workflow.step("update_enabled") if workflow else _dummy_context():
         logger.info("1/N - Mise à jour des états is_enabled")
         conn = get_connection()
@@ -326,7 +326,7 @@ def _persist_enrichments(
     workflow: "WorkflowManager | None",
 ) -> dict[str, int | str]:
     """
-    Sauvegarde les descriptions enrichies dans SQLite.
+    Sauvegarde les descriptions enrichies dans PostgreSQL.
 
     Args:
         tables_info: Liste de (TableMetadata, context_string)
@@ -458,7 +458,7 @@ def _enrich_tables(
     Fonction interne d'enrichissement (orchestration).
 
     Coordonne les 4 étapes:
-    1. Chargement du contexte depuis SQLite
+    1. Chargement du contexte depuis PostgreSQL
     2. Enrichissement LLM par batches
     3. Persistance des descriptions
     4. Génération des artefacts (KPIs, questions)

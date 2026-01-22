@@ -272,7 +272,7 @@ def delete_datasource(datasource_id: int) -> bool:
     Supprime une datasource et planifie la suppression async des tables DuckDB.
 
     1. Récupère les tables depuis ingestion_catalog
-    2. Supprime l'entrée dans SQLite (immédiat)
+    2. Supprime l'entrée dans PostgreSQL (immédiat)
     3. Lance une tâche Celery pour supprimer les tables DuckDB (async)
     4. Met à jour les stats du dataset
 
@@ -306,7 +306,7 @@ def delete_datasource(datasource_id: int) -> bool:
             if ingestion_catalog.get("tables"):
                 tables_to_drop = [t["name"] for t in ingestion_catalog["tables"]]
 
-    # 2. Supprimer l'entrée dans SQLite (immédiat, pas de blocage)
+    # 2. Supprimer l'entrée dans PostgreSQL (immédiat, pas de blocage)
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM datasources WHERE id = %s", (datasource_id,))

@@ -50,7 +50,7 @@ fi
 
 # 4. Récupérer les IDs de tables pour enrichissement
 echo -e "\n${BOLD}4. Test Récupération Tables${NC}"
-TABLE_IDS=$(sqlite3 backend/catalog.sqlite "SELECT id FROM tables LIMIT 2" | tr '\n' ',' | sed 's/,$//')
+TABLE_IDS=$(docker exec datatalk-postgres psql -U datatalk -d datatalk -t -c "SELECT id FROM tables LIMIT 2" 2>/dev/null | tr -d ' ' | tr '\n' ',' | sed 's/,$//')
 if [ -n "$TABLE_IDS" ]; then
     echo -e "   ${GREEN}✓${NC} Tables trouvées"
     echo -e "   ${YELLOW}→${NC} IDs: $TABLE_IDS"

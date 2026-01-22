@@ -112,7 +112,7 @@ def create_dataset(name: str, description: str | None = None) -> dict[str, Any]:
     conn.close()
     logger.info("Created DuckDB file: %s", duckdb_path)
 
-    # Enregistrer dans SQLite
+    # Enregistrer dans PostgreSQL
     db_conn = get_connection()
     cursor = db_conn.cursor()
     try:
@@ -134,7 +134,7 @@ def create_dataset(name: str, description: str | None = None) -> dict[str, Any]:
     finally:
         db_conn.close()
 
-    # Récupérer le dataset complet avec les timestamps générés par SQLite
+    # Récupérer le dataset complet avec les timestamps générés par PostgreSQL
     return get_dataset(dataset_id) or {
         "id": dataset_id,
         "name": name,
@@ -295,7 +295,7 @@ def delete_dataset(dataset_id: str) -> bool:
 
     duckdb_path = dataset["duckdb_path"]
 
-    # Supprimer de SQLite
+    # Supprimer de PostgreSQL
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM datasets WHERE id = %s", (dataset_id,))

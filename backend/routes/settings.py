@@ -60,7 +60,7 @@ async def health_check() -> dict[str, Any]:
     # État du LLM
     llm_status = check_llm_status()
 
-    # État du catalogue SQLite
+    # État du catalogue PostgreSQL
     catalog_status: dict[str, Any] = {"status": "unknown"}
     try:
         conn = get_connection()
@@ -105,7 +105,7 @@ async def get_database_status() -> dict[str, Any]:
 
 @router.post("/refresh-schema")
 async def refresh_schema() -> dict[str, Any]:
-    """Rafraîchit le cache du schéma depuis le catalogue SQLite."""
+    """Rafraîchit le cache du schéma depuis le catalogue PostgreSQL."""
     app_state.db_schema_cache = get_schema_for_llm()
     return {
         "status": "ok",

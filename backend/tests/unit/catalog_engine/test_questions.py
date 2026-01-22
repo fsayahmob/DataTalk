@@ -76,15 +76,15 @@ class TestGenerateSuggestedQuestions:
     @patch("catalog_engine.questions.call_with_retry")
     @patch("catalog_engine.questions.get_schema_for_llm")
     @patch("catalog_engine.questions.get_active_prompt")
-    def test_uses_schema_from_sqlite(
+    def test_uses_schema_from_postgres(
         self,
         mock_prompt: MagicMock,
         mock_schema: MagicMock,
         mock_retry: MagicMock,
     ) -> None:
-        """Utilise le schéma depuis SQLite."""
+        """Utilise le schéma depuis PostgreSQL."""
         mock_prompt.return_value = {"content": "Prompt: {schema}"}
-        mock_schema.return_value = "Schema from SQLite"
+        mock_schema.return_value = "Schema from PostgreSQL"
         mock_retry.return_value = []
 
         catalog = ExtractedCatalog(datasource="test.duckdb", tables=[])

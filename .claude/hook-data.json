@@ -1,7 +1,7 @@
 {
-  "lastMessage": "Corrigé. Maintenant quand tu essaies de créer un datasource avec un nom qui existe déjà, tu auras une erreur 400 avec le message \"A datasource with this name already exists\" au lieu d'un crash 500.\n\nPour appliquer le fix en Docker :\n\n```bash\ndocker compose down && docker compose build --no-cache api worker && docker compose up -d\n```\n\nOu plus rapide si tu veux juste restart sans rebuild :\n```bash\ndocker compose restart api worker\n```\n\n(Mais le restart simple ne prendra pas le nouveau code - il faut rebuild pour ça)\n",
+  "lastMessage": "Oui, il faut relancer le build pour appliquer les nouvelles ressources:\n\n```bash\ndocker compose down && docker compose up --build -d\n```\n\n**Note importante**: Si tu avais déjà un volume PostgreSQL avec l'ancienne config, il faut aussi le supprimer pour que la nouvelle config `shared_buffers=512MB` soit prise en compte:\n\n```bash\ndocker compose down -v && docker compose up --build -d\n```\n\n⚠️ Le `-v` supprime les volumes (données PostgreSQL). Si tu as des données à garder, ne pas utiliser `-v`.\n",
   "repoName": "datalakeG7",
   "conversationId": "ed0d8997-1e3f-4cb9-b26b-1bfb7327a151",
   "conversationName": "-Users-sayahfarid-datalakeG7",
-  "timestamp": "2026-01-22T09:41:42Z"
+  "timestamp": "2026-01-22T10:40:50Z"
 }

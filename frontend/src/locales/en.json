@@ -280,7 +280,7 @@
     "mode_compact_desc": "Simple schema (name, type). Fewer tokens, faster responses.",
     "mode_full_desc": "Enriched schema (stats, ENUM, distribution). More accurate for complex queries.",
     "saving": "Saving...",
-    "init_help": "Run sqlite3 catalog.sqlite < schema.sql to initialize prompts."
+    "init_help": "Prompts are automatically initialized when PostgreSQL starts."
   },
   "datasets": {
     "title": "Datasets",

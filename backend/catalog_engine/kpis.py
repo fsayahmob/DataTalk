@@ -173,7 +173,7 @@ def generate_kpis(
 
 def save_kpis(result: KpisGenerationResult) -> dict[str, int]:
     """
-    Sauvegarde les KPIs générés dans SQLite.
+    Sauvegarde les KPIs générés dans PostgreSQL.
     """
     conn = get_connection()
     cursor = conn.cursor()

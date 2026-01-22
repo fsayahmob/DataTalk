@@ -122,7 +122,7 @@ def get_kpi_with_data(
 
 def get_all_kpis_with_data(db_connection: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     """
-    Récupère tous les KPIs depuis SQLite et exécute leurs requêtes.
+    Récupère tous les KPIs depuis PostgreSQL et exécute leurs requêtes.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -146,7 +146,7 @@ def get_all_kpis_with_data(db_connection: duckdb.DuckDBPyConnection) -> list[dic
 
 def save_kpis(kpis: list[dict[str, Any]]) -> int:
     """
-    Sauvegarde les KPIs générés par le LLM dans SQLite.
+    Sauvegarde les KPIs générés par le LLM dans PostgreSQL.
 
     Args:
         kpis: Liste de dicts avec id, title, sql_value, sql_trend, sql_sparkline, etc.

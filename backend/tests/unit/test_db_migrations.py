@@ -1,6 +1,5 @@
-"""Tests pour db_migrations.py - Migrations de base de données."""
+"""Tests pour db_migrations.py - Migrations de base de données PostgreSQL."""
 
-import sqlite3
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -19,24 +18,23 @@ class TestColumnExists:
 
     def test_returns_true_when_column_exists(self) -> None:
         """Retourne True quand la colonne existe."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE test (id INTEGER, name TEXT)")
-        cursor = conn.cursor()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = (1,)
 
-        assert _column_exists(cursor, "test", "id") is True
-        assert _column_exists(cursor, "test", "name") is True
+        result = _column_exists(cursor, "test", "id")
 
-        conn.close()
+        assert result is True
+        cursor.execute.assert_called_once()
+        assert "information_schema.columns" in cursor.execute.call_args[0][0]
 
     def test_returns_false_when_column_missing(self) -> None:
         """Retourne False quand la colonne n'existe pas."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE test (id INTEGER)")
-        cursor = conn.cursor()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = None
 
-        assert _column_exists(cursor, "test", "nonexistent") is False
+        result = _column_exists(cursor, "test", "nonexistent")
 
-        conn.close()
+        assert result is False
 
 
 class TestTableExists:
@@ -44,22 +42,23 @@ class TestTableExists:
 
     def test_returns_true_when_table_exists(self) -> None:
         """Retourne True quand la table existe."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE test (id INTEGER)")
-        cursor = conn.cursor()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = (1,)
 
-        assert _table_exists(cursor, "test") is True
+        result = _table_exists(cursor, "test")
 
-        conn.close()
+        assert result is True
+        cursor.execute.assert_called_once()
+        assert "information_schema.tables" in cursor.execute.call_args[0][0]
 
     def test_returns_false_when_table_missing(self) -> None:
         """Retourne False quand la table n'existe pas."""
-        conn = sqlite3.connect(":memory:")
-        cursor = conn.cursor()
+        cursor = MagicMock()
+        cursor.fetchone.return_value = None
 
-        assert _table_exists(cursor, "nonexistent") is False
+        result = _table_exists(cursor, "nonexistent")
 
-        conn.close()
+        assert result is False
 
 
 class TestMigrationError:
@@ -80,115 +79,115 @@ class TestRunMigrations:
 
     def test_creates_migrations_table(self) -> None:
         """Crée la table _migrations si elle n'existe pas."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
 
         with patch("db_migrations.MIGRATIONS", []):
             run_migrations(conn)
 
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='_migrations'")
-        assert cursor.fetchone() is not None
-
-        conn.close()
+        # Vérifie que CREATE TABLE _migrations est appelé
+        create_calls = [c for c in cursor.execute.call_args_list if "CREATE TABLE" in str(c)]
+        assert len(create_calls) > 0
+        assert "_migrations" in str(create_calls[0])
 
     def test_returns_zero_when_no_migrations(self) -> None:
         """Retourne 0 quand pas de migrations."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
 
         with patch("db_migrations.MIGRATIONS", []):
             result = run_migrations(conn)
 
         assert result == 0
-        conn.close()
 
     def test_applies_new_migrations(self) -> None:
         """Applique les nouvelles migrations."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []  # Pas de migrations appliquées
 
         migration_called = []
 
-        def test_migration(cursor: sqlite3.Cursor) -> None:
+        def test_migration(c: MagicMock) -> None:
             migration_called.append(True)
-            cursor.execute("CREATE TABLE IF NOT EXISTS test_table (id INTEGER)")
 
         with patch("db_migrations.MIGRATIONS", [("test_001", test_migration)]):
             result = run_migrations(conn)
 
         assert result == 1
         assert len(migration_called) == 1
-        conn.close()
+        conn.commit.assert_called()
 
     def test_skips_applied_migrations(self) -> None:
         """Skip les migrations déjà appliquées."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = [("test_001",)]  # Déjà appliquée
 
         migration_called = []
 
-        def test_migration(cursor: sqlite3.Cursor) -> None:
+        def test_migration(c: MagicMock) -> None:
             migration_called.append(True)
 
         with patch("db_migrations.MIGRATIONS", [("test_001", test_migration)]):
-            # Première exécution
-            run_migrations(conn)
-            assert len(migration_called) == 1
+            result = run_migrations(conn)
 
-            # Deuxième exécution - ne doit pas réappliquer
-            run_migrations(conn)
-            assert len(migration_called) == 1
-
-        conn.close()
+        assert result == 0
+        assert len(migration_called) == 0
 
     def test_records_applied_migration(self) -> None:
         """Enregistre les migrations appliquées."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
 
-        def test_migration(cursor: sqlite3.Cursor) -> None:
+        def test_migration(c: MagicMock) -> None:
             pass
 
         with patch("db_migrations.MIGRATIONS", [("test_001", test_migration)]):
             run_migrations(conn)
 
-        cursor = conn.cursor()
-        cursor.execute("SELECT version FROM _migrations")
-        versions = [row[0] for row in cursor.fetchall()]
-        assert "test_001" in versions
-
-        conn.close()
+        # Vérifier que INSERT INTO _migrations est appelé
+        insert_calls = [c for c in cursor.execute.call_args_list if "INSERT INTO _migrations" in str(c)]
+        assert len(insert_calls) == 1
+        assert "test_001" in str(insert_calls[0])
 
     def test_rollback_on_migration_failure(self) -> None:
         """Rollback en cas d'échec de migration."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
 
-        def failing_migration(cursor: sqlite3.Cursor) -> None:
-            cursor.execute("CREATE TABLE test (id INTEGER)")
+        def failing_migration(c: MagicMock) -> None:
             raise ValueError("Intentional failure")
 
         with patch("db_migrations.MIGRATIONS", [("test_fail", failing_migration)]):
             with pytest.raises(MigrationError):
                 run_migrations(conn)
 
-        # La table ne doit pas exister (rollback)
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='test'")
-        # Note: SQLite ne supporte pas le rollback DDL, donc la table peut exister
-        # Mais la migration ne doit pas être enregistrée
-        cursor.execute("SELECT version FROM _migrations WHERE version='test_fail'")
-        assert cursor.fetchone() is None
-
-        conn.close()
+        conn.rollback.assert_called()
 
     def test_raises_migration_error_on_failure(self) -> None:
         """Lève MigrationError en cas d'échec."""
-        conn = sqlite3.connect(":memory:")
+        conn = MagicMock()
+        cursor = MagicMock()
+        conn.cursor.return_value = cursor
+        cursor.fetchall.return_value = []
 
-        def failing_migration(cursor: sqlite3.Cursor) -> None:
+        def failing_migration(c: MagicMock) -> None:
             raise Exception("Test error")
 
         with patch("db_migrations.MIGRATIONS", [("test_fail", failing_migration)]):
             with pytest.raises(MigrationError, match="test_fail"):
                 run_migrations(conn)
-
-        conn.close()
 
 
 class TestMigrationsList:
@@ -222,118 +221,109 @@ class TestIndividualMigrations:
 
     def test_migration_001_share_token(self) -> None:
         """Migration 001: ajoute share_token."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("""
-            CREATE TABLE saved_reports (
-                id INTEGER PRIMARY KEY,
-                title TEXT
-            )
-        """)
-        conn.execute("INSERT INTO saved_reports (title) VALUES ('Test')")
-        conn.commit()
-
         from db_migrations import _migration_001_share_token
 
-        cursor = conn.cursor()
-        _migration_001_share_token(cursor)
-        conn.commit()
+        cursor = MagicMock()
 
-        # Vérifier que la colonne existe
-        assert _column_exists(cursor, "saved_reports", "share_token")
+        # Mock _table_exists et _column_exists
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=False),
+        ):
+            cursor.fetchall.return_value = [(1,), (2,)]  # IDs des rapports existants
+            _migration_001_share_token(cursor)
 
-        # Vérifier qu'un token a été généré
-        cursor.execute("SELECT share_token FROM saved_reports")
-        token = cursor.fetchone()[0]
-        assert token is not None
-
-        conn.close()
+        # Vérifier ALTER TABLE
+        alter_calls = [c for c in cursor.execute.call_args_list if "ALTER TABLE" in str(c)]
+        assert len(alter_calls) >= 1
 
     def test_migration_002_chart_config(self) -> None:
         """Migration 002: ajoute chart_config."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE messages (id INTEGER PRIMARY KEY)")
-        conn.commit()
-
         from db_migrations import _migration_002_chart_config
 
-        cursor = conn.cursor()
-        _migration_002_chart_config(cursor)
-        conn.commit()
+        cursor = MagicMock()
 
-        assert _column_exists(cursor, "messages", "chart_config")
-        conn.close()
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=False),
+        ):
+            _migration_002_chart_config(cursor)
+
+        alter_calls = [c for c in cursor.execute.call_args_list if "chart_config" in str(c)]
+        assert len(alter_calls) >= 1
 
     def test_migration_003_costs_columns(self) -> None:
         """Migration 003: ajoute colonnes à llm_costs."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE llm_costs (id INTEGER PRIMARY KEY)")
-        conn.commit()
-
         from db_migrations import _migration_003_costs_columns
 
-        cursor = conn.cursor()
-        _migration_003_costs_columns(cursor)
-        conn.commit()
+        cursor = MagicMock()
 
-        assert _column_exists(cursor, "llm_costs", "conversation_id")
-        assert _column_exists(cursor, "llm_costs", "success")
-        assert _column_exists(cursor, "llm_costs", "error_message")
-        conn.close()
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=False),
+        ):
+            _migration_003_costs_columns(cursor)
+
+        # 3 colonnes à ajouter
+        alter_calls = [c for c in cursor.execute.call_args_list if "ALTER TABLE" in str(c)]
+        assert len(alter_calls) == 3
 
     def test_migration_004_full_context(self) -> None:
         """Migration 004: ajoute full_context."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE columns (id INTEGER PRIMARY KEY)")
-        conn.commit()
-
         from db_migrations import _migration_004_full_context
 
-        cursor = conn.cursor()
-        _migration_004_full_context(cursor)
-        conn.commit()
+        cursor = MagicMock()
 
-        assert _column_exists(cursor, "columns", "full_context")
-        conn.close()
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=False),
+        ):
+            _migration_004_full_context(cursor)
+
+        alter_calls = [c for c in cursor.execute.call_args_list if "full_context" in str(c)]
+        assert len(alter_calls) >= 1
 
     def test_migration_005_datasource_fields(self) -> None:
         """Migration 005: ajoute champs à datasources."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE datasources (id INTEGER PRIMARY KEY)")
-        conn.commit()
-
         from db_migrations import _migration_005_datasource_fields
 
-        cursor = conn.cursor()
-        _migration_005_datasource_fields(cursor)
-        conn.commit()
+        cursor = MagicMock()
 
-        assert _column_exists(cursor, "datasources", "is_active")
-        assert _column_exists(cursor, "datasources", "file_size_bytes")
-        assert _column_exists(cursor, "datasources", "last_modified")
-        conn.close()
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=False),
+        ):
+            _migration_005_datasource_fields(cursor)
+
+        # 3 colonnes à ajouter
+        alter_calls = [c for c in cursor.execute.call_args_list if "ALTER TABLE" in str(c)]
+        assert len(alter_calls) == 3
 
     def test_migration_skips_if_table_missing(self) -> None:
         """Les migrations skip si la table n'existe pas."""
-        conn = sqlite3.connect(":memory:")
-        cursor = conn.cursor()
-
         from db_migrations import _migration_001_share_token
 
-        # Ne doit pas lever d'exception
-        _migration_001_share_token(cursor)
+        cursor = MagicMock()
 
-        conn.close()
+        with patch("db_migrations._table_exists", return_value=False):
+            _migration_001_share_token(cursor)
+
+        # Pas d'ALTER TABLE
+        alter_calls = [c for c in cursor.execute.call_args_list if "ALTER TABLE" in str(c)]
+        assert len(alter_calls) == 0
 
     def test_migration_skips_if_column_exists(self) -> None:
         """Les migrations skip si la colonne existe déjà."""
-        conn = sqlite3.connect(":memory:")
-        conn.execute("CREATE TABLE messages (id INTEGER, chart_config TEXT)")
-        conn.commit()
-
         from db_migrations import _migration_002_chart_config
 
-        cursor = conn.cursor()
-        # Ne doit pas lever d'exception (colonne existe)
-        _migration_002_chart_config(cursor)
+        cursor = MagicMock()
 
-        conn.close()
+        with (
+            patch("db_migrations._table_exists", return_value=True),
+            patch("db_migrations._column_exists", return_value=True),  # Colonne existe
+        ):
+            _migration_002_chart_config(cursor)
+
+        # Pas d'ALTER TABLE
+        alter_calls = [c for c in cursor.execute.call_args_list if "ALTER TABLE" in str(c)]
+        assert len(alter_calls) == 0

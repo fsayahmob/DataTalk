@@ -40,14 +40,13 @@ def mock_duckdb_connection() -> MagicMock:
 
 
 @pytest.fixture
-def mock_sqlite_connection() -> Generator[MagicMock, None, None]:
-    """Mock d'une connexion SQLite avec context manager."""
+def mock_postgres_connection() -> Generator[MagicMock, None, None]:
+    """Mock d'une connexion PostgreSQL avec context manager."""
     conn = MagicMock()
     cursor = MagicMock()
     cursor.fetchone.return_value = {"id": 1, "name": "test"}
     cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
     cursor.rowcount = 1
-    cursor.lastrowid = 1
     conn.cursor.return_value = cursor
     conn.__enter__ = MagicMock(return_value=conn)
     conn.__exit__ = MagicMock(return_value=False)
@@ -57,13 +56,26 @@ def mock_sqlite_connection() -> Generator[MagicMock, None, None]:
 
 
 @pytest.fixture
-def mock_sqlite_cursor() -> MagicMock:
-    """Mock d'un curseur SQLite."""
+def mock_postgres_cursor() -> MagicMock:
+    """Mock d'un curseur PostgreSQL."""
     cursor = MagicMock()
     cursor.fetchone.return_value = {"id": 1, "name": "test"}
     cursor.fetchall.return_value = [{"id": 1}, {"id": 2}]
     cursor.rowcount = 1
     return cursor
+
+
+# Alias pour rétrocompatibilité des tests existants
+@pytest.fixture
+def mock_sqlite_connection(mock_postgres_connection: MagicMock) -> Generator[MagicMock, None, None]:
+    """Alias vers mock_postgres_connection pour rétrocompatibilité."""
+    yield mock_postgres_connection
+
+
+@pytest.fixture
+def mock_sqlite_cursor(mock_postgres_cursor: MagicMock) -> MagicMock:
+    """Alias vers mock_postgres_cursor pour rétrocompatibilité."""
+    return mock_postgres_cursor
 
 
 # =============================================================================

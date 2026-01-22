@@ -276,7 +276,7 @@ def cleanup_datasource_tables_task(
     """
     Task Celery: Supprime les tables d'une datasource dans DuckDB.
 
-    Cette tâche est appelée après la suppression d'une datasource dans SQLite.
+    Cette tâche est appelée après la suppression d'une datasource dans PostgreSQL.
     Elle s'exécute de manière asynchrone pour ne pas bloquer l'API.
 
     Args:

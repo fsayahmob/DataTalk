@@ -68,7 +68,7 @@ def extract_catalog_task(
         dataset_id: UUID du dataset à extraire (pour isolation)
 
     ⚠️ IMPORTANT:
-    - Le job_id existe DÉJÀ dans SQLite (créé par l'API avant d'envoyer la task)
+    - Le job_id existe DÉJÀ dans PostgreSQL (créé par l'API avant d'envoyer la task)
     - Cette task met à jour le status au fur et à mesure
     - Connexion DuckDB DÉDIÉE au worker (pas APP_STATE)
     - dataset_id garantit l'isolation même si le dataset actif change

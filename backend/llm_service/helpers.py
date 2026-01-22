@@ -37,5 +37,5 @@ def _get_api_key_for_model(model: dict[str, Any]) -> str | None:
     if not provider_id:
         return None
 
-    # Récupérer la clé (env var ou SQLite)
+    # Récupérer la clé (env var ou PostgreSQL)
     return get_api_key(provider_id)

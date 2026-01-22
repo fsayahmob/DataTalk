@@ -283,7 +283,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
 
 def build_column_full_context(col: ColumnMetadata) -> str:
     """
-    Construit le contexte complet pour UNE colonne (stocké en SQLite).
+    Construit le contexte complet pour UNE colonne (stocké en PostgreSQL).
 
     Ce contexte est calculé une seule fois à l'extraction et réutilisé
     pour l'enrichissement LLM et le text-to-SQL.

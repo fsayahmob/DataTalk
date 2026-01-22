@@ -38,7 +38,7 @@ def generate_suggested_questions(
         QuestionGenerationError: Si la génération échoue après tous les retries
     """
     # catalog est passé mais non utilisé directement - on utilise get_schema_for_llm()
-    # qui lit depuis SQLite (après que les descriptions aient été sauvegardées)
+    # qui lit depuis PostgreSQL (après que les descriptions aient été sauvegardées)
     _ = catalog  # Pour éviter l'avertissement unused
 
     logger.info("Génération des questions suggérées")
@@ -84,7 +84,7 @@ def generate_suggested_questions(
 
 def save_suggested_questions(questions: list[dict[str, str]]) -> dict[str, int]:
     """
-    Sauvegarde les questions suggérées dans SQLite.
+    Sauvegarde les questions suggérées dans PostgreSQL.
 
     Args:
         questions: Liste de questions avec category et icon

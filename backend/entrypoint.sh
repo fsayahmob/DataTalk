@@ -3,8 +3,8 @@
 # DataTalk API Entrypoint
 # =============================================================================
 # Script idempotent d'initialisation avant le démarrage de l'API.
+# - Attend que PostgreSQL soit prêt
 # - Vérifie/crée les répertoires des volumes
-# - Initialise SQLite si absente ou vide
 # - Vérifie les permissions d'écriture
 # =============================================================================
 
@@ -23,24 +23,55 @@ log_error() { echo -e "${RED}[init]${NC} $1"; }
 # =============================================================================
 # Configuration (depuis variables d'environnement)
 # =============================================================================
-SQLITE_PATH="${SQLITE_PATH:-/data/sqlite/catalog.sqlite}"
 DUCKDB_PATH="${DUCKDB_PATH:-/data/duckdb/datatalk.duckdb}"
+DUCKDB_DIR="${DUCKDB_DIR:-/data/duckdb/datasets}"
 CACHE_DIR="${CACHE_DIR:-/data/cache}"
+DATABASE_URL="${DATABASE_URL:-postgresql://datatalk:datatalk_dev@postgres:5432/datatalk}"
 
 # =============================================================================
 # 1. Créer les répertoires si nécessaires
 # =============================================================================
 log_info "Vérification des répertoires..."
 
-mkdir -p "$(dirname "$SQLITE_PATH")"
 mkdir -p "$(dirname "$DUCKDB_PATH")"
+mkdir -p "$DUCKDB_DIR"
 mkdir -p "$CACHE_DIR"
 mkdir -p "$CACHE_DIR/uploads"
 
 log_info "Répertoires OK"
 
 # =============================================================================
-# 2. Vérifier les permissions d'écriture
+# 2. Attendre que PostgreSQL soit prêt
+# =============================================================================
+log_info "Vérification de la connexion PostgreSQL..."
+
+# Extraire host et port de DATABASE_URL
+# Format: postgresql://user:pass@host:port/dbname
+PG_HOST=$(echo "$DATABASE_URL" | sed -n 's|.*@\([^:]*\):.*|\1|p')
+PG_PORT=$(echo "$DATABASE_URL" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+PG_HOST=${PG_HOST:-postgres}
+PG_PORT=${PG_PORT:-5432}
+
+MAX_RETRIES=30
+RETRY_COUNT=0
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    if pg_isready -h "$PG_HOST" -p "$PG_PORT" -q 2>/dev/null; then
+        log_info "PostgreSQL est prêt!"
+        break
+    fi
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    log_warn "PostgreSQL pas encore prêt, tentative $RETRY_COUNT/$MAX_RETRIES..."
+    sleep 1
+done
+
+if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+    log_error "PostgreSQL n'est pas accessible après $MAX_RETRIES tentatives"
+    exit 1
+fi
+
+# =============================================================================
+# 3. Vérifier les permissions d'écriture
 # =============================================================================
 log_info "Vérification des permissions..."
 
@@ -59,60 +90,28 @@ check_writable() {
     fi
 }
 
-check_writable "$(dirname "$SQLITE_PATH")" "Volume SQLite"
-# DuckDB peut être en lecture seule pour le worker - pas d'erreur fatale
 check_writable "$(dirname "$DUCKDB_PATH")" "Volume DuckDB" || true
+check_writable "$DUCKDB_DIR" "Répertoire Datasets" || true
 check_writable "$CACHE_DIR" "Volume Cache"
-
-# =============================================================================
-# 3. Initialiser SQLite si absente ou vide
-# =============================================================================
-if [ ! -s "$SQLITE_PATH" ]; then
-    log_warn "Base SQLite absente ou vide, initialisation..."
-
-    # Utiliser Python pour initialiser avec schema.sql
-    python3 -c "
-import sqlite3
-from pathlib import Path
-
-schema_path = Path('/app/schema.sql')
-db_path = Path('$SQLITE_PATH')
-
-conn = sqlite3.connect(db_path)
-cursor = conn.cursor()
-
-# Exécuter le schéma
-if schema_path.exists():
-    schema = schema_path.read_text()
-    cursor.executescript(schema)
-    print('[init] Schéma SQL appliqué')
-else:
-    print('[init] ATTENTION: schema.sql non trouvé')
-
-conn.commit()
-conn.close()
-print('[init] SQLite initialisée:', db_path)
-"
-
-    log_info "Base SQLite initialisée avec succès"
-else
-    log_info "Base SQLite existante détectée ($(du -h "$SQLITE_PATH" | cut -f1))"
-fi
 
 # =============================================================================
 # 4. Afficher le résumé
 # =============================================================================
 echo ""
 log_info "=== Résumé de l'initialisation ==="
-log_info "  SQLite: $SQLITE_PATH"
-log_info "  DuckDB: $DUCKDB_PATH"
-log_info "  Cache:  $CACHE_DIR"
+log_info "  PostgreSQL: $PG_HOST:$PG_PORT"
+log_info "  DuckDB:     $DUCKDB_PATH"
+log_info "  Datasets:   $DUCKDB_DIR"
+log_info "  Cache:      $CACHE_DIR"
 
 if [ -f "$DUCKDB_PATH" ]; then
-    log_info "  Dataset: présent ($(du -h "$DUCKDB_PATH" | cut -f1))"
+    log_info "  Dataset principal: présent ($(du -h "$DUCKDB_PATH" | cut -f1))"
 else
-    log_info "  Dataset: aucun (sera créé au premier upload)"
+    log_info "  Dataset principal: aucun (sera créé au premier upload)"
 fi
+
+DATASET_COUNT=$(find "$DUCKDB_DIR" -name "*.duckdb" 2>/dev/null | wc -l | tr -d ' ')
+log_info "  Datasets isolés: $DATASET_COUNT fichier(s)"
 echo ""
 
 # =============================================================================

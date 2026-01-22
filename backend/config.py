@@ -14,7 +14,7 @@ from pathlib import Path
 # =============================================================================
 # PostgreSQL: catalogue sémantique, conversations, settings
 # Docker: postgresql://datatalk:password@postgres:5432/datatalk
-# Local: postgresql://localhost:5432/datatalk (ou SQLite fallback)
+# Local: postgresql://localhost:5432/datatalk
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://datatalk:datatalk_dev@localhost:5432/datatalk",

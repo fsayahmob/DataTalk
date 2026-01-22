@@ -5,7 +5,7 @@ Architecture:
 1. extract_metadata_from_connection() - DuckDB native
 2. build_response_model() - Pydantic create_model()
 3. enrich_with_llm() - llm_service.call_llm_structured()
-4. save_to_catalog() - SQLite update
+4. save_to_catalog() - PostgreSQL update
 5. generate_kpis() - Génération des 4 KPIs
 
 Ce module réexporte toutes les fonctions et classes publiques

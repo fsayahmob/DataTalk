@@ -1,5 +1,5 @@
 """
-Persistence du catalogue dans SQLite.
+Persistence du catalogue dans PostgreSQL.
 
 Sauvegarde et mise à jour des descriptions, synonymes.
 Chargement du contexte des tables pour enrichissement.
@@ -21,7 +21,7 @@ def save_to_catalog(
     catalog: ExtractedCatalog, enrichment: dict[str, Any], db_path: str | None = None
 ) -> dict[str, int]:
     """
-    Sauvegarde le catalogue enrichi dans SQLite.
+    Sauvegarde le catalogue enrichi dans PostgreSQL.
 
     Retourne les statistiques: tables, columns, synonyms créés.
     """
@@ -120,7 +120,7 @@ def save_to_catalog(
 def update_descriptions(catalog: ExtractedCatalog, enrichment: dict[str, Any]) -> dict[str, int]:
     """
     Met à jour les descriptions des tables et colonnes existantes.
-    Utilise une seule connexion pour éviter les deadlocks SQLite.
+    Utilise une seule connexion pour éviter les deadlocks PostgreSQL.
     """
     conn = get_connection()
     cursor = conn.cursor()
@@ -196,7 +196,7 @@ def load_tables_context(
     tables_rows: list[Any],
 ) -> list[tuple[TableMetadata, str]]:
     """
-    Charge le contexte des tables depuis SQLite.
+    Charge le contexte des tables depuis PostgreSQL.
 
     Lit le full_context (calculé à l'extraction) au lieu de recalculer
     les statistiques depuis DuckDB.
@@ -216,7 +216,7 @@ def load_tables_context(
         table_name = table_row["name"]
         row_count = table_row["row_count"] or 0
 
-        # Récupérer les colonnes depuis SQLite (avec full_context)
+        # Récupérer les colonnes depuis PostgreSQL (avec full_context)
         cursor.execute(
             """
             SELECT name, data_type, full_context, sample_values, value_range
@@ -225,7 +225,7 @@ def load_tables_context(
             (table_id,),
         )
         columns_rows = cursor.fetchall()
-        logger.info("  Lecture depuis SQLite: %s (%d colonnes)", table_name, len(columns_rows))
+        logger.info("  Lecture depuis PostgreSQL: %s (%d colonnes)", table_name, len(columns_rows))
 
         # Construire le contexte et les métadonnées
         cols_desc = []

@@ -1,5 +1,5 @@
 """
-Catalog - Gestion des métadonnées SQLite.
+Catalog - Gestion des métadonnées PostgreSQL.
 
 API publique stable pour backward compatibility.
 Tous les imports `from catalog import X` continuent de fonctionner.

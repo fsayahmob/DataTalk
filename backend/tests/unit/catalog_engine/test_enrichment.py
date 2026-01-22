@@ -321,7 +321,7 @@ class TestEnrichWithLlm:
             tables=[TableMetadata(name="t", row_count=100, columns=[])],
         )
 
-        custom_context = "Custom context from SQLite"
+        custom_context = "Custom context from PostgreSQL"
         enrich_with_llm(catalog, tables_context=custom_context)
 
         # Le contexte devrait être utilisé dans le prompt

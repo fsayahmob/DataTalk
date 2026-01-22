@@ -62,7 +62,7 @@ async def list_llm_providers() -> dict[str, list[dict[str, Any]]]:
             # Provider local - vérifier s'il est accessible
             is_available = check_local_provider_available(p["name"])
 
-        # Convertir les booléens SQLite (0/1) en vrais booléens
+        # Convertir les booléens PostgreSQL (0/1) en vrais booléens
         provider_data = {
             "id": p["id"],
             "name": p["name"],

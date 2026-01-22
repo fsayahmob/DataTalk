@@ -1,4 +1,4 @@
-"""Tests pour catalog_engine/persistence.py - Persistence SQLite."""
+"""Tests pour catalog_engine/persistence.py - Persistence PostgreSQL."""
 
 from pathlib import Path
 from typing import Any

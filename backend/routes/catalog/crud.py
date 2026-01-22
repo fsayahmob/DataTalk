@@ -27,7 +27,7 @@ router = APIRouter()
 @router.get("")
 async def get_catalog() -> dict[str, list[dict[str, Any]]]:
     """
-    Retourne le catalogue du dataset actif depuis SQLite.
+    Retourne le catalogue du dataset actif depuis PostgreSQL.
     Structure: datasources → tables → columns
     Optimisé: 4 requêtes au lieu de O(N*M*K) requêtes.
 

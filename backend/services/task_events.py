@@ -53,7 +53,7 @@ def publish_task_event(
         progress: Pourcentage de progression (0-100)
         step: Nom de l'étape courante
         message: Message descriptif
-        job_id: ID du job SQLite associé
+        job_id: ID du job PostgreSQL associé
         datasource_id: ID de la datasource
         result: Résultat final (pour SUCCESS)
         error: Message d'erreur (pour FAILURE)
