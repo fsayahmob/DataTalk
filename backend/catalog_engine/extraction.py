@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 from type_defs import DuckDBConnection
 
+from .filters import is_internal_column, is_internal_table
 from .models import ColumnMetadata, ExtractedCatalog, TableMetadata, ValueFrequency
 
 # =============================================================================
@@ -236,9 +237,6 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
     """
     tables_result: list[TableMetadata] = []
 
-    # Tables et colonnes internes à exclure (PyAirbyte, système, etc.)
-    EXCLUDED_PREFIXES = ("_airbyte_", "_dlt_", "__")
-
     # Récupérer les tables (exclure les tables internes)
     tables = conn.execute("""
         SELECT table_name
@@ -247,11 +245,8 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
         ORDER BY table_name
     """).fetchall()
 
-    # Filtrer les tables internes
-    tables = [
-        t for t in tables
-        if not any(t[0].startswith(prefix) for prefix in EXCLUDED_PREFIXES)
-    ]
+    # Filtrer les tables internes (Airbyte, DLT, système)
+    tables = [t for t in tables if not is_internal_table(t[0])]
 
     logger.info("Extraction avancée de %d tables (après exclusion tables internes)", len(tables))
 
@@ -274,7 +269,7 @@ def extract_metadata_from_connection(conn: DuckDBConnection) -> ExtractedCatalog
 
         for col_name, col_type in columns_info:
             # Exclure les colonnes internes (Airbyte, DLT, etc.)
-            if any(col_name.startswith(prefix) for prefix in EXCLUDED_PREFIXES):
+            if is_internal_column(col_name):
                 continue
             col_metadata = extract_column_stats(conn, table_name, col_name, col_type, row_count)
             columns_result.append(col_metadata)

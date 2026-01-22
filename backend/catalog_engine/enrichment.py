@@ -15,6 +15,7 @@ from llm_config import get_active_prompt
 from llm_service import call_llm_structured
 from llm_utils import EnrichmentError, call_with_retry
 
+from .filters import is_internal_column
 from .models import CatalogValidationResult, ColumnMetadata, ExtractedCatalog
 
 
@@ -73,15 +74,6 @@ class PromptNotConfiguredError(Exception):
 # =============================================================================
 
 
-# Préfixes de colonnes internes à exclure (Airbyte, DLT, etc.)
-EXCLUDED_COLUMN_PREFIXES = ("_airbyte_", "_dlt_", "__")
-
-
-def _is_internal_column(col_name: str) -> bool:
-    """Vérifie si une colonne est interne (Airbyte, DLT, etc.)."""
-    return any(col_name.startswith(prefix) for prefix in EXCLUDED_COLUMN_PREFIXES)
-
-
 def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
     """
     Crée dynamiquement un modèle Pydantic basé sur la structure du catalogue.
@@ -114,7 +106,7 @@ def build_response_model(catalog: ExtractedCatalog) -> type[BaseModel]:
         column_fields: dict[str, tuple[type, Any]] = {}
         for col in table.columns:
             # Exclure les colonnes internes (Airbyte, DLT, etc.)
-            if _is_internal_column(col.name):
+            if is_internal_column(col.name):
                 continue
             column_fields[col.name] = (
                 ColumnEnrichment,
@@ -170,7 +162,7 @@ def _build_full_context(catalog: ExtractedCatalog) -> str:
         cols_desc = []
         for col in table.columns:
             # Exclure les colonnes internes
-            if _is_internal_column(col.name):
+            if is_internal_column(col.name):
                 continue
             # Ligne principale: nom, type, stats de base
             col_info = f"  - {col.name} ({col.data_type})"
@@ -330,7 +322,7 @@ def validate_catalog_enrichment(
         # Vérifier chaque colonne (exclure colonnes internes)
         columns_enrichment = table_enrichment.get("columns", {})
         for col in table.columns:
-            if _is_internal_column(col.name):
+            if is_internal_column(col.name):
                 continue
             col_enrichment = columns_enrichment.get(col.name, {})
 

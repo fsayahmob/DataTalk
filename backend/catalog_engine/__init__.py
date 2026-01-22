@@ -23,6 +23,11 @@ from .enrichment import (
     estimate_tokens,
     validate_catalog_enrichment,
 )
+from .filters import (
+    EXCLUDED_PREFIXES,
+    is_internal_column,
+    is_internal_table,
+)
 from .extraction import (
     COMMON_PATTERNS,
     build_column_full_context,
@@ -70,6 +75,8 @@ from .orchestration import enrich_selected_tables, extract_only
 __all__ = [
     # Extraction
     "COMMON_PATTERNS",
+    # Filters
+    "EXCLUDED_PREFIXES",
     "CatalogValidationResult",
     "ColumnMetadata",
     "ExtractedCatalog",
@@ -97,6 +104,8 @@ __all__ = [
     # Questions
     "generate_suggested_questions",
     "get_data_period",
+    "is_internal_column",
+    "is_internal_table",
     "save_kpis",
     "save_suggested_questions",
     "save_to_catalog",
