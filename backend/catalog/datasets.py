@@ -155,11 +155,17 @@ def get_datasets(include_stats: bool = True) -> list[dict[str, Any]]:
     Liste tous les datasets.
 
     Args:
-        include_stats: Si True, inclut les stats DuckDB (plus lent)
+        include_stats: Ignoré - les stats sont toujours lues depuis PostgreSQL
+                       (mises à jour par le worker après sync)
 
     Returns:
         Liste des datasets avec leurs métadonnées
     """
+    # Note: include_stats est gardé pour compatibilité API mais ignoré.
+    # Les stats sont stockées dans PostgreSQL par le worker après chaque sync,
+    # évitant ainsi les conflits de lock DuckDB pendant les syncs.
+    _ = include_stats  # Unused, kept for API compatibility
+
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -177,12 +183,6 @@ def get_datasets(include_stats: bool = True) -> list[dict[str, Any]]:
     for row in rows:
         dataset = dict(row)
         dataset["is_active"] = bool(dataset["is_active"])
-
-        # Optionnellement rafraîchir les stats depuis le fichier DuckDB
-        if include_stats and Path(dataset["duckdb_path"]).exists():
-            stats = _get_duckdb_stats(dataset["duckdb_path"])
-            dataset.update(stats)
-
         datasets.append(dataset)
 
     return datasets
