@@ -1,5 +1,5 @@
 """
-Internationalisation (i18n) pour G7 Analytics Backend.
+Internationalisation (i18n) pour DataTalk Backend.
 Standard: fichiers JSON avec clés hiérarchiques.
 
 Usage:

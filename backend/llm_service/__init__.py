@@ -1,5 +1,5 @@
 """
-Service LLM centralisé pour G7 Analytics.
+Service LLM centralisé pour DataTalk.
 
 Utilise LiteLLM pour une interface unifiée multi-provider.
 Gère le tracking des coûts automatiquement.

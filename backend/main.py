@@ -1,5 +1,5 @@
 """
-FastAPI Backend pour G7 Analytics
+FastAPI Backend pour DataTalk
 Gère les appels LLM + DuckDB dans un seul processus Python persistant
 
 Structure modulaire:
@@ -115,8 +115,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="G7 Analytics API",
-    description="API pour l'analyse des évaluations clients G7",
+    title="DataTalk API",
+    description="API pour la plateforme d'analytics conversationnelle DataTalk",
     version="1.0.0",
     lifespan=lifespan,
 )

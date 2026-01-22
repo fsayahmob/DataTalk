@@ -98,7 +98,7 @@ async def get_database_status() -> dict[str, Any]:
     return {
         "status": "connected" if app_state.db_connection else "disconnected",
         "path": app_state.current_db_path,
-        "configured_path": get_setting("duckdb_path") or "data/g7_analytics.duckdb",
+        "configured_path": get_setting("duckdb_path") or "data/datatalk.duckdb",
         "engine": "DuckDB",
     }
 

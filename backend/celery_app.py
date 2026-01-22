@@ -1,5 +1,5 @@
 """
-Configuration Celery pour G7 Analytics.
+Configuration Celery pour DataTalk.
 
 Gère les tasks longues (extraction, enrichissement LLM) de façon asynchrone.
 Le worker Celery s'exécute dans un processus séparé de l'API.
@@ -17,7 +17,7 @@ from celery import Celery
 from config import REDIS_URL
 
 celery_app = Celery(
-    "g7_analytics",
+    "datatalk",
     broker=REDIS_URL,
     backend=REDIS_URL,
     include=["tasks.catalog", "tasks.datasources", "tasks.maintenance"],

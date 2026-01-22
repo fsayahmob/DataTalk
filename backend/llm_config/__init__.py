@@ -1,5 +1,5 @@
 """
-Configuration LLM pour G7 Analytics.
+Configuration LLM pour DataTalk.
 
 Ce package gère les providers, modèles, secrets (chiffrés), tracking des coûts et prompts.
 Réexporte toutes les fonctions pour maintenir la compatibilité avec les imports existants.

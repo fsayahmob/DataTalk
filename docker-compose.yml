@@ -19,7 +19,7 @@
 #   docker run --rm -v ./data:/src -v datatalk-sqlite:/dst alpine \
 #     cp /src/catalog.sqlite /dst/catalog.sqlite
 #   docker run --rm -v ./data:/src -v datatalk-duckdb:/dst alpine \
-#     cp /src/g7_analytics.duckdb /dst/datatalk.duckdb
+#     cp /src/datatalk.duckdb /dst/datatalk.duckdb
 # =============================================================================
 
 name: datatalk
