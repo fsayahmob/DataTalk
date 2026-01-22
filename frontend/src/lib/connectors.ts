@@ -28,7 +28,10 @@ export const CONNECTOR_NAMES: Record<string, string> = {
  *
  * Falls back to title-cased type if not found in mapping.
  */
-export function getConnectorName(type: string): string {
+export function getConnectorName(type: string | null | undefined): string {
+  if (!type) {
+    return "Unknown";
+  }
   if (CONNECTOR_NAMES[type]) {
     return CONNECTOR_NAMES[type];
   }
