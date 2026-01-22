@@ -456,3 +456,6 @@ CONSIGNES:
 - footer doit indiquer la période des données
 - IMPORTANT: Mets invert_trend=true pour les KPIs où une baisse est POSITIVE (taux d''insatisfaction, erreurs, réclamations, temps d''attente...)
 ', 'normal', 1, 800, 'Génération des widgets et questions suggérées. Placeholder {schema}.', '2026-01-11 19:55:31', '2026-01-11 22:38:21');
+
+-- Data migrations: Fix NULL source_type on legacy datasources
+UPDATE datasources SET source_type = type WHERE source_type IS NULL OR source_type = '';
